@@ -20,15 +20,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.apache.plc4x.malbec.projecttype</groupId>    
+        <groupId>org.apache.plc4x.malbec.projecttype</groupId>
         <artifactId>projecttype</artifactId>
         <version>1.1.0-SNAPSHOT</version>
     </parent>
-
-    <artifactId>hmi</artifactId>
-    <name>${project.groupId}:${project.artifactId}</name>    
+    <artifactId>HMIPanelSubproject</artifactId>
     <packaging>nbm</packaging>
-    
     <build>
         <plugins>
             <plugin>
@@ -37,8 +34,9 @@
                 <extensions>true</extensions>
                 <configuration>
                     <publicPackages>
-                        <publicPackage>org.apache.plc4x.malbec.hmi.ftype</publicPackage>
-                        <publicPackage>org.apache.plc4x.malbec.hmi.impl</publicPackage>
+                        <publicPackage>org.apache.plc4x.malbec.projecttype.panel</publicPackage>
+                        <publicPackage>org.apache.plc4x.malbec.projecttype.panel.action</publicPackage>
+                        <publicPackage>org.apache.plc4x.malbec.projecttype.panel.nodes</publicPackage>
                     </publicPackages>
                 </configuration>
             </plugin>
@@ -53,80 +51,36 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.1</version>
-                <configuration>
-                    <showDeprecation>false</showDeprecation>
-                    <proc>full</proc>
-                </configuration>
-            </plugin>              
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
         </plugins>
     </build>
     <dependencies>
-        <!-- Common Annotations - org.netbeans.api.annotations.common -->
         <dependency>
             <groupId>org.netbeans.api</groupId>
             <artifactId>org-netbeans-api-annotations-common</artifactId>
             <version>${netbeans.version}</version>
         </dependency>
-        <!-- Datasystems API - org.openide.loader -->
         <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-openide-loaders</artifactId>
-            <version>${netbeans.version}</version>
+            <groupId>org.apache.plc4x.malbec.s88</groupId>
+            <artifactId>api</artifactId>
+            <version>${project.version}</version>
+            <type>jar</type>
         </dependency>
-        <!-- Dialogs API - org.openide.dialogs -->        
         <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-openide-dialogs</artifactId>
-            <version>${netbeans.version}</version>
+            <groupId>org.apache.plc4x.malbec.s88</groupId>
+            <artifactId>plant</artifactId>
+            <version>${project.version}</version>
+            <type>jar</type>
         </dependency>
-        <!-- File System API - org.openide.filesystems -->
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-openide-filesystems</artifactId>
-            <version>${netbeans.version}</version>
-        </dependency>   
-        <!-- Lookup API - org.openide.util.lookup --> 
         <dependency>
             <groupId>org.netbeans.api</groupId>
             <artifactId>org-openide-util-lookup</artifactId>
             <version>${netbeans.version}</version>
-        </dependency>                
-        <!-- Nodes API - org.openide.nodes -->                            
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-openide-nodes</artifactId>
-            <version>${netbeans.version}</version>
         </dependency>
-        <!-- Project API - org.netbeans.modules.projectapi -->
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-netbeans-modules-projectapi</artifactId>
-            <version>${netbeans.version}</version>
-        </dependency>
-        <!-- Project UI API - org.netbeans.modules.projectuiapi -->        
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-netbeans-modules-projectuiapi</artifactId>
-            <version>${netbeans.version}</version>
-        </dependency>        
-        <!-- UI Utilities - org.openide.awt -->
         <dependency>
             <groupId>org.netbeans.api</groupId>
             <artifactId>org-openide-util-ui</artifactId>
-            <version>${netbeans.version}</version>
-        </dependency>     
-        <!-- UI Utilities - org.openide.util -->           
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-openide-util</artifactId>
-            <version>${netbeans.version}</version>
-        </dependency>                
-        
-        <dependency>
-            <groupId>org.netbeans.api</groupId>
-            <artifactId>org-netbeans-api-templates</artifactId>
             <version>${netbeans.version}</version>
         </dependency>
         <dependency>
@@ -136,7 +90,89 @@
         </dependency>
         <dependency>
             <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-nodes</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-loaders</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-filesystems</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-filesystems-nb</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-spi-quicksearch</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-modules-projectapi</artifactId>
+            <version>${netbeans.version}</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-modules-projectuiapi</artifactId>
+            <version>${netbeans.version}</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-util</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
             <artifactId>org-openide-text</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-modules</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-explorer</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-dialogs</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-awt</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-api-progress</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-api-progress-nb</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-api-scripting</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-api-templates</artifactId>
             <version>${netbeans.version}</version>
         </dependency>
         <dependency>
@@ -146,39 +182,54 @@
         </dependency>
         <dependency>
             <groupId>org.netbeans.api</groupId>
-            <artifactId>org-openide-awt</artifactId>
+            <artifactId>org-netbeans-modules-editor-mimelookup</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-modules-options-api</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-modules-projectuiapi-base</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-modules-queries</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-modules-settings</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-swing-outline</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-swing-tabcontrol</artifactId>
+            <version>${netbeans.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-openide-actions</artifactId>
             <version>${netbeans.version}</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>comms</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>events</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>pics</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>recipes</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>htc</artifactId>
+            <artifactId>HMIPanelSubprojectCategory</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.plc4x.malbec.projecttype</groupId>
-            <artifactId>HMIPanelSubproject</artifactId>
-            <version>1.1.0-SNAPSHOT</version>
-            <type>jar</type>
+            <artifactId>ConfigPhoebus</artifactId>
+            <version>${project.version}</version>
         </dependency>
+       
     </dependencies>
 </project>

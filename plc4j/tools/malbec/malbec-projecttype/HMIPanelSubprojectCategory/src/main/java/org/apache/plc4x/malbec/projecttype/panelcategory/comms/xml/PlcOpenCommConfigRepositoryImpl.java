@@ -25,6 +25,7 @@ import java.util.Map;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRepository;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigStorage;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationsConfig;
+import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
 import org.apache.xmlbeans.XmlOptions;
 import org.plcopen.xml.tc60201.ProjectDocument;
@@ -60,7 +61,9 @@ public final class PlcOpenCommConfigRepositoryImpl implements CommConfigReposito
             .setSavePrettyPrint()
             .setSavePrettyPrintIndent(2)
             .setSaveAggressiveNamespaces()
-            .setSaveSuggestedPrefixes(Map.of(MalbecNamespaces.DEVICE_NS, "d"));
+            .setSaveSuggestedPrefixes(Map.of(
+                    MalbecNamespaces.DEVICE_NS, "d",
+                    MalbecNamespaces.COMMS_NS, "c"));
 
     private final CommConfigStorage storage;
 
@@ -76,6 +79,10 @@ public final class PlcOpenCommConfigRepositoryImpl implements CommConfigReposito
             DeviceConfigData device = DeviceXmlMapper.readDevice(configuration);
             if (device != null) {
                 config.addDevice(device);
+                CommConfigData comms = DeviceXmlMapper.readComms(configuration);
+                if (comms != null) {
+                    config.upsertComms(device.getUuid(), comms);
+                }
             }
         }
         return config;
@@ -87,7 +94,8 @@ public final class PlcOpenCommConfigRepositoryImpl implements CommConfigReposito
         Configurations configurations = findConfigurations(doc);
         removeAllConfigurations(configurations);
         for (DeviceConfigData device : config.getDevices()) {
-            DeviceXmlMapper.writeDevice(device, configurations);
+            Configuration configuration = DeviceXmlMapper.writeDevice(device, configurations);
+            DeviceXmlMapper.writeComms(config.getComms(device.getUuid()), configuration);
         }
         try (OutputStream out = storage.create()) {
             doc.save(out, SAVE_OPTIONS);

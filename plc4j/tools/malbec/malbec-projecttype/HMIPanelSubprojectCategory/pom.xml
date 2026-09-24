@@ -66,8 +66,7 @@ under the License.
                     <!-- Directorio donde se encuentra el XSD -->
                     <schemaDirectory>src/main/schema</schemaDirectory>
                     
-                    <!-- Asignación opcional del paquete Java generado -->
-                    <!-- xmlbeans asigna paquetes según los namespaces del XSD por defecto -->
+                    <repackage>org.apache.plc4x.malbec.projecttype.hmipanelsubprojectcategory.metadata</repackage>
                     <noUpa>true</noUpa>
                     <noPvr>true</noPvr>
                 </configuration>

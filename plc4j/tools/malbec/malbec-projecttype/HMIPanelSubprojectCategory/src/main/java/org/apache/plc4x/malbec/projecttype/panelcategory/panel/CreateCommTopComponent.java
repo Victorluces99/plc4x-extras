@@ -30,6 +30,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
+import org.netbeans.api.project.Project;
 import org.openide.util.lookup.AbstractLookup;
 import org.openide.util.lookup.InstanceContent;
 
@@ -67,6 +69,8 @@ public final class CreateCommTopComponent extends TopComponent {
     private TablaTabPanel tabPv;
     private InstanceContent content = new InstanceContent();
     private String projectPath;
+    private Project project;
+    private String deviceUuid;
     private OnSaveListener saveListener;
     private boolean hasUnsavedChanges = false;
 
@@ -233,6 +237,73 @@ public final class CreateCommTopComponent extends TopComponent {
         this.projectPath = path;
     }
 
+    /**
+     * Asocia el proyecto y el dispositivo activo (por uuid) para el que se
+     * editan los grupos/items/pvs. Precarga la configuración existente.
+     */
+    public void setDeviceTarget(Project project, String deviceUuid) {
+        this.project = project;
+        this.deviceUuid = deviceUuid;
+        if (project == null) {
+            return;
+        }
+        HMICommunicationModel model = project.getLookup().lookup(HMICommunicationModel.class);
+        if (model == null) {
+            return;
+        }
+        DeviceConfigData device = (deviceUuid != null)
+                ? model.findByUuid(deviceUuid)
+                : (model.getDevices().isEmpty() ? null : model.getDevices().get(0));
+        if (device != null) {
+            this.deviceUuid = device.getUuid();
+            txtDeviceName.setText(device.getDeviceName());
+        }
+        preload(model.getComms(this.deviceUuid));
+    }
+
+    private void preload(CommConfigData config) {
+        resetTables();
+        if (config == null) {
+            return;
+        }
+        DynamicTableModel groupModel = tabGroup.getTableModel();
+        for (CommConfigData.GroupConfig g : config.getGroups()) {
+            groupModel.addRow(new Object[]{
+                g.getName(), g.getDescription(), g.getScantime(),
+                g.isEnable() ? "TRUE" : "FALSE"
+            });
+        }
+        DynamicTableModel itemModel = tabItem.getTableModel();
+        for (CommConfigData.ItemConfig i : config.getItems()) {
+            itemModel.addRow(new Object[]{
+                i.getName(), i.getDescription(), i.getTag(), i.isEnable() ? "TRUE" : "FALSE"
+            });
+        }
+        DynamicTableModel pvModel = tabPv.getTableModel();
+        for (CommConfigData.PvConfig p : config.getPvs()) {
+            pvModel.addRow(new Object[]{
+                p.getName(), p.getType(), p.getId(), p.getOffset(), p.getDescriptor(),
+                p.getScanTime(), p.isScanEnable() ? "TRUE" : "FALSE",
+                p.isWriteEnable() ? "TRUE" : "FALSE", p.getDisplayLimitLow(),
+                p.getDisplayLimitHigh(), p.getDisplayDescription(), p.getDisplayFormat(),
+                p.getDisplayUnits(), p.getControlLimitLow(), p.getControlLimitHigh(),
+                p.getControlMinStep()
+            });
+        }
+    }
+
+    private void resetTables() {
+        clearModel(tabGroup.getTableModel());
+        clearModel(tabItem.getTableModel());
+        clearModel(tabPv.getTableModel());
+    }
+
+    private static void clearModel(DynamicTableModel model) {
+        for (int r = model.getRowCount() - 1; r >= 0; r--) {
+            model.removeRow(r);
+        }
+    }
+
     public void markAsModified() {
         this.hasUnsavedChanges = true;
     }
@@ -253,7 +324,7 @@ public final class CreateCommTopComponent extends TopComponent {
             }
             hasUnsavedChanges = false;
 
-            JOptionPane.showMessageDialog(this, "Configuración guardada con éxito en la base de datos.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Configuración guardada con éxito en comunicacion.xml.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
         }
     }
 

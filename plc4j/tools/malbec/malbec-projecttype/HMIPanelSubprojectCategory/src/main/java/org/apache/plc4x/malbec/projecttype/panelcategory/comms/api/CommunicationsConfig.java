@@ -20,19 +20,25 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.comms.api;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
 
 public final class CommunicationsConfig {
 
     private final List<DeviceConfigData> devices;
+    private final Map<String, CommConfigData> comms;
 
     public CommunicationsConfig() {
         this.devices = new ArrayList<>();
+        this.comms = new HashMap<>();
     }
 
     public CommunicationsConfig(List<DeviceConfigData> devices) {
         this.devices = devices == null ? new ArrayList<>() : new ArrayList<>(devices);
+        this.comms = new HashMap<>();
     }
 
     public List<DeviceConfigData> getDevices() {
@@ -53,7 +59,48 @@ public final class CommunicationsConfig {
         devices.add(device);
     }
 
+    public DeviceConfigData findByUuid(String uuid) {
+        for (DeviceConfigData device : devices) {
+            if (device.getUuid() != null && device.getUuid().equals(uuid)) {
+                return device;
+            }
+        }
+        return null;
+    }
+
+    public boolean removeDevice(String uuid) {
+        for (int i = 0; i < devices.size(); i++) {
+            if (devices.get(i).getUuid() != null && devices.get(i).getUuid().equals(uuid)) {
+                devices.remove(i);
+                comms.remove(uuid);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Map<String, CommConfigData> getComms() {
+        return Collections.unmodifiableMap(comms);
+    }
+
+    public CommConfigData getComms(String deviceUuid) {
+        return comms.get(deviceUuid);
+    }
+
+    public void upsertComms(String deviceUuid, CommConfigData commConfig) {
+        if (commConfig == null) {
+            comms.remove(deviceUuid);
+        } else {
+            comms.put(deviceUuid, commConfig);
+        }
+    }
+
+    public void removeComms(String deviceUuid) {
+        comms.remove(deviceUuid);
+    }
+
     public void clear() {
         devices.clear();
+        comms.clear();
     }
 }

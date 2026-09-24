@@ -18,28 +18,24 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.nodes;
 
+import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateCommAction;
-import org.netbeans.api.project.FileOwnerQuery; // <--- Importante
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
 import org.netbeans.api.project.Project;
 import org.netbeans.spi.project.ui.support.NodeFactory;
 import org.netbeans.spi.project.ui.support.NodeFactorySupport;
 import org.netbeans.spi.project.ui.support.NodeList;
-import org.openide.filesystems.FileAttributeEvent;
-import org.openide.filesystems.FileChangeListener;
-import org.openide.filesystems.FileEvent;
 import org.openide.filesystems.FileObject;
-import org.openide.filesystems.FileRenameEvent;
-import org.openide.loaders.DataNode;
-import org.openide.loaders.DataObject;
-import org.openide.loaders.DataObjectNotFoundException;
+import org.openide.nodes.AbstractNode;
 import org.openide.nodes.Children;
 import org.openide.nodes.Node;
-import org.openide.util.Exceptions;
 
 @NodeFactory.Registration(projectType = "org-apache-plc4x-category", position = 70)
 public class HMICategoryCommunicationNodeFactory implements NodeFactory {
@@ -53,44 +49,43 @@ public class HMICategoryCommunicationNodeFactory implements NodeFactory {
             return NodeFactorySupport.fixedNodeList();
         }
 
-        // Pasamos el Project al NodeList si queremos, o solo el folder
-        return new HMICategoryCommunicationNodeList(project, projectDir);
+        HMICommunicationModel model = project.getLookup().lookup(HMICommunicationModel.class);
+        return new HMICategoryCommunicationNodeList(project, model);
     }
-    
-    private static class HMICategoryCommunicationNodeList implements NodeList<FileObject>, FileChangeListener {
-        private final Project project;
-        private final FileObject folder;
-        private final List<ChangeListener> listeners = new ArrayList<>();
-        private final List<FileObject> keys = new ArrayList<>();
-        private final static String HIDE_FILE_MERLOT = "comm.merlot";
 
-        public HMICategoryCommunicationNodeList(Project project, FileObject folder) {
+    private static class HMICategoryCommunicationNodeList implements NodeList<String>, ChangeListener {
+
+        private final Project project;
+        private final HMICommunicationModel model;
+        private final List<ChangeListener> listeners = new ArrayList<>();
+        private final List<String> keys = new ArrayList<>();
+
+        public HMICategoryCommunicationNodeList(Project project, HMICommunicationModel model) {
             this.project = project;
-            this.folder = folder;
+            this.model = model;
+            if (model != null) {
+                model.addChangeListener(this);
+            }
             refreshKeys();
         }
 
         @Override
-        public List<FileObject> keys() {
+        public List<String> keys() {
             return keys;
         }
-        
-        @Override
-        public Node node(FileObject key) {
-            try {
-                DataObject dataObj = DataObject.find(key);
-                
-                // Si el project guardado es null, lo recuperamos usando FileOwnerQuery
-                Project ownerProject = (this.project != null) ? this.project : FileOwnerQuery.getOwner(key);
-                
-                return new HMICommNode(dataObj, ownerProject);
 
-            } catch (DataObjectNotFoundException ex) {
-                Exceptions.printStackTrace(ex);
+        @Override
+        public Node node(String uuid) {
+            if (model == null) {
                 return null;
             }
+            DeviceConfigData device = model.findByUuid(uuid);
+            if (device == null) {
+                return null;
+            }
+            return new HMICommNode(device, project);
         }
-        
+
         @Override
         public void addChangeListener(ChangeListener cl) {
             listeners.add(cl);
@@ -110,83 +105,64 @@ public class HMICategoryCommunicationNodeFactory implements NodeFactory {
 
         @Override
         public void addNotify() {
-            folder.addFileChangeListener(this);
+            if (model != null) {
+                model.addChangeListener(this);
+            }
             refreshKeys();
         }
-        
+
         @Override
         public void removeNotify() {
-            folder.removeFileChangeListener(this);
+            if (model != null) {
+                model.removeChangeListener(this);
+            }
         }
 
         private void refreshKeys() {
             keys.clear();
-            for (FileObject child : folder.getChildren()) {
-                if (!child.isFolder() && "merlot".equalsIgnoreCase(child.getExt())) {
-                    if (!HIDE_FILE_MERLOT.equalsIgnoreCase(child.getNameExt())) {
-                        keys.add(child);
-                    }
+            if (model != null) {
+                for (DeviceConfigData device : model.getDevices()) {
+                    keys.add(device.getUuid());
                 }
             }
             fireChange();
         }
 
         @Override
-        public void fileDataCreated(FileEvent fe) {
-            if ("merlot".equalsIgnoreCase(fe.getFile().getExt())) {
-                refreshKeys();
-            }
-        }
-
-        @Override
-        public void fileDeleted(FileEvent fe) {
-            if ("merlot".equalsIgnoreCase(fe.getFile().getExt())) {
-                refreshKeys();
-            }
-        }
-
-        @Override
-        public void fileRenamed(FileRenameEvent fre) {
+        public void stateChanged(ChangeEvent e) {
             refreshKeys();
         }
-
-        @Override
-        public void fileFolderCreated(FileEvent fe) {
-            refreshKeys();
-        }
-
-        @Override
-        public void fileChanged(FileEvent fe) { }
-
-        @Override
-        public void fileAttributeChanged(FileAttributeEvent fae) { }
     }
-    
-    private static class HMICommNode extends DataNode {
 
+    private static class HMICommNode extends AbstractNode {
+
+        private final DeviceConfigData device;
         private final Project project;
 
-        public HMICommNode(DataObject dataObject, Project project) {
-            super(dataObject, Children.LEAF);
+        public HMICommNode(DeviceConfigData device, Project project) {
+            super(Children.LEAF);
+            this.device = device;
             this.project = project;
-
-            String iconBase = "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/comm.png";
-            if (iconBase != null && !iconBase.isEmpty()) {
-                setIconBaseWithExtension(iconBase);
-            }
+            setName(device.getDeviceName());
+            setDisplayName(device.getDeviceName());
+            setShortDescription(device.getBrand() + " / " + device.getModel() + " / " + device.getProtocol());
+            setIconBaseWithExtension("org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/comm.png");
         }
 
         @Override
         public Action[] getActions(boolean context) {
-            Action[] defaultActions = super.getActions(context);
-
             List<Action> allActions = new ArrayList<>();
-            allActions.add(new HMICategoryCreateCommAction(project));
+            allActions.add(new HMICategoryCreateCommAction(project, device.getUuid()));
             allActions.add(null);
-
-            for (Action action : defaultActions) {
-                allActions.add(action);
-            }
+            allActions.add(new AbstractAction("Eliminar Dispositivo") {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    HMICommunicationModel model = project.getLookup().lookup(HMICommunicationModel.class);
+                    if (model != null && model.removeDevice(device.getUuid())) {
+                        model.save();
+                    }
+                }
+            });
             return allActions.toArray(new Action[0]);
         }
     }

@@ -24,6 +24,7 @@ public final class MalbecNamespaces {
     public static final String DEVICE_NS = "http://apache.org/plc4x/malbec/device";
     public static final String COMMS_NS = "http://apache.org/plc4x/malbec/comms";
     public static final String DEVICE_DATA_NAME = "http://apache.org/plc4x/malbec/device";
+    public static final String COMMS_DATA_NAME = "http://apache.org/plc4x/malbec/comms";
 
     private MalbecNamespaces() {
     }

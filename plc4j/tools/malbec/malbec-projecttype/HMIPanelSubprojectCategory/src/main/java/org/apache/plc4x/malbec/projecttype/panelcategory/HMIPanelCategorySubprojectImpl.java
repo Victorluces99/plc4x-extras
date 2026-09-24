@@ -29,6 +29,7 @@ import javax.swing.ImageIcon;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateCommAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDeviceAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDisplayAction;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
 import org.netbeans.api.annotations.common.StaticResource;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectInformation;
@@ -68,14 +69,20 @@ public class HMIPanelCategorySubprojectImpl implements Project {
     @Override
     public Lookup getLookup() {
         if (lkp == null) {
-            lkp = Lookups.fixed(new Object[]{
-                // register your features here
-                this,
-                new HMIPanelCategorySubprojectInfoImpl(),
-                new HMIPanelCategorySubprojectLogicalViewImpl(this),});
+            ArrayList<Object> services = new ArrayList<>(4);
+            services.add(this);
+            services.add(new HMIPanelCategorySubprojectInfoImpl());
+            services.add(new HMIPanelCategorySubprojectLogicalViewImpl(this));
+            try {
+                services.add(new HMICommunicationModel(this));
+            } catch (Throwable t) {
+                Exceptions.attachMessage(t,
+                        "El modelo de comunicaciones no pudo inicializarse; "
+                        + "se omite del Lookup para no bloquear el árbol de proyectos.");
+            }
+            lkp = Lookups.fixed(services.toArray());
         }
         return lkp;
-
     }
 
     public class HMIPanelCategorySubprojectInfoImpl implements ProjectInformation {
@@ -169,6 +176,11 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                 FileObject projectDir = this.project.getProjectDirectory();
                 String detectedFile = findExistingCategoryFile(projectDir);
 
+                // Por convención, una carpeta llamada "Comunicacion" siempre es de comunicaciones
+//                if (detectedFile == null && "Comunicacion".equalsIgnoreCase(projectDir.getName())) {
+//                    detectedFile = "comunicacion.xml";
+//                }
+
                 // Si no se encuentra ningún archivo compatible, retorna un arreglo vacío
 //                if (detectedFile == null) {
 //                    return new Action[0];
@@ -180,7 +192,7 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                         new Action[]{
                             new HMICategoryCreateDisplayAction(this.project),                        
                         };
-                    case "comm.merlot" ->
+                    case "comunicacion.xml" ->
                         new Action[]{
                             new HMICategoryCreateCommAction(this.project),
                             new HMICategoryCreateDeviceAction(this.project),
@@ -221,7 +233,7 @@ public class HMIPanelCategorySubprojectImpl implements Project {
 
             private String findExistingCategoryFile(FileObject projectDir) {
                 String[] categoryFiles = {
-                    "template.bob", "comm.merlot", "base.oppc", "record.record",
+                    "template.bob", "comunicacion.xml", "base.oppc", "record.record",
                     "base.rcp", "base.rpt", "base.scp", "base.wmg", "base.tlc", "base.rtum"
                 };
 

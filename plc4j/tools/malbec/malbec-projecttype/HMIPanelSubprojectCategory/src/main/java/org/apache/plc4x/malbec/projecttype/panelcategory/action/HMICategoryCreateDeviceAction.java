@@ -19,14 +19,11 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.action;
 
 import java.awt.event.ActionEvent;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import javax.swing.AbstractAction;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CreateDeviceTopComponent;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
 import org.netbeans.api.project.Project;
-import org.openide.filesystems.FileObject;
-import org.openide.filesystems.FileUtil;
 import org.openide.windows.WindowManager;
 
 
@@ -53,31 +50,16 @@ public class HMICategoryCreateDeviceAction extends AbstractAction {
     }
     
     public static void createDeviceFileInProject(Project project, DeviceConfigData data) {
-        try {
-            FileObject projectDirectory = project.getProjectDirectory();
-
-            // Directorio o subcarpeta dentro de tu proyecto
-            FileObject devicesFolder = projectDirectory.getFileObject("Comunicacion");
-//            if (devicesFolder == null) {
-//                devicesFolder = projectDirectory.createFolder("Devices");
-//                devicesFolder = projectDirectory.createData("category", "cfg");
-//            }
-
-            // Evita duplicados asignando un nombre libre basándose en el Device Name
-            String fileName = FileUtil.findFreeFileName(projectDirectory, data.getDeviceName(), "dev");
-
-            // Creamos el archivo físico .merlot
-            FileObject newDeviceFile = projectDirectory.createData(fileName, "merlot");
-
-            // Escribimos la información configurada
-            try (OutputStream os = newDeviceFile.getOutputStream()) {
-                os.write(data.toFileContent().getBytes(StandardCharsets.UTF_8));
-            }
-
-            System.out.println("Dispositivo guardado exitosamente en: " + newDeviceFile.getPath());
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        if (project == null || data == null) {
+            return;
         }
+        HMICommunicationModel model = project.getLookup().lookup(HMICommunicationModel.class);
+        if (model == null) {
+            System.err.println("No se encontró HMICommunicationModel en el Lookup del proyecto");
+            return;
+        }
+        model.upsertDevice(data);
+        model.save();
+        System.out.println("Dispositivo guardado en comunicacion.xml: " + data.getDeviceName());
     }
 }

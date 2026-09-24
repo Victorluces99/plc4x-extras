@@ -19,8 +19,6 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.action;
 
 import org.netbeans.api.project.Project;
-import org.openide.filesystems.FileObject;
-import org.openide.filesystems.FileUtil;
 import org.openide.util.Lookup;
 import org.openide.util.LookupEvent;
 import org.openide.util.LookupListener;
@@ -29,19 +27,24 @@ import org.openide.windows.TopComponent;
 import org.openide.windows.WindowManager;
 import javax.swing.AbstractAction;
 import java.awt.event.ActionEvent;
-import java.io.File;
-import org.apache.plc4x.malbec.projecttype.panelcategory.HMIPanelDataBaseFactory;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CreateCommTopComponent;
 
 public class HMICategoryCreateCommAction extends AbstractAction implements LookupListener {
 
     private final Project project;
+    private final String deviceUuid;
     private final Lookup.Result<CommConfigData> lookupResult;
 
     public HMICategoryCreateCommAction(Project project) {
+        this(project, null);
+    }
+
+    public HMICategoryCreateCommAction(Project project, String deviceUuid) {
         super("Crear Comunicación");
         this.project = project;
+        this.deviceUuid = deviceUuid;
 
         this.lookupResult = Utilities.actionsGlobalContext().lookupResult(CommConfigData.class);
         this.lookupResult.addLookupListener(this);
@@ -57,34 +60,35 @@ public class HMICategoryCreateCommAction extends AbstractAction implements Looku
             return;
         }
 
-        FileObject projectDir = proj.getProjectDirectory();
-        if (projectDir == null) {
+        HMICommunicationModel model = proj.getLookup().lookup(HMICommunicationModel.class);
+        if (model == null) {
             return;
         }
-        FileObject merlotFile = projectDir.getFileObject("comm.merlot");
 
-        File targetFile = (merlotFile != null) ? FileUtil.toFile(merlotFile) : FileUtil.toFile(projectDir);
+        String deviceId = deviceUuid;
+        if (deviceId == null && model.getDevices().isEmpty()) {
+            return;
+        }
+        if (deviceId == null) {
+            deviceId = model.getDevices().get(0).getUuid();
+        }
+        final String targetUuid = deviceId;
 
-        if (targetFile != null) {
-            String dbFolderPath = targetFile.isDirectory() ? targetFile.getAbsolutePath() : targetFile.getParent();
+        TopComponent tc = WindowManager.getDefault().findTopComponent("DeviceManagerTopComponent");
 
-            HMIPanelDataBaseFactory.createDB(dbFolderPath);
+        if (tc instanceof CreateCommTopComponent) {
+            CreateCommTopComponent deviceWindow = (CreateCommTopComponent) tc;
 
-            TopComponent tc = WindowManager.getDefault().findTopComponent("DeviceManagerTopComponent");
+            deviceWindow.setDeviceTarget(proj, targetUuid);
 
-            if (tc instanceof CreateCommTopComponent) {
-                CreateCommTopComponent deviceWindow = (CreateCommTopComponent) tc;
+            deviceWindow.setOnSaveListener(config -> {
+                System.out.println("Guardando comunicación en comunicacion.xml: " + config.getDeviceName());
+                model.upsertComms(targetUuid, config);
+                model.save();
+            });
 
-                deviceWindow.setProjectPath(dbFolderPath);
-
-                deviceWindow.setOnSaveListener(config -> {
-                    System.out.println("Guardando datos en la base de datos de: " + dbFolderPath);
-                    HMIPanelDataBaseFactory.insertDeviceConfig(dbFolderPath, config);
-                });
-
-                deviceWindow.open();
-                deviceWindow.requestActive();
-            }
+            deviceWindow.open();
+            deviceWindow.requestActive();
         }
     }
 

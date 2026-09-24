@@ -26,10 +26,10 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRep
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigStorage;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationsConfig;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
-import org.apache.xmlbeans.XmlCursor;
-import org.apache.xmlbeans.XmlObject;
 import org.apache.xmlbeans.XmlOptions;
 import org.plcopen.xml.tc60201.ProjectDocument;
+import org.plcopen.xml.tc60201.ProjectDocument.Project.Instances.Configurations;
+import org.plcopen.xml.tc60201.ProjectDocument.Project.Instances.Configurations.Configuration;
 
 public final class PlcOpenCommConfigRepositoryImpl implements CommConfigRepository {
 
@@ -72,7 +72,7 @@ public final class PlcOpenCommConfigRepositoryImpl implements CommConfigReposito
     public CommunicationsConfig load() throws Exception {
         ProjectDocument doc = parseOrNew();
         CommunicationsConfig config = new CommunicationsConfig();
-        for (XmlObject configuration : configurationsOf(doc)) {
+        for (Configuration configuration : configurationsOf(doc)) {
             DeviceConfigData device = DeviceXmlMapper.readDevice(configuration);
             if (device != null) {
                 config.addDevice(device);
@@ -84,7 +84,7 @@ public final class PlcOpenCommConfigRepositoryImpl implements CommConfigReposito
     @Override
     public void save(CommunicationsConfig config) throws Exception {
         ProjectDocument doc = parseOrNew();
-        XmlObject configurations = findConfigurations(doc);
+        Configurations configurations = findConfigurations(doc);
         removeAllConfigurations(configurations);
         for (DeviceConfigData device : config.getDevices()) {
             DeviceXmlMapper.writeDevice(device, configurations);
@@ -102,39 +102,15 @@ public final class PlcOpenCommConfigRepositoryImpl implements CommConfigReposito
         return ProjectDocument.Factory.parse(text);
     }
 
-    private static List<XmlObject> configurationsOf(ProjectDocument doc) {
-        List<XmlObject> result = new ArrayList<>();
-        XmlCursor cursor = findConfigurations(doc).newCursor();
-        try {
-            if (cursor.toFirstChild()) {
-                do {
-                    result.add(cursor.getObject());
-                } while (cursor.toNextSibling());
-            }
-        } finally {
-            cursor.dispose();
-        }
-        return result;
+    private static List<Configuration> configurationsOf(ProjectDocument doc) {
+        return new ArrayList<>(findConfigurations(doc).getConfigurationList());
     }
 
-    private static XmlObject findConfigurations(ProjectDocument doc) {
-        XmlObject[] found = doc.selectPath(".//*[local-name()='configurations']");
-        if (found.length == 0) {
-            throw new IllegalStateException("El documento PLCopen no contiene <configurations>");
-        }
-        return found[0];
+    private static Configurations findConfigurations(ProjectDocument doc) {
+        return doc.getProject().getInstances().getConfigurations();
     }
 
-    private static void removeAllConfigurations(XmlObject configurations) {
-        for (XmlObject child : configurations.selectPath("*")) {
-            XmlCursor cursor = child.newCursor();
-            try {
-                if (cursor.isStart()) {
-                    cursor.removeXml();
-                }
-            } finally {
-                cursor.dispose();
-            }
-        }
+    private static void removeAllConfigurations(Configurations configurations) {
+        configurations.setConfigurationArray(new Configuration[0]);
     }
 }

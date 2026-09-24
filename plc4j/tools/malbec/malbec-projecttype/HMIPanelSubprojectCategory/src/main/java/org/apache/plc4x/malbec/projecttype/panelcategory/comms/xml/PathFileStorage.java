@@ -38,7 +38,7 @@ public record PathFileStorage(Path path) implements CommConfigStorage {
 
     @Override
     public OutputStream create() throws IOException {
-        return Files.newOutputStream(path, StandardCharsets.UTF_8,
+        return Files.newOutputStream(path,
                 StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
                 StandardOpenOption.WRITE);
     }

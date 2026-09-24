@@ -23,9 +23,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
-import org.apache.xmlbeans.XmlObject;
 import org.junit.jupiter.api.Test;
 import org.plcopen.xml.tc60201.ProjectDocument;
+import org.plcopen.xml.tc60201.ProjectDocument.Project.Instances.Configurations;
 
 class DeviceXmlMapperTest {
 
@@ -38,7 +38,7 @@ class DeviceXmlMapperTest {
     @Test
     void roundTripDevice() throws Exception {
         ProjectDocument doc = ProjectDocument.Factory.parse(PlcOpenCommConfigRepositoryImpl.TEMPLATE);
-        XmlObject configurations = doc.selectPath(".//*[local-name()='configurations']")[0];
+        Configurations configurations = doc.getProject().getInstances().getConfigurations();
 
         DeviceConfigData device = new DeviceConfigData(
                 "Siemens", "S7-1500", "S7", "PLC_Uno",
@@ -48,8 +48,7 @@ class DeviceXmlMapperTest {
 
         DeviceXmlMapper.writeDevice(device, configurations);
 
-        DeviceConfigData read = DeviceXmlMapper.readDevice(
-                doc.selectPath(".//*[local-name()='configuration']")[0]);
+        DeviceConfigData read = DeviceXmlMapper.readDevice(configurations.getConfigurationArray(0));
 
         assertNotNull(read);
         assertEquals(device.getBrand(), read.getBrand());
@@ -67,7 +66,7 @@ class DeviceXmlMapperTest {
     @Test
     void escapeSpecialCharacters() throws Exception {
         ProjectDocument doc = ProjectDocument.Factory.parse(PlcOpenCommConfigRepositoryImpl.TEMPLATE);
-        XmlObject configurations = doc.selectPath(".//*[local-name()='configurations']")[0];
+        Configurations configurations = doc.getProject().getInstances().getConfigurations();
 
         DeviceConfigData device = new DeviceConfigData(
                 "Siemens & Co<\"XL\">", "A 'B'", "S7", "PLC & \"A\" <1>",
@@ -76,8 +75,7 @@ class DeviceXmlMapperTest {
 
         DeviceXmlMapper.writeDevice(device, configurations);
 
-        DeviceConfigData read = DeviceXmlMapper.readDevice(
-                doc.selectPath(".//*[local-name()='configuration']")[0]);
+        DeviceConfigData read = DeviceXmlMapper.readDevice(configurations.getConfigurationArray(0));
 
         assertEquals(device.getDeviceName(), read.getDeviceName());
         assertEquals(device.getBrand(), read.getBrand());
@@ -89,21 +87,20 @@ class DeviceXmlMapperTest {
     @Test
     void readDeviceReturnsNullWhenNoPayload() throws Exception {
         ProjectDocument doc = ProjectDocument.Factory.parse(PlcOpenCommConfigRepositoryImpl.TEMPLATE);
-        assertTrue(doc.selectPath(".//*[local-name()='configuration']").length == 0);
+        assertTrue(doc.getProject().getInstances().getConfigurations().sizeOfConfigurationArray() == 0);
     }
 
     @Test
     void nullFieldsRoundTripAsEmptyString() throws Exception {
         ProjectDocument doc = ProjectDocument.Factory.parse(PlcOpenCommConfigRepositoryImpl.TEMPLATE);
-        XmlObject configurations = doc.selectPath(".//*[local-name()='configurations']")[0];
+        Configurations configurations = doc.getProject().getInstances().getConfigurations();
 
         DeviceConfigData device = new DeviceConfigData(
                 null, null, null, "PLC", null, null, false, null, null, null);
 
         DeviceXmlMapper.writeDevice(device, configurations);
 
-        DeviceConfigData read = DeviceXmlMapper.readDevice(
-                doc.selectPath(".//*[local-name()='configuration']")[0]);
+        DeviceConfigData read = DeviceXmlMapper.readDevice(configurations.getConfigurationArray(0));
 
         assertEquals("PLC", read.getDeviceName());
         assertEquals("", read.getBrand());

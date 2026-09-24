@@ -29,7 +29,7 @@ public record ProjectFileStorage(FileObject fileObject) implements CommConfigSto
 
     @Override
     public String open() throws IOException {
-        if (!fileObject.exists()) {
+        if (!fileObject.isValid()) {
             return "";
         }
         try (InputStream in = fileObject.getInputStream()) {

@@ -97,6 +97,12 @@ public class CommConfigData {
         private String uuid;
         private String name;
         private String type;
+        /**
+         * PvId: identificador de la variable de proceso. Por contrato almacena
+         * el uuid del {@link ItemConfig} (área de memoria) al que pertenece la
+         * variable; es la única relación entre la PV y su item/grupo/device
+         * (se resuelve vía la tabla Items mediante ItemUuid).
+         */
         private String id;
         private String offset;
         private String descriptor;

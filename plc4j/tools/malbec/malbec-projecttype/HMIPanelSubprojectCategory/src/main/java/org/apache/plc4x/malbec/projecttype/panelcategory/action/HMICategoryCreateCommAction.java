@@ -18,24 +18,20 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.action;
 
-import org.netbeans.api.project.Project;
-import org.openide.util.Lookup;
-import org.openide.util.LookupEvent;
-import org.openide.util.LookupListener;
-import org.openide.util.Utilities;
-import org.openide.windows.TopComponent;
-import org.openide.windows.WindowManager;
-import javax.swing.AbstractAction;
 import java.awt.event.ActionEvent;
-import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CreateCommTopComponent;
+import javax.swing.AbstractAction;
+import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommunicationWizardDialog;
+import org.netbeans.api.project.Project;
 
-public class HMICategoryCreateCommAction extends AbstractAction implements LookupListener {
+/**
+ * Abre el wizard de comunicación ({@link CommunicationWizardDialog}) desde el
+ * nodo de carpeta "Comunicación". Si se suministra {@code deviceUuid}, el
+ * dispositivo queda preseleccionado en el primer paso.
+ */
+public class HMICategoryCreateCommAction extends AbstractAction {
 
     private final Project project;
     private final String deviceUuid;
-    private final Lookup.Result<CommConfigData> lookupResult;
 
     public HMICategoryCreateCommAction(Project project) {
         this(project, null);
@@ -45,61 +41,14 @@ public class HMICategoryCreateCommAction extends AbstractAction implements Looku
         super("Crear Comunicación");
         this.project = project;
         this.deviceUuid = deviceUuid;
-
-        this.lookupResult = Utilities.actionsGlobalContext().lookupResult(CommConfigData.class);
-        this.lookupResult.addLookupListener(this);
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        createComm(project);
-    }
-
-    private void createComm(Project proj) {
-        if (proj == null) {
+        if (project == null) {
             return;
         }
-
-        HMICommunicationModel model = proj.getLookup().lookup(HMICommunicationModel.class);
-        if (model == null) {
-            return;
-        }
-
-        String deviceId = deviceUuid;
-        if (deviceId == null && model.getDevices().isEmpty()) {
-            return;
-        }
-        if (deviceId == null) {
-            deviceId = model.getDevices().get(0).getUuid();
-        }
-        final String targetUuid = deviceId;
-
-        TopComponent tc = WindowManager.getDefault().findTopComponent("DeviceManagerTopComponent");
-
-        if (tc instanceof CreateCommTopComponent) {
-            CreateCommTopComponent deviceWindow = (CreateCommTopComponent) tc;
-
-            deviceWindow.setDeviceTarget(proj, targetUuid);
-
-            deviceWindow.setOnSaveListener(config -> {
-                System.out.println("Guardando comunicación en comunicacion.xml: " + config.getDeviceName());
-                model.upsertComms(targetUuid, config);
-                model.save();
-            });
-
-            deviceWindow.open();
-            deviceWindow.requestActive();
-        }
-    }
-
-    @Override
-    public void resultChanged(LookupEvent ev) {
-        for (CommConfigData config : lookupResult.allInstances()) {
-            System.out.println("--- DATOS RECIBIDOS VÍA LOOKUP ---");
-            System.out.println("Dispositivo activo: " + config.getDeviceName());
-            System.out.println("Total Grupos: " + config.getGroups().size());
-            System.out.println("Total Items: " + config.getItems().size());
-            System.out.println("Total PVs: " + config.getPvs().size());
-        }
+        CommunicationWizardDialog dialog = new CommunicationWizardDialog(project, deviceUuid);
+        dialog.setVisible(true);
     }
 }

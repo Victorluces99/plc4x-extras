@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Properties;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRepository;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationsConfig;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
@@ -55,10 +56,8 @@ class PlcOpenCommConfigRepositoryImplTest {
         CommunicationsConfig loaded = repo.load();
 
         assertEquals(2, loaded.getDevices().size());
-        assertDevice(loaded.getDevices().get(0), "Siemens", "S7-1500", "S7", "PLC_Uno",
-                "Control principal", "uuid-1", true, "S88.1", "s88-uuid-1", "ipa=10.0.0.1");
-        assertDevice(loaded.getDevices().get(1), "Siemens", "S7-1500", "S7", "VFD_Bomba",
-                "Control principal", "uuid-2", true, "S88.1", "s88-uuid-1", "ipa=10.0.0.1");
+        assertDevice(loaded.getDevices().get(0), deviceProps("uuid-1", "PLC_Uno"));
+        assertDevice(loaded.getDevices().get(1), deviceProps("uuid-2", "VFD_Bomba"));
     }
 
     @Test
@@ -127,24 +126,40 @@ class PlcOpenCommConfigRepositoryImplTest {
         assertEquals(false, comms.getPvs().get(0).isWriteEnable());
     }
 
-    private static DeviceConfigData device(String uuid, String deviceName) {
-        return new DeviceConfigData("Siemens", "S7-1500", "S7", deviceName,
-                "Control principal", uuid, true, "S88.1", "s88-uuid-1", "ipa=10.0.0.1");
+    private static Properties deviceProps(String uuid, String deviceName) {
+        Properties pDevice = new Properties();
+
+        pDevice.put("brand", "Siemens");
+        pDevice.put("model", "S7-1500");
+        pDevice.put("protocol", "S7");
+        pDevice.put("deviceName", deviceName);
+        pDevice.put("deviceKey", "key-" + uuid);
+        pDevice.put("description", "Control principal");
+        pDevice.put("uuid", uuid);
+        pDevice.put("enable", true);
+        pDevice.put("s88Node", "S88.1");
+        pDevice.put("s88Uuid", "s88-uuid-1");
+        pDevice.put("specificParameters", "ipa=10.0.0.1");
+
+        return pDevice;
     }
 
-    private static void assertDevice(DeviceConfigData actual, String brand, String model,
-                                     String protocol, String deviceName, String description,
-                                     String uuid, boolean enabled, String s88Node,
-                                     String s88Uuid, String specificParameters) {
-        assertEquals(brand, actual.getBrand());
-        assertEquals(model, actual.getModel());
-        assertEquals(protocol, actual.getProtocol());
-        assertEquals(deviceName, actual.getDeviceName());
-        assertEquals(description, actual.getDescription());
-        assertEquals(uuid, actual.getUuid());
-        assertEquals(enabled, actual.isEnabled());
-        assertEquals(s88Node, actual.getS88Node());
-        assertEquals(s88Uuid, actual.getS88Uuid());
-        assertEquals(specificParameters, actual.getSpecificParameters());
+    private static DeviceConfigData device(String uuid, String deviceName) {
+        return new DeviceConfigData(deviceProps(uuid, deviceName));
+    }
+
+    private static void assertDevice(DeviceConfigData actual, Properties pdevice) {
+        assertEquals(pdevice.getProperty("brand"), actual.getBrand());
+        assertEquals(pdevice.getProperty("model"), actual.getModel());
+        assertEquals(pdevice.getProperty("protocol"), actual.getProtocol());
+        assertEquals(pdevice.getProperty("deviceName"), actual.getDeviceName());
+        assertEquals(pdevice.getProperty("deviceKey"), actual.getDeviceKey());
+        assertEquals(pdevice.getProperty("description"), actual.getDescription());
+        assertEquals(pdevice.getProperty("uuid"), actual.getUuid());
+        Object enableValue = pdevice.get("enable");
+        assertEquals(enableValue != null && Boolean.parseBoolean(String.valueOf(enableValue)), actual.isEnabled());
+        assertEquals(pdevice.getProperty("s88Node"), actual.getS88Node());
+        assertEquals(pdevice.getProperty("s88Uuid"), actual.getS88Uuid());
+        assertEquals(pdevice.getProperty("specificParameters"), actual.getSpecificParameters());
     }
 }

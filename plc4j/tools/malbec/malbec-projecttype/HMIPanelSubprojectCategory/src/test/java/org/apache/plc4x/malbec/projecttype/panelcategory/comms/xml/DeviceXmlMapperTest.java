@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Properties;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
 import org.junit.jupiter.api.Test;
@@ -44,11 +45,25 @@ class DeviceXmlMapperTest {
         ProjectDocument doc = ProjectDocument.Factory.parse(PlcOpenCommConfigRepositoryImpl.TEMPLATE);
         Configurations configurations = doc.getProject().getInstances().getConfigurations();
 
-        DeviceConfigData device = new DeviceConfigData(
-                "Siemens", "S7-1500", "S7", "PLC_Uno",
-                "Control principal", "uuid-1", true,
-                "S88.1", "s88-uuid-1",
-                "ipa=10.0.0.1\nrack=0\nslot=1");
+        Properties pDevice = new Properties();
+
+        pDevice.put("brand", "Siemens");
+        pDevice.put("model", "S7-1500");
+        pDevice.put("protocol", "S7");
+        pDevice.put("deviceName", "PLC_Uno");
+        pDevice.put("description", "Control principal");
+        pDevice.put("uuid", "uuid-1");
+        pDevice.put("enable", true);
+        pDevice.put("s88Node", "S88.1");
+        pDevice.put("s88Uuid", "s88-uuid-1");
+        pDevice.put("specificParameters", "ipa=10.0.0.1\nrack=0\nslot=1");
+
+        DeviceConfigData device = new DeviceConfigData(pDevice);
+//        DeviceConfigData device = new DeviceConfigData(
+//                "Siemens", "S7-1500", "S7", "PLC_Uno",
+//                "Control principal", "uuid-1", true,
+//                "S88.1", "s88-uuid-1",
+//                "ipa=10.0.0.1\nrack=0\nslot=1");
 
         DeviceXmlMapper.writeDevice(device, configurations);
 
@@ -71,12 +86,25 @@ class DeviceXmlMapperTest {
     void escapeSpecialCharacters() throws Exception {
         ProjectDocument doc = ProjectDocument.Factory.parse(PlcOpenCommConfigRepositoryImpl.TEMPLATE);
         Configurations configurations = doc.getProject().getInstances().getConfigurations();
+        Properties pDevice = new Properties();
 
-        DeviceConfigData device = new DeviceConfigData(
-                "Siemens & Co<\"XL\">", "A 'B'", "S7", "PLC & \"A\" <1>",
-                "line1\nline2 & more <now>", "uuid-1", false,
-                "", "", "x=1&y=2");
+        pDevice.put("brand", "Siemens & Co<\"XL\">");
+        pDevice.put("model", "A 'B'");
+        pDevice.put("protocol", "S7");
+        pDevice.put("deviceName", "PLC & \"A\" <1>");
+        pDevice.put("description", "line1\nline2 & more <now>");
+        pDevice.put("uuid", "uuid-1");
+        pDevice.put("enable", false);
+        pDevice.put("s88Node", "");
+        pDevice.put("s88Uuid", "");
+        pDevice.put("specificParameters", "x=1&y=2");
 
+        DeviceConfigData device = new DeviceConfigData(pDevice);
+
+//        DeviceConfigData device = new DeviceConfigData(
+//                "Siemens & Co<\"XL\">", "A 'B'", "S7", "PLC & \"A\" <1>",
+//                "line1\nline2 & more <now>", "uuid-1", false,
+//                "", "", "x=1&y=2");
         DeviceXmlMapper.writeDevice(device, configurations);
 
         DeviceConfigData read = DeviceXmlMapper.readDevice(configurations.getConfigurationArray(0));
@@ -99,9 +127,15 @@ class DeviceXmlMapperTest {
         ProjectDocument doc = ProjectDocument.Factory.parse(PlcOpenCommConfigRepositoryImpl.TEMPLATE);
         Configurations configurations = doc.getProject().getInstances().getConfigurations();
 
-        DeviceConfigData device = new DeviceConfigData(
-                null, null, null, "PLC", null, null, false, null, null, null);
+        Properties pDevice = new Properties();
 
+        pDevice.put("deviceName", "PLC");
+        pDevice.put("enable", false);
+
+        DeviceConfigData device = new DeviceConfigData(pDevice);
+
+//        DeviceConfigData device = new DeviceConfigData(
+//                null, null, null, "PLC", null, null, false, null, null, null);
         DeviceXmlMapper.writeDevice(device, configurations);
 
         DeviceConfigData read = DeviceXmlMapper.readDevice(configurations.getConfigurationArray(0));
@@ -120,11 +154,24 @@ class DeviceXmlMapperTest {
     void roundTripComms() throws Exception {
         ProjectDocument doc = ProjectDocument.Factory.parse(PlcOpenCommConfigRepositoryImpl.TEMPLATE);
         Configurations configurations = doc.getProject().getInstances().getConfigurations();
+        Properties pDevice = new Properties();
 
-        DeviceConfigData device = new DeviceConfigData(
-                "Siemens", "S7-1500", "S7", "PLC_Uno",
-                "Control principal", "uuid-1", true, "S88.1", "s88-uuid-1", "");
+        pDevice.put("brand", "Siemens");
+        pDevice.put("model", "S7-1500");
+        pDevice.put("protocol", "S7");
+        pDevice.put("deviceName", "PLC_Uno");
+        pDevice.put("description", "Control principal");
+        pDevice.put("uuid", "uuid-1");
+        pDevice.put("enable", true);
+        pDevice.put("s88Node", "S88.1");
+        pDevice.put("s88Uuid", "s88-uuid-1");
+        pDevice.put("specificParameters", "");
 
+        DeviceConfigData device = new DeviceConfigData(pDevice);
+
+//        DeviceConfigData device = new DeviceConfigData(
+//                "Siemens", "S7-1500", "S7", "PLC_Uno",
+//                "Control principal", "uuid-1", true, "S88.1", "s88-uuid-1", "");
         Configuration configuration = DeviceXmlMapper.writeDevice(device, configurations);
 
         CommConfigData comms = new CommConfigData("PLC_Uno",
@@ -181,10 +228,23 @@ class DeviceXmlMapperTest {
     void readCommsReturnsNullWhenNoCommsBlock() throws Exception {
         ProjectDocument doc = ProjectDocument.Factory.parse(PlcOpenCommConfigRepositoryImpl.TEMPLATE);
         Configurations configurations = doc.getProject().getInstances().getConfigurations();
+        Properties pDevice = new Properties();
 
-        DeviceConfigData device = new DeviceConfigData(
-                "Siemens", "S7-1500", "S7", "PLC_Uno",
-                "Control principal", "uuid-1", true, "S88.1", "s88-uuid-1", "");
+        pDevice.put("brand", "Siemens");
+        pDevice.put("model", "S7-1500");
+        pDevice.put("protocol", "S7");
+        pDevice.put("deviceName", "PLC_Uno");
+        pDevice.put("description", "Control principal");
+        pDevice.put("uuid", "uuid-1");
+        pDevice.put("enable", true);
+        pDevice.put("s88Node", "S88.1");
+        pDevice.put("s88Uuid", "s88-uuid-1");
+        pDevice.put("specificParameters", "");
+
+        DeviceConfigData device = new DeviceConfigData(pDevice);
+//        DeviceConfigData device = new DeviceConfigData(
+//                "Siemens", "S7-1500", "S7", "PLC_Uno",
+//                "Control principal", "uuid-1", true, "S88.1", "s88-uuid-1", "");
 
         DeviceXmlMapper.writeDevice(device, configurations);
 

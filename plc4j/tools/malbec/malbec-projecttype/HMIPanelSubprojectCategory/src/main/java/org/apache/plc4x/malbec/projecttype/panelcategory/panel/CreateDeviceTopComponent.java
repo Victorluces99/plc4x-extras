@@ -48,6 +48,14 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreat
 })
 public final class CreateDeviceTopComponent extends TopComponent {
 
+    private static final Dimension LABEL_SIZE = new Dimension(150, 26);
+    private static final Dimension FIELD_SIZE = new Dimension(260, 26);
+    private static final Dimension UUID_FIELD_SIZE = new Dimension(340, 26);
+    private static final Dimension HOST_SIZE = new Dimension(340, 26);
+    private static final Dimension PORT_SIZE = new Dimension(90, 26);
+    private static final Dimension PARAM_VALUE_SIZE = new Dimension(230, 26);
+    private static final Dimension URL_SIZE = new Dimension(600, 26);
+
     private Project currentProject;
 
     // Componentes visuales
@@ -55,6 +63,7 @@ public final class CreateDeviceTopComponent extends TopComponent {
     private JComboBox<DeviceModel> cbModelo;
     private JTextField txtProtocol;
     private JTextField txtDeviceName;
+    private JTextField txtDeviceKey;
     private JTextField txtDescription;
     private JTextField txtUUID;
     private JCheckBox chkEnable;
@@ -63,8 +72,13 @@ public final class CreateDeviceTopComponent extends TopComponent {
     private JComboBox<String> cbS88Node;
     private JTextField txtS88UUID;
 
-    // Panel dinámico inferior
-    private JPanel dynamicAreaContainer;
+    // Área de Parámetros de Conexión
+    private JTextField txtHost;
+    private JComboBox<String> cbTransport;
+    private JTextField txtPort;
+    private JComboBox<String> cbParameter;
+    private JTextField txtParamValue;
+    private JTextField txtUrlPreview;
     private DeviceDynamicPanelBuilder activeBuilder;
 
     // Estructuras de datos locales
@@ -90,12 +104,20 @@ public final class CreateDeviceTopComponent extends TopComponent {
     private void initData() {
         devicesMap = new HashMap<>();
         devicesMap.put("Siemens", Arrays.asList(
+                new DeviceModel("Siemens", "S7-300", "S7"),
+                new DeviceModel("Siemens", "S7-400", "S7"),
                 new DeviceModel("Siemens", "S7-1200", "S7"),
                 new DeviceModel("Siemens", "S7-1500", "S7")
+
         ));
         devicesMap.put("Allen Bradley", Arrays.asList(
                 new DeviceModel("Allen Bradley", "ControlLogix", "EtherNet/IP"),
                 new DeviceModel("Allen Bradley", "CompactLogix", "EtherNet/IP")
+        ));
+        devicesMap.put("Modbus", Arrays.asList(
+                new DeviceModel("Modbus", "Modbus TCP", "modbus-tcp"),
+                new DeviceModel("Modbus", "Modbus RTU", "modbus-rtu"),
+                new DeviceModel("Modbus", "Modbus ASCII", "modbus-ascii")
         ));
 
         s88NodesMap = new HashMap<>();
@@ -103,75 +125,220 @@ public final class CreateDeviceTopComponent extends TopComponent {
         s88NodesMap.put("Node_Unit_02", UUID.nameUUIDFromBytes("Node_Unit_02".getBytes()).toString());
     }
 
+    private JPanel card(String title) {
+        JPanel p = new JPanel(new GridBagLayout());
+        p.setBorder(BorderFactory.createTitledBorder(title));
+        return p;
+    }
+
+    private void addFieldRow(JPanel card, GridBagConstraints g, int y, String label, JComponent field) {
+        JLabel lbl = new JLabel(label);
+        lbl.setPreferredSize(LABEL_SIZE);
+        g.insets = new Insets(2, 8, 2, 8);
+        g.anchor = GridBagConstraints.WEST;
+        g.fill = GridBagConstraints.HORIZONTAL;
+        g.weightx = 0.0;
+        g.gridx = 0;
+        g.gridy = y;
+        g.gridwidth = 1;
+        card.add(lbl, g);
+        g.gridx = 1;
+        card.add(field, g);
+    }
+
     private void initComponentsUI() {
         setLayout(new BorderLayout(10, 10));
 
-        JPanel mainFormPanel = new JPanel();
-        mainFormPanel.setLayout(new BoxLayout(mainFormPanel, BoxLayout.Y_AXIS));
+        JPanel mainFormPanel = new JPanel(new GridBagLayout());
+        mainFormPanel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
-        JLabel lblTitle = new JLabel("Seleccione el equipo para establecer la comunicación", SwingConstants.CENTER);
-        lblTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
-        mainFormPanel.add(lblTitle);
-        mainFormPanel.add(Box.createVerticalStrut(10));
+        GridBagConstraints mg = new GridBagConstraints();
+        mg.insets = new Insets(2, 4, 2, 4);
+        mg.anchor = GridBagConstraints.WEST;
+        mg.fill = GridBagConstraints.HORIZONTAL;
+        mg.weightx = 0.0;
+        mg.gridwidth = 1;
+
+        JLabel lblTitle = new JLabel("Seleccione el equipo para establecer la comunicación");
+        mg.gridx = 0;
+        mg.gridy = 0;
+        mainFormPanel.add(lblTitle, mg);
 
         // --- Panel Marca / Modelo ---
-        JPanel pnlBrandModel = new JPanel(new GridLayout(2, 2, 5, 5));
-        pnlBrandModel.add(new JLabel("Marca"));
-        pnlBrandModel.add(new JLabel("Modelo"));
-
-        cbMarca = new JComboBox<>(new String[]{"-- Seleccione --", "Siemens", "Allen Bradley"});
+        JPanel pnlBrandModel = card("Marca y modelo");
+        cbMarca = new JComboBox<>(new String[]{"-- Seleccione --", "Siemens", "Allen Bradley", "Modbus"});
+        cbMarca.setPreferredSize(FIELD_SIZE);
         cbModelo = new JComboBox<>();
-        pnlBrandModel.add(cbMarca);
-        pnlBrandModel.add(cbModelo);
-        mainFormPanel.add(pnlBrandModel);
+        cbModelo.setPreferredSize(FIELD_SIZE);
+        GridBagConstraints bg = new GridBagConstraints();
+        addFieldRow(pnlBrandModel, bg, 0, "Marca", cbMarca);
+        addFieldRow(pnlBrandModel, bg, 1, "Modelo", cbModelo);
+        mg.gridy = 1;
+        mainFormPanel.add(pnlBrandModel, mg);
 
         // --- Panel Device Fields ---
-        JPanel pnlDevice = new JPanel(new GridLayout(4, 2, 5, 5));
+        JPanel pnlDevice = card("Dispositivo");
         txtProtocol = new JTextField();
         txtProtocol.setEditable(false);
         txtDeviceName = new JTextField();
+        txtDeviceKey = new JTextField();
         txtDescription = new JTextField();
+        txtProtocol.setPreferredSize(FIELD_SIZE);
+        txtDeviceName.setPreferredSize(FIELD_SIZE);
+        txtDeviceKey.setPreferredSize(FIELD_SIZE);
+        txtDescription.setPreferredSize(FIELD_SIZE);
         txtUUID = new JTextField();
         txtUUID.setEditable(false);
+        txtUUID.setPreferredSize(UUID_FIELD_SIZE);
         chkEnable = new JCheckBox("Enable");
-
-        pnlDevice.add(new JLabel("Device Protocol"));
-        pnlDevice.add(new JLabel("Device name"));
-        pnlDevice.add(txtProtocol);
-        pnlDevice.add(txtDeviceName);
-        pnlDevice.add(new JLabel("Device description"));
-        pnlDevice.add(chkEnable);
-        pnlDevice.add(txtDescription);
-        pnlDevice.add(new JPanel());
-
-        JPanel pnlUUID = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        pnlUUID.add(new JLabel("UUID: "));
-        pnlUUID.add(txtUUID);
-
-        mainFormPanel.add(pnlDevice);
-        mainFormPanel.add(pnlUUID);
-        mainFormPanel.add(Box.createVerticalStrut(10));
+        GridBagConstraints dg = new GridBagConstraints();
+        addFieldRow(pnlDevice, dg, 0, "Device Protocol", txtProtocol);
+        addFieldRow(pnlDevice, dg, 1, "Device name", txtDeviceName);
+        addFieldRow(pnlDevice, dg, 2, "Device Key", txtDeviceKey);
+        addFieldRow(pnlDevice, dg, 3, "Device description", txtDescription);
+        addFieldRow(pnlDevice, dg, 4, "UUID", txtUUID);
+        dg.gridx = 2;
+        dg.gridy = 4;
+        dg.gridwidth = 1;
+        pnlDevice.add(chkEnable, dg);
+        mg.gridy = 2;
+        mainFormPanel.add(pnlDevice, mg);
 
         // --- Panel S88 Tree ---
-        JPanel pnlS88 = new JPanel(new GridLayout(2, 2, 5, 5));
-        pnlS88.setBorder(BorderFactory.createTitledBorder("S88 tree"));
-
+        JPanel pnlS88 = card("S88 tree");
         cbS88Node = new JComboBox<>(new String[]{"-- Seleccione --", "Node_Area_01", "Node_Unit_02"});
+        cbS88Node.setPreferredSize(FIELD_SIZE);
         txtS88UUID = new JTextField();
         txtS88UUID.setEditable(false);
-
-        pnlS88.add(new JLabel("Node:"));
-        pnlS88.add(new JLabel("UUID"));
-        pnlS88.add(cbS88Node);
-        pnlS88.add(txtS88UUID);
-        mainFormPanel.add(pnlS88);
+        txtS88UUID.setPreferredSize(FIELD_SIZE);
+        GridBagConstraints sg = new GridBagConstraints();
+        addFieldRow(pnlS88, sg, 0, "Node", cbS88Node);
+        addFieldRow(pnlS88, sg, 1, "UUID", txtS88UUID);
+        mg.gridy = 3;
+        mainFormPanel.add(pnlS88, mg);
 
         add(mainFormPanel, BorderLayout.NORTH);
 
-        // --- Panel Dinámico Inferior ---
-        dynamicAreaContainer = new JPanel(new BorderLayout());
-        dynamicAreaContainer.setBorder(BorderFactory.createEtchedBorder());
-        add(dynamicAreaContainer, BorderLayout.CENTER);
+        // --- Área de Parámetros de Conexión ---
+        JPanel pnlParams = card("Parámetros de conexión");
+        txtHost = new JTextField();
+        txtHost.setPreferredSize(HOST_SIZE);
+        cbTransport = new JComboBox<>();
+        cbTransport.setEditable(true);
+        cbTransport.setPreferredSize(FIELD_SIZE);
+        txtPort = new JTextField();
+        txtPort.setPreferredSize(PORT_SIZE);
+        cbParameter = new JComboBox<>();
+        cbParameter.setPreferredSize(PARAM_VALUE_SIZE);
+        txtParamValue = new JTextField();
+        txtParamValue.setPreferredSize(PARAM_VALUE_SIZE);
+        txtParamValue.setEnabled(false);
+        JButton btnAddParam = new JButton("Añadir");
+        JButton btnRemoveParam = new JButton("Quitar último");
+        JButton btnClear = new JButton("Limpiar");
+        txtUrlPreview = new JTextField();
+        txtUrlPreview.setEditable(false);
+        txtUrlPreview.setPreferredSize(URL_SIZE);
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(2, 8, 2, 8);
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 0.0;
+        gbc.gridy = 0;
+        gbc.gridx = 0;
+        pnlParams.add(new JLabel("Host/IP:"), gbc);
+        gbc.gridx = 1;
+        gbc.gridwidth = 3;
+        pnlParams.add(txtHost, gbc);
+
+        gbc.gridy = 1;
+        gbc.gridx = 0;
+        gbc.gridwidth = 1;
+        pnlParams.add(new JLabel("Transport:"), gbc);
+        gbc.gridx = 1;
+        pnlParams.add(cbTransport, gbc);
+        gbc.gridx = 2;
+        pnlParams.add(new JLabel("Port:"), gbc);
+        gbc.gridx = 3;
+        pnlParams.add(txtPort, gbc);
+
+        gbc.gridy = 2;
+        gbc.gridx = 0;
+        pnlParams.add(new JLabel("Parámetro:"), gbc);
+        gbc.gridx = 1;
+        pnlParams.add(cbParameter, gbc);
+        gbc.gridx = 2;
+        pnlParams.add(txtParamValue, gbc);
+        gbc.gridx = 3;
+        pnlParams.add(btnAddParam, gbc);
+
+        gbc.gridy = 3;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        pnlParams.add(btnRemoveParam, gbc);
+        gbc.gridx = 2;
+        gbc.gridwidth = 2;
+        pnlParams.add(btnClear, gbc);
+
+        gbc.gridy = 4;
+        gbc.gridx = 0;
+        gbc.gridwidth = 1;
+        pnlParams.add(new JLabel("URL:"), gbc);
+        gbc.gridx = 1;
+        gbc.gridwidth = 3;
+        pnlParams.add(txtUrlPreview, gbc);
+
+        JPanel pnlParamsWrap = new JPanel(new BorderLayout());
+        pnlParamsWrap.add(pnlParams, BorderLayout.NORTH);
+        add(pnlParamsWrap, BorderLayout.CENTER);
+
+        cbParameter.addActionListener(e -> {
+            String key = (String) cbParameter.getSelectedItem();
+            if (key == null) {
+                txtParamValue.setEnabled(false);
+                txtParamValue.setText("");
+                return;
+            }
+            txtParamValue.setEnabled(true);
+            txtParamValue.setText(activeBuilder.getParameterDefaults().get(key));
+        });
+
+        txtHost.getDocument().addDocumentListener(
+                new SimpleDocumentListener(CreateDeviceTopComponent.this::refreshUrlPreview));
+
+        cbTransport.addActionListener(e -> refreshUrlPreview());
+        JComponent transportEditor = (JComponent) cbTransport.getEditor().getEditorComponent();
+        if (transportEditor instanceof JTextField) {
+            ((JTextField) transportEditor).getDocument().addDocumentListener(
+                    new SimpleDocumentListener(CreateDeviceTopComponent.this::refreshUrlPreview));
+        }
+        txtPort.getDocument().addDocumentListener(
+                new SimpleDocumentListener(CreateDeviceTopComponent.this::refreshUrlPreview));
+
+        btnAddParam.addActionListener(e -> {
+            if (activeBuilder == null) {
+                return;
+            }
+            String key = (String) cbParameter.getSelectedItem();
+            if (key == null) {
+                return;
+            }
+            activeBuilder.addParameter(key, txtParamValue.getText().trim());
+            refreshUrlPreview();
+        });
+        btnRemoveParam.addActionListener(e -> {
+            if (activeBuilder != null) {
+                activeBuilder.removeLastParameter();
+            }
+            refreshUrlPreview();
+        });
+        btnClear.addActionListener(e -> {
+            if (activeBuilder != null) {
+                activeBuilder.clearParameters();
+            }
+            refreshUrlPreview();
+        });
 
         // --- Botones Inferiores ---
         JPanel pnlButtons = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
@@ -194,15 +361,23 @@ public final class CreateDeviceTopComponent extends TopComponent {
             txtProtocol.setText("");
             txtUUID.setText("");
             activeBuilder = null;
-            dynamicAreaContainer.removeAll();
-            dynamicAreaContainer.revalidate();
-            dynamicAreaContainer.repaint();
+            txtHost.setText("");
+            cbTransport.removeAllItems();
+            txtPort.setText("");
+            cbParameter.removeAllItems();
+            txtParamValue.setText("");
+            txtParamValue.setEnabled(false);
+            txtUrlPreview.setText("");
 
             String selectedBrand = (String) cbMarca.getSelectedItem();
             if (devicesMap.containsKey(selectedBrand)) {
                 for (DeviceModel dm : devicesMap.get(selectedBrand)) {
                     cbModelo.addItem(dm);
                 }
+                // Preseleccionar el primer modelo y generar el UUID explícitamente:
+                // el auto-seleccionado al añadir items no siempre dispara el ActionEvent.
+                cbModelo.setSelectedIndex(0);
+                txtUUID.setText(UUID.randomUUID().toString());
             }
         });
 
@@ -212,22 +387,16 @@ public final class CreateDeviceTopComponent extends TopComponent {
                 txtProtocol.setText(selectedDevice.getProtocol());
                 txtUUID.setText(UUID.randomUUID().toString());
 
-                if ("Siemens".equalsIgnoreCase(selectedDevice.getBrand())) {
-                    activeBuilder = new SiemensPanelBuilder();
-                } else if ("Allen Bradley".equalsIgnoreCase(selectedDevice.getBrand())) {
+                String brand = selectedDevice.getBrand();
+                if ("Allen Bradley".equalsIgnoreCase(brand)) {
                     activeBuilder = new AllenBradleyPanelBuilder();
+                } else if ("Modbus".equalsIgnoreCase(brand)) {
+                    activeBuilder = new ModbusPanelBuilder();
+                } else {
+                    activeBuilder = new SiemensPanelBuilder();
                 }
 
-                if (activeBuilder != null) {
-                    activeBuilder.buildParametersUI();
-                    dynamicAreaContainer.removeAll();
-
-                    // USAR BorderLayout.NORTH para evitar que estire el panel a lo alto
-                    dynamicAreaContainer.add(activeBuilder.getPanel(), BorderLayout.NORTH);
-
-                    dynamicAreaContainer.revalidate();
-                    dynamicAreaContainer.repaint();
-                }
+                loadBuilderParams();
             }
         });
 
@@ -241,6 +410,41 @@ public final class CreateDeviceTopComponent extends TopComponent {
         });
     }
 
+    private void loadBuilderParams() {
+        cbParameter.removeAllItems();
+        txtParamValue.setEnabled(false);
+        txtParamValue.setText("");
+        if (activeBuilder == null) {
+            refreshUrlPreview();
+            return;
+        }
+        activeBuilder.initForModel((DeviceModel) cbModelo.getSelectedItem());
+
+        cbTransport.removeAllItems();
+        cbTransport.setEditable(true);
+        for (String option : activeBuilder.getTransportOptions()) {
+            cbTransport.addItem(option);
+        }
+        cbTransport.setSelectedItem(activeBuilder.getDefaultTransport());
+
+        for (String key : activeBuilder.getParameterDefaults().keySet()) {
+            cbParameter.addItem(key);
+        }
+        refreshUrlPreview();
+    }
+
+    private void refreshUrlPreview() {
+        if (activeBuilder == null) {
+            txtUrlPreview.setText("");
+            return;
+        }
+        activeBuilder.setHost(txtHost.getText().trim());
+        Object transport = cbTransport.getSelectedItem();
+        activeBuilder.setTransport(transport != null ? transport.toString() : "");
+        activeBuilder.setPort(txtPort.getText().trim());
+        txtUrlPreview.setText(activeBuilder.getSpecificParametersAsString());
+    }
+
     /**
      * Limpia completamente la vista
      */
@@ -249,15 +453,20 @@ public final class CreateDeviceTopComponent extends TopComponent {
         cbModelo.removeAllItems();
         txtProtocol.setText("");
         txtDeviceName.setText("");
+        txtDeviceKey.setText("");
         txtDescription.setText("");
         txtUUID.setText("");
         chkEnable.setSelected(false);
         cbS88Node.setSelectedIndex(0);
         txtS88UUID.setText("");
         activeBuilder = null;
-        dynamicAreaContainer.removeAll();
-        dynamicAreaContainer.revalidate();
-        dynamicAreaContainer.repaint();
+        txtHost.setText("");
+        cbTransport.removeAllItems();
+        txtPort.setText("");
+        cbParameter.removeAllItems();
+        txtParamValue.setText("");
+        txtParamValue.setEnabled(false);
+        txtUrlPreview.setText("");
     }
 
     /**
@@ -269,26 +478,48 @@ public final class CreateDeviceTopComponent extends TopComponent {
             return null;
         }
 
+        if (txtDeviceKey.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Por favor ingrese una clave (Device Key) para el dispositivo.", "Error de Validación", JOptionPane.ERROR_MESSAGE);
+            return null;
+        }
+
         DeviceModel selectedModel = (DeviceModel) cbModelo.getSelectedItem();
         if (selectedModel == null) {
             JOptionPane.showMessageDialog(this, "Por favor seleccione una marca y modelo válidos.", "Error de Validación", JOptionPane.ERROR_MESSAGE);
             return null;
         }
 
-        String specificParams = (activeBuilder != null) ? activeBuilder.getSpecificParametersAsString() : "";
+        if (txtHost.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Debe ingresar la IP/Host del dispositivo.",
+                    "Error de Validación", JOptionPane.ERROR_MESSAGE);
+            return null;
+        }
 
-        return new DeviceConfigData(
-                (String) cbMarca.getSelectedItem(),
-                selectedModel.getModel(),
-                txtProtocol.getText(),
-                txtDeviceName.getText().trim(),
-                txtDescription.getText(),
-                txtUUID.getText(),
-                chkEnable.isSelected(),
-                (String) cbS88Node.getSelectedItem(),
-                txtS88UUID.getText(),
-                specificParams
-        );
+        String specificParams = "";
+        if (activeBuilder != null) {
+            activeBuilder.setHost(txtHost.getText().trim());
+            Object transport = cbTransport.getSelectedItem();
+            activeBuilder.setTransport(transport != null ? transport.toString() : "");
+            activeBuilder.setPort(txtPort.getText().trim());
+            specificParams = activeBuilder.getSpecificParametersAsString();
+        }
+
+        Properties pDevice = new Properties();
+
+        pDevice.put("brand", cbMarca.getSelectedItem());
+        pDevice.put("model", selectedModel.getModel());
+        pDevice.put("protocol", txtProtocol.getText());
+        pDevice.put("deviceName", txtDeviceName.getText().trim());
+        pDevice.put("deviceKey", txtDeviceKey.getText().trim());
+        pDevice.put("description", txtDescription.getText());
+        pDevice.put("uuid", txtUUID.getText());
+        pDevice.put("enable", chkEnable.isSelected());
+        pDevice.put("s88Node", cbS88Node.getSelectedItem());
+        pDevice.put("s88Uuid", txtS88UUID.getText());
+        pDevice.put("specificParameters", specificParams);
+
+        return new DeviceConfigData(pDevice);
     }
 
     private void onOkPressed() {
@@ -311,5 +542,29 @@ public final class CreateDeviceTopComponent extends TopComponent {
     }
 
     void readProperties(Properties p) {
+    }
+
+    private static final class SimpleDocumentListener implements javax.swing.event.DocumentListener {
+
+        private final Runnable action;
+
+        SimpleDocumentListener(Runnable action) {
+            this.action = action;
+        }
+
+        @Override
+        public void insertUpdate(javax.swing.event.DocumentEvent e) {
+            action.run();
+        }
+
+        @Override
+        public void removeUpdate(javax.swing.event.DocumentEvent e) {
+            action.run();
+        }
+
+        @Override
+        public void changedUpdate(javax.swing.event.DocumentEvent e) {
+            action.run();
+        }
     }
 }

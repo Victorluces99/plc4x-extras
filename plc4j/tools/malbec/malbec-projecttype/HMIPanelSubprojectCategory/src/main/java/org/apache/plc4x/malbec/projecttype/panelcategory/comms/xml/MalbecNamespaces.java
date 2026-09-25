@@ -21,8 +21,8 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml;
 public final class MalbecNamespaces {
 
     public static final String PLCOPEN_NS = "http://www.plcopen.org/xml/tc6_0201";
-    public static final String DEVICE_NS = "http://apache.org/plc4x/malbec/device";
-    public static final String COMMS_NS = "http://apache.org/plc4x/malbec/comms";
+    public static final String DEVICE_NS = "Device";
+    public static final String COMMS_NS = "Comunications";
     public static final String DEVICE_DATA_NAME = "http://apache.org/plc4x/malbec/device";
     public static final String COMMS_DATA_NAME = "http://apache.org/plc4x/malbec/comms";
 

@@ -152,8 +152,8 @@ public class HMICategoryCommunicationNodeFactory implements NodeFactory {
         @Override
         public Action[] getActions(boolean context) {
             List<Action> allActions = new ArrayList<>();
-            allActions.add(new HMICategoryCreateCommAction(project, device.getUuid()));
-            allActions.add(null);
+//            allActions.add(new HMICategoryCreateCommAction(project, device.getUuid()));
+//            allActions.add(null);
             allActions.add(new AbstractAction("Eliminar Dispositivo") {
                 @Override
                 public void actionPerformed(ActionEvent e) {

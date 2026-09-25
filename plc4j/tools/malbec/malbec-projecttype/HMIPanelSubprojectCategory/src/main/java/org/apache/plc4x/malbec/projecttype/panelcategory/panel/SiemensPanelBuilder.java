@@ -18,61 +18,86 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 
-import javax.swing.*;
-import java.awt.*;
+import java.util.LinkedHashMap;
 
 public class SiemensPanelBuilder implements DeviceDynamicPanelBuilder {
-    private JPanel panel;
-    private JTextField txtIp;
-    private JTextField txtRackSlot;
 
-    public SiemensPanelBuilder() {
-        this.panel = new JPanel(new GridBagLayout());
-        this.panel.setBorder(BorderFactory.createTitledBorder("Configuración Específica Siemens"));
+    private String host = "";
+    private String transport = "tcp";
+    private String port = "";
+    private final LinkedHashMap<String, String> params = new LinkedHashMap<>();
+
+    @Override
+    public void initForModel(DeviceModel model) {
+        params.put("controller-type", model.getModel().replace("-", "_"));
     }
 
     @Override
-    public void buildParametersUI() {
-        txtIp = new JTextField("192.168.0.1");
-        txtRackSlot = new JTextField("0/1");
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(4, 5, 4, 5);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.anchor = GridBagConstraints.NORTHWEST;
-
-        // Fila 1
-        gbc.gridx = 0; gbc.gridy = 0;
-        gbc.weightx = 0.3; gbc.weighty = 0.0;
-        panel.add(new JLabel("IP Address:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        panel.add(txtIp, gbc);
-
-        // Fila 2
-        gbc.gridx = 0; gbc.gridy = 1;
-        gbc.weightx = 0.3;
-        panel.add(new JLabel("Rack / Slot:"), gbc);
-
-        gbc.gridx = 1;
-        gbc.weightx = 0.7;
-        panel.add(txtRackSlot, gbc);
-
-        // Empujar hacia arriba
-        gbc.gridx = 0; gbc.gridy = 2;
-        gbc.gridwidth = 2;
-        gbc.weighty = 1.0;
-        panel.add(Box.createGlue(), gbc);
+    public String getProtocol() {
+        return "s7";
     }
 
     @Override
-    public JPanel getPanel() {
-        return panel;
+    public String getDefaultTransport() {
+        return transport;
+    }
+
+    @Override
+    public String[] getTransportOptions() {
+        return new String[]{"tcp"};
+    }
+
+    @Override
+    public void setTransport(String transport) {
+        this.transport = transport;
+    }
+
+    @Override
+    public void setPort(String port) {
+        this.port = port;
+    }
+
+    @Override
+    public void setHost(String host) {
+        this.host = host;
+    }
+
+    @Override
+    public LinkedHashMap<String, String> getParameterDefaults() {
+        LinkedHashMap<String, String> defaults = new LinkedHashMap<>();
+        defaults.put("cotp.remote-rack", "0");
+        defaults.put("cotp.remote-slot", "3");
+        return defaults;
+    }
+
+    @Override
+    public void addParameter(String key, String value) {
+        params.put(key, value);
+    }
+
+    @Override
+    public void removeLastParameter() {
+        if (!params.isEmpty()) {
+            String lastKey = null;
+            for (String key : params.keySet()) {
+                lastKey = key;
+            }
+            params.remove(lastKey);
+        }
+    }
+
+    @Override
+    public void clearParameters() {
+        params.clear();
     }
 
     @Override
     public String getSpecificParametersAsString() {
-        return "IP=" + txtIp.getText() + "\nRackSlot=" + txtRackSlot.getText();
+        LinkedHashMap<String, String> ordered = new LinkedHashMap<>(params);
+        String controllerType = ordered.remove("controller-type");
+        if (controllerType != null) {
+            ordered.put("controller-type", controllerType);
+        }
+        return DeviceDynamicPanelBuilder.assembleUrl(getProtocol(), transport, host, port, ordered);
     }
 }

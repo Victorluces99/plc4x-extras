@@ -176,16 +176,6 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                 FileObject projectDir = this.project.getProjectDirectory();
                 String detectedFile = findExistingCategoryFile(projectDir);
 
-                // Por convención, una carpeta llamada "Comunicacion" siempre es de comunicaciones
-//                if (detectedFile == null && "Comunicacion".equalsIgnoreCase(projectDir.getName())) {
-//                    detectedFile = "comunicacion.xml";
-//                }
-
-                // Si no se encuentra ningún archivo compatible, retorna un arreglo vacío
-//                if (detectedFile == null) {
-//                    return new Action[0];
-//                }
-
                 // Identificar la acción específica asociada al archivo
                 Action[] customAction = switch (detectedFile) {
                     case "template.bob" ->

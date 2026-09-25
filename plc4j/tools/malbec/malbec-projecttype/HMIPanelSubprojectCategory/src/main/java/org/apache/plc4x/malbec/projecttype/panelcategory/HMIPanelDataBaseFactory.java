@@ -77,7 +77,11 @@ public class HMIPanelDataBaseFactory {
             + "ItemTag TEXT,"
             + "ItemEnable TEXT,"
             + "Md5 TEXT)";
-
+    /* TODO: todos estos serian los PVType 
+        s5time, s7date s7time s7tod s7dat s7counter s7di s7ai s7ao s7valve
+        s7vlv s7avlv s7motor boolean byte double float int long short
+        string ubyte uint ulong ushort
+    */
     private static final String SQL_CREATE_TABLE_PVRECORDS
             = "CREATE TABLE IF NOT EXISTS PvRecords("
             + "PvUuId TEXT NOT NULL PRIMARY KEY,"
@@ -152,8 +156,8 @@ public class HMIPanelDataBaseFactory {
             try (PreparedStatement pstmt = conn.prepareStatement(sqlDevice)) {
                 pstmt.setString(1, deviceUuid);
                 pstmt.setString(2, driverName);
-                pstmt.setString(3, "Key123");
-                pstmt.setString(4, "tcp://localhost:502");
+                pstmt.setString(3, device != null && device.getDeviceKey() != null ? device.getDeviceKey() : "Key123");
+                pstmt.setString(4, device != null ? device.getSpecificParameters() : "tcp://localhost:502");
                 pstmt.setString(5, deviceName);
                 pstmt.setString(6, deviceDescription);
                 pstmt.setString(7, (device != null && !device.isEnabled()) ? "FALSE" : "TRUE");

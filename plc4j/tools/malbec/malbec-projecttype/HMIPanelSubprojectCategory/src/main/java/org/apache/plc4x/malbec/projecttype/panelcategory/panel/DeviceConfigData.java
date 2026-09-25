@@ -18,7 +18,10 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 
+import java.util.Properties;
+
 public class DeviceConfigData {
+
     private final String brand;
     private final String model;
     private final String protocol;
@@ -26,41 +29,93 @@ public class DeviceConfigData {
     private final String description;
     private final String uuid;
     private final boolean enabled;
-    private final String s88Node;
+private final String s88Node;
     private final String s88Uuid;
+    private final String deviceKey;
     // Parámetros dinámicos específicos del PLC (IP, Rack, Slot, Path, etc.)
-    private final String specificParameters; 
+    private final String specificParameters;
 
-    public DeviceConfigData(String brand, String model, String protocol, String deviceName, 
-                            String description, String uuid, boolean enabled, 
-                            String s88Node, String s88Uuid, String specificParameters) {
-        this.brand = brand;
-        this.model = model;
-        this.protocol = protocol;
-        this.deviceName = deviceName;
-        this.description = description;
-        this.uuid = uuid;
-        this.enabled = enabled;
-        this.s88Node = s88Node;
-        this.s88Uuid = s88Uuid;
-        this.specificParameters = specificParameters;
+//    public DeviceConfigData(String brand, String model, String protocol, String deviceName, 
+//                            String description, String uuid, boolean enabled, 
+//                            String s88Node, String s88Uuid, String specificParameters) {
+//        this.brand = brand;
+//        this.model = model;
+//        this.protocol = protocol;
+//        this.deviceName = deviceName;
+//        this.description = description;
+//        this.uuid = uuid;
+//        this.enabled = enabled;
+//        this.s88Node = s88Node;
+//        this.s88Uuid = s88Uuid;
+//        this.specificParameters = specificParameters;
+//    }
+    public DeviceConfigData(Properties pDevice) {
+        this.brand = pDevice.getProperty("brand");
+        this.model = pDevice.getProperty("model");
+        this.protocol = pDevice.getProperty("protocol");
+        this.deviceName = pDevice.getProperty("deviceName");
+        this.description = pDevice.getProperty("description");
+        this.uuid = pDevice.getProperty("uuid");
+
+        // Convertimos el String "true"/"false" de vuelta a boolean primitivo.
+        // Acepta String o Boolean porque getProperty no devuelve valores no-String.
+        Object enableValue = pDevice.get("enable");
+        this.enabled = enableValue != null && Boolean.parseBoolean(String.valueOf(enableValue));
+
+        this.s88Node = pDevice.getProperty("s88Node");
+        this.s88Uuid = pDevice.getProperty("s88Uuid");
+        this.deviceKey = pDevice.getProperty("deviceKey");
+        this.specificParameters = pDevice.getProperty("specificParameters");
     }
 
     // Getters
-    public String getBrand() { return brand; }
-    public String getModel() { return model; }
-    public String getProtocol() { return protocol; }
-    public String getDeviceName() { return deviceName; }
-    public String getDescription() { return description; }
-    public String getUuid() { return uuid; }
-    public boolean isEnabled() { return enabled; }
-    public String getS88Node() { return s88Node; }
-    public String getS88Uuid() { return s88Uuid; }
-    public String getSpecificParameters() { return specificParameters; }
+    public String getBrand() {
+        return brand;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public String getProtocol() {
+        return protocol;
+    }
+
+    public String getDeviceName() {
+        return deviceName;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public String getUuid() {
+        return uuid;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public String getS88Node() {
+        return s88Node;
+    }
+
+    public String getS88Uuid() {
+        return s88Uuid;
+    }
+
+    public String getDeviceKey() {
+        return deviceKey;
+    }
+
+    public String getSpecificParameters() {
+        return specificParameters;
+    }
 
     /**
-     * Convierte toda la configuración a un formato de texto (p. ej. JSON o Properties)
-     * para escribirlo en el archivo del proyecto.
+     * Convierte toda la configuración a un formato de texto (p. ej. JSON o
+     * Properties) para escribirlo en el archivo del proyecto.
      */
     public String toFileContent() {
         StringBuilder sb = new StringBuilder();

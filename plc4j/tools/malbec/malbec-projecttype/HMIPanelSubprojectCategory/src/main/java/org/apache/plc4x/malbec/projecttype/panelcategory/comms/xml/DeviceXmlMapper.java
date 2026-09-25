@@ -20,6 +20,7 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import javax.xml.namespace.QName;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
@@ -48,6 +49,7 @@ public final class DeviceXmlMapper {
                 + "<brand>" + escape(device.getBrand()) + "</brand>"
                 + "<model>" + escape(device.getModel()) + "</model>"
                 + "<protocol>" + escape(device.getProtocol()) + "</protocol>"
+                + "<deviceKey>" + escape(device.getDeviceKey()) + "</deviceKey>"
                 + "<description>" + escape(device.getDescription()) + "</description>"
                 + "<s88Node>" + escape(device.getS88Node()) + "</s88Node>"
                 + "<specificParameters>" + escape(device.getSpecificParameters())
@@ -153,17 +155,31 @@ public final class DeviceXmlMapper {
                 if (device == null) {
                     return null;
                 }
-                return new DeviceConfigData(
-                        text(device, "brand"),
-                        text(device, "model"),
-                        text(device, "protocol"),
-                        configuration.getName(),
-                        text(device, "description"),
-                        attr(device, "uuid"),
-                        Boolean.parseBoolean(attr(device, "enabled")),
-                        text(device, "s88Node"),
-                        attr(device, "s88Uuid"),
-                        text(device, "specificParameters"));
+                Properties pDevice = new Properties();
+                pDevice.put("brand", text(device, "brand"));
+                pDevice.put("model", text(device, "model"));
+                pDevice.put("protocol", text(device, "protocol"));
+                pDevice.put("deviceName", configuration.getName());
+                pDevice.put("description", text(device, "description"));
+                pDevice.put("uuid", attr(device, "uuid"));
+                pDevice.put("enable", Boolean.valueOf(attr(device, "enabled")));
+                pDevice.put("s88Node", text(device, "s88Node"));
+                pDevice.put("s88Uuid", attr(device, "s88Uuid"));
+                pDevice.put("deviceKey", text(device, "deviceKey"));
+                pDevice.put("specificParameters", text(device, "specificParameters"));
+                
+                return new DeviceConfigData(pDevice);
+//                return new DeviceConfigData(
+//                        text(device, "brand"),
+//                        text(device, "model"),
+//                        text(device, "protocol"),
+//                        configuration.getName(),
+//                        text(device, "description"),
+//                        attr(device, "uuid"),
+//                        Boolean.parseBoolean(attr(device, "enabled")),
+//                        text(device, "s88Node"),
+//                        attr(device, "s88Uuid"),
+//                        text(device, "specificParameters"));
             }
         }
         return null;

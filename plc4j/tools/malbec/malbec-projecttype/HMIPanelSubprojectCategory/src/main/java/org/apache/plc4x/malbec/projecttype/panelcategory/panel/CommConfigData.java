@@ -19,6 +19,7 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 
 import java.util.List;
+import java.util.Properties;
 
 public class CommConfigData {
 
@@ -112,6 +113,7 @@ public class CommConfigData {
         private String controlMinStep;
         private String md5;
 
+        //TODO: Property java para pasarla al constructor
         public PvConfig(String uuid, String name, String type, String id, String offset, String descriptor,
                         String scanTime, boolean scanEnable, boolean writeEnable, String displayLimitLow,
                         String displayLimitHigh, String displayDescription, String displayFormat,
@@ -137,6 +139,12 @@ public class CommConfigData {
             this.md5 = md5;
         }
 
+        public PvConfig(Properties  p) {
+            
+            p.get("uuid");
+        }
+
+        
         public String getUuid() { return uuid; }
         public String getName() { return name; }
         public String getType() { return type; }

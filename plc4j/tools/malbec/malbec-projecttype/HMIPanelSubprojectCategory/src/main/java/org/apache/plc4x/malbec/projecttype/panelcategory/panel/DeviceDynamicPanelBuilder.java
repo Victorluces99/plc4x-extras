@@ -18,10 +18,58 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 
-import javax.swing.JPanel;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public interface DeviceDynamicPanelBuilder {
-    void buildParametersUI();
-    JPanel getPanel();
+
+    void initForModel(DeviceModel model);
+
+    String getProtocol();
+
+    void setHost(String host);
+
+    void setTransport(String transport);
+
+    void setPort(String port);
+
+    String getDefaultTransport();
+
+    String[] getTransportOptions();
+
+    LinkedHashMap<String, String> getParameterDefaults();
+
+    void addParameter(String key, String value);
+
+    void removeLastParameter();
+
+    void clearParameters();
+
     String getSpecificParametersAsString();
+
+    static String assembleUrl(String protocol, String transport, String host, String port,
+                              LinkedHashMap<String, String> params) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(protocol == null ? "" : protocol)
+                .append(":").append(transport == null ? "" : transport)
+                .append("://").append(host == null ? "" : host);
+        if (port != null && !port.trim().isEmpty()) {
+            sb.append(":").append(port.trim());
+        }
+        LinkedHashMap<String, String> ordered = new LinkedHashMap<>();
+        if (params != null) {
+            ordered.putAll(params);
+        }
+        if (!ordered.isEmpty()) {
+            sb.append("?");
+            int i = 0;
+            for (Map.Entry<String, String> e : ordered.entrySet()) {
+                if (i++ > 0) {
+                    sb.append("&");
+                }
+                sb.append(e.getKey()).append("=").append(e.getValue());
+            }
+        }
+        return sb.toString();
+    }
 }

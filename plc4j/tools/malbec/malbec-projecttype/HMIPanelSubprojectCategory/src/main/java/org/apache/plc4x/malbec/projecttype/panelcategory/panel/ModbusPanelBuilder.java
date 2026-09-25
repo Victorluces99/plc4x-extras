@@ -20,20 +20,26 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 
 import java.util.LinkedHashMap;
 
-public class AllenBradleyPanelBuilder implements DeviceDynamicPanelBuilder {
+public class ModbusPanelBuilder implements DeviceDynamicPanelBuilder {
 
     private String host = "";
+    private String protocol = "modbus-tcp";
     private String transport = "tcp";
     private String port = "";
     private final LinkedHashMap<String, String> params = new LinkedHashMap<>();
 
     @Override
     public void initForModel(DeviceModel model) {
+        String p = model.getProtocol();
+        if (p != null) {
+            protocol = p;
+        }
+        transport = "modbus-tcp".equals(protocol) ? "tcp" : "serial";
     }
 
     @Override
     public String getProtocol() {
-        return "eip";
+        return protocol;
     }
 
     @Override
@@ -43,7 +49,7 @@ public class AllenBradleyPanelBuilder implements DeviceDynamicPanelBuilder {
 
     @Override
     public String[] getTransportOptions() {
-        return new String[]{"tcp"};
+        return new String[]{"tcp", "serial"};
     }
 
     @Override
@@ -64,8 +70,7 @@ public class AllenBradleyPanelBuilder implements DeviceDynamicPanelBuilder {
     @Override
     public LinkedHashMap<String, String> getParameterDefaults() {
         LinkedHashMap<String, String> defaults = new LinkedHashMap<>();
-        defaults.put("path", "");
-        defaults.put("slot", "0");
+        defaults.put("unit-identifier", "1");
         return defaults;
     }
 

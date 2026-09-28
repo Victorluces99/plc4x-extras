@@ -49,7 +49,7 @@ public class HMICategoryCreateDeviceAction extends AbstractAction {
         }
     }
     
-    public static void createDeviceFileInProject(Project project, DeviceConfigData data) {
+    public static void createDevice(Project project, DeviceConfigData data) {
         if (project == null || data == null) {
             return;
         }

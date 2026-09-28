@@ -20,6 +20,7 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 public interface DeviceDynamicPanelBuilder {
 
@@ -39,6 +40,37 @@ public interface DeviceDynamicPanelBuilder {
 
     LinkedHashMap<String, String> getParameterDefaults();
 
+    /**
+     * Catálogo de parámetros válidos para un transporte concreto. El método
+     * por defecto delega en {@link #getParameterDefaults()}.
+     */
+    default LinkedHashMap<String, String> getParameterDefaults(String transport) {
+        return getParameterDefaults();
+    }
+
+    /**
+     * Etiqueta del campo "host". Los transportes serie utilizan la ruta del
+     * dispositivo (p. ej. {@code /dev/ttyUSB0} o {@code COM3}) en lugar de una IP.
+     */
+    default String getHostLabel() {
+        return "Host/IP:";
+    }
+
+    /**
+     * Indica si el campo de puerto aplica al transporte activo. No aplica, por
+     * ejemplo, en transportes serie.
+     */
+    default boolean isPortApplicable() {
+        return true;
+    }
+
+    /**
+     * Elimina de los parámetros ya añadidos los que no estén en el catálogo
+     * {@code validKeys}. Sin efecto por defecto.
+     */
+    default void retainParameters(Set<String> validKeys) {
+    }
+
     void addParameter(String key, String value);
 
     void removeLastParameter();
@@ -49,11 +81,18 @@ public interface DeviceDynamicPanelBuilder {
 
     static String assembleUrl(String protocol, String transport, String host, String port,
                               LinkedHashMap<String, String> params) {
+        return assembleUrl(protocol, transport, host, port, params, true);
+    }
+
+    static String assembleUrl(String protocol, String transport, String host, String port,
+                              LinkedHashMap<String, String> params, boolean includePort) {
         StringBuilder sb = new StringBuilder();
-        sb.append(protocol == null ? "" : protocol)
-                .append(":").append(transport == null ? "" : transport)
-                .append("://").append(host == null ? "" : host);
-        if (port != null && !port.trim().isEmpty()) {
+        sb.append(protocol == null ? "" : protocol);
+        if (transport != null && !transport.trim().isEmpty()) {
+            sb.append(":").append(transport);
+        }
+        sb.append("://").append(host == null ? "" : host);
+        if (includePort && port != null && !port.trim().isEmpty()) {
             sb.append(":").append(port.trim());
         }
         LinkedHashMap<String, String> ordered = new LinkedHashMap<>();

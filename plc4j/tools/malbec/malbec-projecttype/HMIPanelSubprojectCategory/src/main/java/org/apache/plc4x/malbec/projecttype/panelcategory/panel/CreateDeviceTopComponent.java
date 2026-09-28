@@ -43,18 +43,13 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreat
 @ActionID(category = "Window", id = "com.mycompany.communications.ui.CommunicationsTopComponent")
 @ActionReference(path = "Menu/Window")
 @Messages({
-    "CTL_CommunicationsTopComponent=Ventana de Comunicaciones",
+    "CTL_CommunicationsTopComponent=Creación del Dispositivo",
     "HINT_CommunicationsTopComponent=Ventana para configuración de PLC"
 })
 public final class CreateDeviceTopComponent extends TopComponent {
 
-    private static final Dimension LABEL_SIZE = new Dimension(150, 26);
-    private static final Dimension FIELD_SIZE = new Dimension(260, 26);
-    private static final Dimension UUID_FIELD_SIZE = new Dimension(340, 26);
-    private static final Dimension HOST_SIZE = new Dimension(340, 26);
-    private static final Dimension PORT_SIZE = new Dimension(90, 26);
-    private static final Dimension PARAM_VALUE_SIZE = new Dimension(230, 26);
-    private static final Dimension URL_SIZE = new Dimension(600, 26);
+    private static final Dimension LABEL_SIZE = new Dimension(120, 26);
+    private static final Dimension FIELD_SIZE = new Dimension(280, 26);
 
     private Project currentProject;
 
@@ -73,6 +68,8 @@ public final class CreateDeviceTopComponent extends TopComponent {
     private JTextField txtS88UUID;
 
     // Área de Parámetros de Conexión
+    private JLabel lblHost;
+    private JLabel lblPort;
     private JTextField txtHost;
     private JComboBox<String> cbTransport;
     private JTextField txtPort;
@@ -108,7 +105,6 @@ public final class CreateDeviceTopComponent extends TopComponent {
                 new DeviceModel("Siemens", "S7-400", "S7"),
                 new DeviceModel("Siemens", "S7-1200", "S7"),
                 new DeviceModel("Siemens", "S7-1500", "S7")
-
         ));
         devicesMap.put("Allen Bradley", Arrays.asList(
                 new DeviceModel("Allen Bradley", "ControlLogix", "EtherNet/IP"),
@@ -127,14 +123,17 @@ public final class CreateDeviceTopComponent extends TopComponent {
 
     private JPanel card(String title) {
         JPanel p = new JPanel(new GridBagLayout());
-        p.setBorder(BorderFactory.createTitledBorder(title));
+        p.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder(title),
+                BorderFactory.createEmptyBorder(2, 4, 2, 4)
+        ));
         return p;
     }
 
     private void addFieldRow(JPanel card, GridBagConstraints g, int y, String label, JComponent field) {
         JLabel lbl = new JLabel(label);
         lbl.setPreferredSize(LABEL_SIZE);
-        g.insets = new Insets(2, 8, 2, 8);
+        g.insets = new Insets(1, 3, 1, 3);
         g.anchor = GridBagConstraints.WEST;
         g.fill = GridBagConstraints.HORIZONTAL;
         g.weightx = 0.0;
@@ -147,24 +146,24 @@ public final class CreateDeviceTopComponent extends TopComponent {
     }
 
     private void initComponentsUI() {
-        setLayout(new BorderLayout(10, 10));
+        setLayout(new BorderLayout(5, 5));
 
         JPanel mainFormPanel = new JPanel(new GridBagLayout());
-        mainFormPanel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        mainFormPanel.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
 
         GridBagConstraints mg = new GridBagConstraints();
-        mg.insets = new Insets(2, 4, 2, 4);
+        mg.insets = new Insets(1, 2, 1, 2);
         mg.anchor = GridBagConstraints.WEST;
         mg.fill = GridBagConstraints.HORIZONTAL;
         mg.weightx = 0.0;
         mg.gridwidth = 1;
 
-        JLabel lblTitle = new JLabel("Seleccione el equipo para establecer la comunicación");
+        JLabel lblTitle = new JLabel("Seleccione el equipo a Configurar:");
         mg.gridx = 0;
         mg.gridy = 0;
         mainFormPanel.add(lblTitle, mg);
 
-        // --- Panel Marca / Modelo ---
+        // --- 1. Panel Marca / Modelo ---
         JPanel pnlBrandModel = card("Marca y modelo");
         cbMarca = new JComboBox<>(new String[]{"-- Seleccione --", "Siemens", "Allen Bradley", "Modbus"});
         cbMarca.setPreferredSize(FIELD_SIZE);
@@ -176,7 +175,7 @@ public final class CreateDeviceTopComponent extends TopComponent {
         mg.gridy = 1;
         mainFormPanel.add(pnlBrandModel, mg);
 
-        // --- Panel Device Fields ---
+        // --- 2. Panel Device Fields ---
         JPanel pnlDevice = card("Dispositivo");
         txtProtocol = new JTextField();
         txtProtocol.setEditable(false);
@@ -189,22 +188,24 @@ public final class CreateDeviceTopComponent extends TopComponent {
         txtDescription.setPreferredSize(FIELD_SIZE);
         txtUUID = new JTextField();
         txtUUID.setEditable(false);
-        txtUUID.setPreferredSize(UUID_FIELD_SIZE);
+        txtUUID.setPreferredSize(FIELD_SIZE);
         chkEnable = new JCheckBox("Enable");
+
         GridBagConstraints dg = new GridBagConstraints();
-        addFieldRow(pnlDevice, dg, 0, "Device Protocol", txtProtocol);
-        addFieldRow(pnlDevice, dg, 1, "Device name", txtDeviceName);
-        addFieldRow(pnlDevice, dg, 2, "Device Key", txtDeviceKey);
-        addFieldRow(pnlDevice, dg, 3, "Device description", txtDescription);
+        addFieldRow(pnlDevice, dg, 0, "Protocol", txtProtocol);
+        addFieldRow(pnlDevice, dg, 1, "Name", txtDeviceName);
+        addFieldRow(pnlDevice, dg, 2, "Key", txtDeviceKey);
+        addFieldRow(pnlDevice, dg, 3, "Description", txtDescription);
         addFieldRow(pnlDevice, dg, 4, "UUID", txtUUID);
-        dg.gridx = 2;
-        dg.gridy = 4;
-        dg.gridwidth = 1;
+
+        dg.gridx = 1;
+        dg.gridy = 5;
         pnlDevice.add(chkEnable, dg);
+
         mg.gridy = 2;
         mainFormPanel.add(pnlDevice, mg);
 
-        // --- Panel S88 Tree ---
+        // --- 3. Panel S88 Tree ---
         JPanel pnlS88 = card("S88 tree");
         cbS88Node = new JComboBox<>(new String[]{"-- Seleccione --", "Node_Area_01", "Node_Unit_02"});
         cbS88Node.setPreferredSize(FIELD_SIZE);
@@ -217,82 +218,86 @@ public final class CreateDeviceTopComponent extends TopComponent {
         mg.gridy = 3;
         mainFormPanel.add(pnlS88, mg);
 
-        add(mainFormPanel, BorderLayout.NORTH);
-
-        // --- Área de Parámetros de Conexión ---
+        // --- 4. Panel Parámetros de Conexión ---
         JPanel pnlParams = card("Parámetros de conexión");
+
         txtHost = new JTextField();
-        txtHost.setPreferredSize(HOST_SIZE);
+        txtHost.setPreferredSize(FIELD_SIZE);
+
+        // Subpanel Transport + Port extendido mediante GridBagLayout
         cbTransport = new JComboBox<>();
         cbTransport.setEditable(true);
-        cbTransport.setPreferredSize(FIELD_SIZE);
+        cbTransport.setPreferredSize(new Dimension(110, 22));
+
+        lblPort = new JLabel("Port:");
+        lblPort.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 2));
+
         txtPort = new JTextField();
-        txtPort.setPreferredSize(PORT_SIZE);
+
+        JPanel pnlTransportPort = new JPanel(new GridBagLayout());
+        pnlTransportPort.setPreferredSize(FIELD_SIZE);
+
+        GridBagConstraints tgc = new GridBagConstraints();
+        tgc.fill = GridBagConstraints.HORIZONTAL;
+        tgc.gridy = 0;
+
+        tgc.gridx = 0;
+        tgc.weightx = 0.0;
+        pnlTransportPort.add(cbTransport, tgc);
+
+        tgc.gridx = 1;
+        tgc.weightx = 0.0;
+        pnlTransportPort.add(lblPort, tgc);
+
+        tgc.gridx = 2;
+        tgc.weightx = 1.0; // Hace que txtPort se extienda hasta el borde derecho
+        pnlTransportPort.add(txtPort, tgc);
+
         cbParameter = new JComboBox<>();
-        cbParameter.setPreferredSize(PARAM_VALUE_SIZE);
+        cbParameter.setPreferredSize(FIELD_SIZE);
+
         txtParamValue = new JTextField();
-        txtParamValue.setPreferredSize(PARAM_VALUE_SIZE);
+        txtParamValue.setPreferredSize(FIELD_SIZE);
         txtParamValue.setEnabled(false);
-        JButton btnAddParam = new JButton("Añadir");
-        JButton btnRemoveParam = new JButton("Quitar último");
+
+        JButton btnAddParam = new JButton("+");
+        btnAddParam.setMargin(new Insets(1, 6, 1, 6));
+        JButton btnRemoveParam = new JButton("-");
+        btnRemoveParam.setMargin(new Insets(1, 6, 1, 6));
         JButton btnClear = new JButton("Limpiar");
+        btnClear.setMargin(new Insets(1, 6, 1, 6));
+
+        JPanel pnlParamButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
+        pnlParamButtons.setPreferredSize(FIELD_SIZE);
+        pnlParamButtons.add(btnAddParam);
+        pnlParamButtons.add(btnRemoveParam);
+        pnlParamButtons.add(btnClear);
+
         txtUrlPreview = new JTextField();
         txtUrlPreview.setEditable(false);
-        txtUrlPreview.setPreferredSize(URL_SIZE);
+        txtUrlPreview.setPreferredSize(FIELD_SIZE);
 
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(2, 8, 2, 8);
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 0.0;
-        gbc.gridy = 0;
-        gbc.gridx = 0;
-        pnlParams.add(new JLabel("Host/IP:"), gbc);
-        gbc.gridx = 1;
-        gbc.gridwidth = 3;
-        pnlParams.add(txtHost, gbc);
+        GridBagConstraints pg = new GridBagConstraints();
+        lblHost = new JLabel("Host/IP");
+        addFieldRow(pnlParams, pg, 0, "Host/IP", txtHost);
+        addFieldRow(pnlParams, pg, 1, "Transport/Port", pnlTransportPort);
+        addFieldRow(pnlParams, pg, 2, "Parámetro", cbParameter);
+        addFieldRow(pnlParams, pg, 3, "Valor", txtParamValue);
+        addFieldRow(pnlParams, pg, 4, "Acciones", pnlParamButtons);
+        addFieldRow(pnlParams, pg, 5, "URL Preview", txtUrlPreview);
 
-        gbc.gridy = 1;
-        gbc.gridx = 0;
-        gbc.gridwidth = 1;
-        pnlParams.add(new JLabel("Transport:"), gbc);
-        gbc.gridx = 1;
-        pnlParams.add(cbTransport, gbc);
-        gbc.gridx = 2;
-        pnlParams.add(new JLabel("Port:"), gbc);
-        gbc.gridx = 3;
-        pnlParams.add(txtPort, gbc);
+        mg.gridy = 4;
+        mainFormPanel.add(pnlParams, mg);
 
-        gbc.gridy = 2;
-        gbc.gridx = 0;
-        pnlParams.add(new JLabel("Parámetro:"), gbc);
-        gbc.gridx = 1;
-        pnlParams.add(cbParameter, gbc);
-        gbc.gridx = 2;
-        pnlParams.add(txtParamValue, gbc);
-        gbc.gridx = 3;
-        pnlParams.add(btnAddParam, gbc);
+        // --- CENTRADO DEL FORMULARIO ---
+        JPanel alignContainer = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        alignContainer.add(mainFormPanel);
 
-        gbc.gridy = 3;
-        gbc.gridx = 0;
-        gbc.gridwidth = 2;
-        pnlParams.add(btnRemoveParam, gbc);
-        gbc.gridx = 2;
-        gbc.gridwidth = 2;
-        pnlParams.add(btnClear, gbc);
+        JScrollPane scrollPane = new JScrollPane(alignContainer);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        add(scrollPane, BorderLayout.CENTER);
 
-        gbc.gridy = 4;
-        gbc.gridx = 0;
-        gbc.gridwidth = 1;
-        pnlParams.add(new JLabel("URL:"), gbc);
-        gbc.gridx = 1;
-        gbc.gridwidth = 3;
-        pnlParams.add(txtUrlPreview, gbc);
-
-        JPanel pnlParamsWrap = new JPanel(new BorderLayout());
-        pnlParamsWrap.add(pnlParams, BorderLayout.NORTH);
-        add(pnlParamsWrap, BorderLayout.CENTER);
-
+        // Listeners del panel de parámetros
         cbParameter.addActionListener(e -> {
             String key = (String) cbParameter.getSelectedItem();
             if (key == null) {
@@ -307,7 +312,7 @@ public final class CreateDeviceTopComponent extends TopComponent {
         txtHost.getDocument().addDocumentListener(
                 new SimpleDocumentListener(CreateDeviceTopComponent.this::refreshUrlPreview));
 
-        cbTransport.addActionListener(e -> refreshUrlPreview());
+        cbTransport.addActionListener(e -> onTransportChanged());
         JComponent transportEditor = (JComponent) cbTransport.getEditor().getEditorComponent();
         if (transportEditor instanceof JTextField) {
             ((JTextField) transportEditor).getDocument().addDocumentListener(
@@ -340,15 +345,14 @@ public final class CreateDeviceTopComponent extends TopComponent {
             refreshUrlPreview();
         });
 
-        // --- Botones Inferiores ---
-        JPanel pnlButtons = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+        // --- Botones Inferiores Compactos y Centrados ---
+        JPanel pnlButtons = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 4));
         JButton btnOk = new JButton("Ok");
         JButton btnCancel = new JButton("Cancel");
         pnlButtons.add(btnOk);
         pnlButtons.add(btnCancel);
         add(pnlButtons, BorderLayout.SOUTH);
 
-        // Events de Ok y Cancel
         btnOk.addActionListener(e -> onOkPressed());
         btnCancel.addActionListener(e -> onCancelPressed());
 
@@ -374,8 +378,6 @@ public final class CreateDeviceTopComponent extends TopComponent {
                 for (DeviceModel dm : devicesMap.get(selectedBrand)) {
                     cbModelo.addItem(dm);
                 }
-                // Preseleccionar el primer modelo y generar el UUID explícitamente:
-                // el auto-seleccionado al añadir items no siempre dispara el ActionEvent.
                 cbModelo.setSelectedIndex(0);
                 txtUUID.setText(UUID.randomUUID().toString());
             }
@@ -426,11 +428,58 @@ public final class CreateDeviceTopComponent extends TopComponent {
             cbTransport.addItem(option);
         }
         cbTransport.setSelectedItem(activeBuilder.getDefaultTransport());
+        if (cbTransport.getSelectedItem() == null && cbTransport.getItemCount() > 0) {
+            cbTransport.setSelectedIndex(0);
+        }
+        onTransportChanged();
+    }
 
-        for (String key : activeBuilder.getParameterDefaults().keySet()) {
+    private void onTransportChanged() {
+        if (activeBuilder == null) {
+            return;
+        }
+        Object transport = cbTransport.getSelectedItem();
+        String transportValue = transport != null ? transport.toString() : "";
+        activeBuilder.setTransport(transportValue);
+
+        lblHost.setText(activeBuilder.getHostLabel());
+        boolean portApplicable = activeBuilder.isPortApplicable();
+        lblPort.setEnabled(portApplicable);
+        txtPort.setEnabled(portApplicable);
+        if (!portApplicable) {
+            txtPort.setText("");
+        }
+
+        refreshParameterCatalog(transportValue);
+        refreshUrlPreview();
+    }
+
+    private void refreshParameterCatalog(String transport) {
+        if (activeBuilder == null) {
+            cbParameter.removeAllItems();
+            txtParamValue.setEnabled(false);
+            txtParamValue.setText("");
+            return;
+        }
+        LinkedHashMap<String, String> catalog = activeBuilder.getParameterDefaults(transport);
+        activeBuilder.retainParameters(catalog.keySet());
+
+        String selectedKey = (String) cbParameter.getSelectedItem();
+        cbParameter.removeAllItems();
+        for (String key : catalog.keySet()) {
             cbParameter.addItem(key);
         }
-        refreshUrlPreview();
+        if (selectedKey != null && catalog.containsKey(selectedKey)) {
+            cbParameter.setSelectedItem(selectedKey);
+        }
+        Object current = cbParameter.getSelectedItem();
+        if (current == null) {
+            txtParamValue.setEnabled(false);
+            txtParamValue.setText("");
+        } else {
+            txtParamValue.setEnabled(true);
+            txtParamValue.setText(catalog.getOrDefault(current.toString(), ""));
+        }
     }
 
     private void refreshUrlPreview() {
@@ -445,9 +494,6 @@ public final class CreateDeviceTopComponent extends TopComponent {
         txtUrlPreview.setText(activeBuilder.getSpecificParametersAsString());
     }
 
-    /**
-     * Limpia completamente la vista
-     */
     public void resetForm() {
         cbMarca.setSelectedIndex(0);
         cbModelo.removeAllItems();
@@ -461,17 +507,17 @@ public final class CreateDeviceTopComponent extends TopComponent {
         txtS88UUID.setText("");
         activeBuilder = null;
         txtHost.setText("");
+        lblHost.setText("Host/IP");
         cbTransport.removeAllItems();
         txtPort.setText("");
+        lblPort.setEnabled(true);
+        txtPort.setEnabled(true);
         cbParameter.removeAllItems();
         txtParamValue.setText("");
         txtParamValue.setEnabled(false);
         txtUrlPreview.setText("");
     }
 
-    /**
-     * Valida y construye los datos. Retorna null si hay inconsistencias.
-     */
     public DeviceConfigData getDeviceConfigData() {
         if (txtDeviceName.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this, "Por favor ingrese un nombre para el dispositivo.", "Error de Validación", JOptionPane.ERROR_MESSAGE);
@@ -491,7 +537,7 @@ public final class CreateDeviceTopComponent extends TopComponent {
 
         if (txtHost.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this,
-                    "Debe ingresar la IP/Host del dispositivo.",
+                    "Debe ingresar la IP/Host o el dispositivo serie.",
                     "Error de Validación", JOptionPane.ERROR_MESSAGE);
             return null;
         }
@@ -525,9 +571,7 @@ public final class CreateDeviceTopComponent extends TopComponent {
     private void onOkPressed() {
         DeviceConfigData data = getDeviceConfigData();
         if (data != null && currentProject != null) {
-            // Guardar el archivo en el proyecto
-            HMICategoryCreateDeviceAction.createDeviceFileInProject(currentProject, data);
-            // Resetear formulario y cerrar la pestaña
+            HMICategoryCreateDeviceAction.createDevice(currentProject, data);
             resetForm();
             close();
         }
@@ -535,7 +579,7 @@ public final class CreateDeviceTopComponent extends TopComponent {
 
     private void onCancelPressed() {
         resetForm();
-        close(); // Cierra el TopComponent en NetBeans
+        close();
     }
 
     void writeProperties(Properties p) {

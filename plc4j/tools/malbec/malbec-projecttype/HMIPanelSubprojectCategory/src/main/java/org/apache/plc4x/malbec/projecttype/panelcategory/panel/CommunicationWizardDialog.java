@@ -150,7 +150,7 @@ public class CommunicationWizardDialog extends JDialog {
         content.add(cardPanel, BorderLayout.CENTER);
     }
 
-    // ---------------------------------------------------------------- paso 1
+    // ------------------------------- paso 1---------------------------------
 
     private JPanel buildStepDevice() {
         cbDevice.setRenderer(new DefaultListCellRenderer() {
@@ -213,7 +213,7 @@ public class CommunicationWizardDialog extends JDialog {
         return panel;
     }
 
-    // ---------------------------------------------------------------- paso 2
+    // ----------------------- paso 2 -----------------------------------------
 
     private JPanel buildStepArea() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
@@ -300,7 +300,7 @@ public class CommunicationWizardDialog extends JDialog {
         return panel;
     }
 
-    // ---------------------------------------------------------------- paso 3
+    // --------------------------- paso 3 ------------------------------------ 
 
     private JPanel buildStepPv() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));

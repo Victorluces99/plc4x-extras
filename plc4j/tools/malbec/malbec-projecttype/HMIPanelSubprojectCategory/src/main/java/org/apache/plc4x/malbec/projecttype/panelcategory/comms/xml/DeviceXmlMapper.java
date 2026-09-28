@@ -115,6 +115,7 @@ public final class DeviceXmlMapper {
                         .append(" controlLimitLow=\"").append(escape(p.getControlLimitLow())).append("\"")
                         .append(" controlLimitHigh=\"").append(escape(p.getControlLimitHigh())).append("\"")
                         .append(" controlMinStep=\"").append(escape(p.getControlMinStep())).append("\"")
+                        .append(" s88Path=\"").append(escape(p.getS88Path())).append("\"")
                         .append(" md5=\"").append(escape(p.getMd5())).append("\"/>");
             }
         }
@@ -229,7 +230,7 @@ public final class DeviceXmlMapper {
                                 attr(p, "displayDescription"), attr(p, "displayFormat"),
                                 attr(p, "displayUnits"), attr(p, "controlLimitLow"),
                                 attr(p, "controlLimitHigh"), attr(p, "controlMinStep"),
-                                attr(p, "md5")));
+                                attr(p, "md5"), attr(p, "s88Path")));
                     }
                 }
                 return new CommConfigData(configuration.getName(), groups, items, pvs);

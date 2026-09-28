@@ -118,6 +118,13 @@ public class CommConfigData {
         private String controlLimitHigh;
         private String controlMinStep;
         private String md5;
+        /**
+         * Ruta de pertenencia de la variable dentro del área S88
+         * (área/processcell/elemento). Junto con el nombre identifica de forma
+         * única la variable de planta usada; se persiste para poder bloquear
+         * variables homónimas aunque pertenezcan a distinta jerarquía.
+         */
+        private String s88Path;
 
         //TODO: Property java para pasarla al constructor
         public PvConfig(String uuid, String name, String type, String id, String offset, String descriptor,
@@ -125,6 +132,16 @@ public class CommConfigData {
                         String displayLimitHigh, String displayDescription, String displayFormat,
                         String displayUnits, String controlLimitLow, String controlLimitHigh,
                         String controlMinStep, String md5) {
+            this(uuid, name, type, id, offset, descriptor, scanTime, scanEnable, writeEnable,
+                    displayLimitLow, displayLimitHigh, displayDescription, displayFormat,
+                    displayUnits, controlLimitLow, controlLimitHigh, controlMinStep, md5, "");
+        }
+
+        public PvConfig(String uuid, String name, String type, String id, String offset, String descriptor,
+                        String scanTime, boolean scanEnable, boolean writeEnable, String displayLimitLow,
+                        String displayLimitHigh, String displayDescription, String displayFormat,
+                        String displayUnits, String controlLimitLow, String controlLimitHigh,
+                        String controlMinStep, String md5, String s88Path) {
             this.uuid = uuid;
             this.name = name;
             this.type = type;
@@ -143,6 +160,7 @@ public class CommConfigData {
             this.controlLimitHigh = controlLimitHigh;
             this.controlMinStep = controlMinStep;
             this.md5 = md5;
+            this.s88Path = s88Path;
         }
 
         public PvConfig(Properties  p) {
@@ -169,5 +187,6 @@ public class CommConfigData {
         public String getControlLimitHigh() { return controlLimitHigh; }
         public String getControlMinStep() { return controlMinStep; }
         public String getMd5() { return md5; }
+        public String getS88Path() { return s88Path; }
     }
 }

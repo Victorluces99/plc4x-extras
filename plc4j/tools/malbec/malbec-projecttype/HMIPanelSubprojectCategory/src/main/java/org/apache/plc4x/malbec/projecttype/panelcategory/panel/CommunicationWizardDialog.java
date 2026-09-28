@@ -28,8 +28,10 @@ import java.awt.Insets;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
@@ -47,9 +49,18 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.table.DefaultTableModel;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
 import org.netbeans.api.project.Project;
+import org.openide.filesystems.FileObject;
+import org.openide.filesystems.FileUtil;
+import org.openide.util.Exceptions;
 import org.openide.windows.WindowManager;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 /**
  * Wizard de comunicación en 3 pasos: Dispositivo -&gt; Grupo/Área -&gt; Variable.
@@ -61,7 +72,6 @@ public class CommunicationWizardDialog extends JDialog {
     private static final String STEP_DEVICE = "device";
     private static final String STEP_AREA = "area";
     private static final String STEP_PV = "pv";
-    private static final String[] PV_TYPES = {"INT", "FLOAT", "STRING", "BOOLEAN", "DOUBLE"};
 
     private final Project project;
     private final HMICommunicationModel model;
@@ -99,8 +109,8 @@ public class CommunicationWizardDialog extends JDialog {
 
     // Paso 3: Variable
     private final JComboBox<CommConfigData.ItemConfig> cbArea = new JComboBox<>();
-    private final JTextField txtName = new JTextField(14);
-    private final JComboBox<String> cbType = new JComboBox<>(PV_TYPES);
+    private final JComboBox<PlantVariable> cbVariable = new JComboBox<>();
+    private final JComboBox<String> cbType = new JComboBox<>();
     private final JTextField txtOffset = new JTextField(10);
     private final JTextField txtDescriptor = new JTextField(14);
     private final JTextField txtScanTime = new JTextField(8);
@@ -323,8 +333,8 @@ public class CommunicationWizardDialog extends JDialog {
         g.gridx = 1; g.gridwidth = 3;
         form.add(cbArea, g); g.gridwidth = 1;
 
-        addLabel(form, g, ++row, "Nombre:");
-        g.gridx = 1; g.gridwidth = 3; form.add(txtName, g); g.gridwidth = 1;
+        addLabel(form, g, ++row, "Variable (del área S88):");
+        g.gridx = 1; g.gridwidth = 3; form.add(cbVariable, g); g.gridwidth = 1;
 
         addLabel(form, g, ++row, "Tipo:");
         g.gridx = 1; g.gridwidth = 1; form.add(cbType, g);
@@ -377,6 +387,34 @@ public class CommunicationWizardDialog extends JDialog {
                 return label;
             }
         });
+
+        cbVariable.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value,
+                    int index, boolean isSelected, boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list, value, index, isSelected, cellHasFocus);
+                if (value instanceof PlantVariable v) {
+                    String text = v.getPath().isEmpty()
+                            ? v.getName() + "  (" + v.getType() + ")"
+                            : v.getPath() + "/" + v.getName() + "  (" + v.getType() + ")";
+                    if (v.isUsed()) {
+                        label.setEnabled(false);
+                        label.setToolTipText("Variable ya asignada a otra configuración");
+                        text += "  — en uso";
+                    }
+                    label.setText(text);
+                } else {
+                    label.setText("-- Seleccione --");
+                }
+                return label;
+            }
+        });
+        cbVariable.addActionListener(e -> onVariableSelected());
+
+        cbType.removeAllItems();
+        cbType.addItem("—");
+        cbType.setEnabled(false);
 
         btnAddPv.addActionListener(e -> addPv());
         btnBack3.addActionListener(e -> showStep(STEP_AREA));
@@ -498,6 +536,7 @@ public class CommunicationWizardDialog extends JDialog {
         }
         refreshAreaStatus();
         refreshPvAreas();
+        refreshVariables();
         refreshGroupCombo();
         btnNext2.setEnabled(!items.isEmpty());
     }
@@ -557,6 +596,133 @@ public class CommunicationWizardDialog extends JDialog {
         }
     }
 
+    /**
+     * Rellena el desplegable con las variables del área S88 asociada al
+     * dispositivo (leídas de {@code plant-model.xml}). Las variables ya
+     * usadas por algún PV guardado (o de la sesión) se muestran deshabilitadas.
+     */
+    private void refreshVariables() {
+        cbVariable.removeAllItems();
+        cbVariable.addItem(null);
+        cbType.removeAllItems();
+        cbType.addItem("—");
+        if (selectedDevice == null) {
+            return;
+        }
+        String areaId = selectedDevice.getS88Node();
+        if (areaId == null || areaId.isEmpty()) {
+            return;
+        }
+        List<PlantVariable> variables;
+        try {
+            variables = loadAreaVariables(areaId);
+        } catch (Exception ex) {
+            Exceptions.printStackTrace(ex);
+            return;
+        }
+        Set<String> usedKeys = new HashSet<>();
+        Set<String> usedNames = new HashSet<>();
+        for (CommConfigData.PvConfig pv : pvs) {
+            usedNames.add(pv.getName());
+            String path = pv.getS88Path();
+            if (path != null && !path.isEmpty()) {
+                usedKeys.add(path + "/" + pv.getName());
+            }
+        }
+        for (PlantVariable v : variables) {
+            if (usedKeys.contains(v.getKey()) || usedNames.contains(v.getName())) {
+                v.setUsed(true);
+            }
+            cbVariable.addItem(v);
+        }
+    }
+
+    private void onVariableSelected() {
+        PlantVariable v = (PlantVariable) cbVariable.getSelectedItem();
+        if (v == null) {
+            cbType.removeAllItems();
+            cbType.addItem("—");
+            return;
+        }
+        if (v.isUsed()) {
+            JOptionPane.showMessageDialog(this,
+                    "La variable '" + v.getKey() + "' ya está en uso.",
+                    "Variable ocupada", JOptionPane.WARNING_MESSAGE);
+            cbVariable.setSelectedIndex(0);
+            return;
+        }
+        cbType.removeAllItems();
+        cbType.addItem(v.getType());
+    }
+
+    private List<PlantVariable> loadAreaVariables(String areaId) throws Exception {
+        List<PlantVariable> result = new ArrayList<>();
+        FileObject plantModel = findPlantModelFile(project != null ? project.getProjectDirectory() : null);
+        if (plantModel == null) {
+            return result;
+        }
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document doc = builder.parse(FileUtil.toFile(plantModel));
+        Element root = doc.getDocumentElement();
+        if (root == null) {
+            return result;
+        }
+        Element area = findArea(root, areaId);
+        if (area != null) {
+            collectPlantVariables(area, areaId, result);
+        }
+        return result;
+    }
+
+    private Element findArea(Element root, String areaId) {
+        NodeList nodes = root.getChildNodes();
+        for (int i = 0; i < nodes.getLength(); i++) {
+            Node node = nodes.item(i);
+            if (node.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+            Element element = (Element) node;
+            if ("area".equals(element.getTagName()) && areaId.equals(element.getAttribute("id"))) {
+                return element;
+            }
+        }
+        return null;
+    }
+
+    private void collectPlantVariables(Element element, String currentPath, List<PlantVariable> result) {
+        NodeList nodes = element.getChildNodes();
+        for (int i = 0; i < nodes.getLength(); i++) {
+            Node node = nodes.item(i);
+            if (node.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+            Element child = (Element) node;
+            if ("variable".equals(child.getTagName())) {
+                String name = child.getAttribute("name");
+                if (!name.isEmpty()) {
+                    result.add(new PlantVariable(currentPath, name, child.getAttribute("Type")));
+                }
+                continue;
+            }
+            String id = child.getAttribute("id");
+            String childPath = id.isEmpty() ? currentPath : currentPath + "/" + id;
+            collectPlantVariables(child, childPath, result);
+        }
+    }
+
+    private FileObject findPlantModelFile(FileObject projectDir) {
+        FileObject fo = projectDir;
+        while (fo != null) {
+            FileObject xml = fo.getFileObject("plant-model.xml");
+            if (xml != null) {
+                return xml;
+            }
+            fo = fo.getParent();
+        }
+        return null;
+    }
+
     private void addGroup() {
         String name = txtGroupName.getText().trim();
         String scantime = txtGroupScantime.getText().trim();
@@ -604,22 +770,28 @@ public class CommunicationWizardDialog extends JDialog {
 
     private void addPv() {
         CommConfigData.ItemConfig area = (CommConfigData.ItemConfig) cbArea.getSelectedItem();
-        String name = txtName.getText().trim();
+        PlantVariable variable = (PlantVariable) cbVariable.getSelectedItem();
         if (area == null) {
             JOptionPane.showMessageDialog(this,
                     "Seleccione un área de memoria (PvId) para la variable.",
                     "Falta área", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        if (name.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Ingrese el nombre de la variable.",
-                    "Campo incompleto", JOptionPane.WARNING_MESSAGE);
+        if (variable == null) {
+            JOptionPane.showMessageDialog(this, "Seleccione la variable de proceso del área S88.",
+                    "Falta variable", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        if (variable.isUsed()) {
+            JOptionPane.showMessageDialog(this,
+                    "La variable '" + variable.getKey() + "' ya está en uso y no puede configurarse de nuevo.",
+                    "Variable ocupada", JOptionPane.WARNING_MESSAGE);
             return;
         }
         pvs.add(new CommConfigData.PvConfig(
                 UUID.randomUUID().toString(),
-                name,
-                String.valueOf(cbType.getSelectedItem()),
+                variable.getName(),
+                variable.getType(),
                 area.getUuid(),
                 txtOffset.getText().trim(),
                 txtDescriptor.getText().trim(),
@@ -634,13 +806,15 @@ public class CommunicationWizardDialog extends JDialog {
                 txtControlLimitLow.getText().trim(),
                 txtControlLimitHigh.getText().trim(),
                 txtControlMinStep.getText().trim(),
-                "md5_pv_hash"));
-        txtName.setText("");
+                "md5_pv_hash",
+                variable.getPath()));
+        cbVariable.setSelectedIndex(0);
         txtOffset.setText("");
         txtDescriptor.setText("");
         txtScanTime.setText("");
         lblPvCount.setText("Variables: " + pvs.size());
         refreshAreaStatus();
+        refreshVariables();
     }
 
     private void saveNow() {
@@ -681,6 +855,50 @@ public class CommunicationWizardDialog extends JDialog {
             refreshAreaView();
         } else if (STEP_PV.equals(step)) {
             refreshPvAreas();
+            refreshVariables();
+        }
+    }
+
+    /**
+     * Variable de proceso leída del {@code plant-model.xml}: nombre, tipo y
+     * la ruta de pertenencia dentro del área S88 (jerarquía). La clave de
+     * bloqueo es la ruta + nombre, para desambiguar variables homónimas.
+     */
+    private static final class PlantVariable {
+
+        private final String path;
+        private final String name;
+        private final String type;
+        private boolean used;
+
+        PlantVariable(String path, String name, String type) {
+            this.path = path;
+            this.name = name;
+            this.type = type;
+        }
+
+        String getPath() {
+            return path;
+        }
+
+        String getName() {
+            return name;
+        }
+
+        String getType() {
+            return type;
+        }
+
+        boolean isUsed() {
+            return used;
+        }
+
+        void setUsed(boolean used) {
+            this.used = used;
+        }
+
+        String getKey() {
+            return path == null || path.isEmpty() ? name : path + "/" + name;
         }
     }
 }

@@ -32,6 +32,7 @@ import java.util.List;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDeviceAction;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
 import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileUtil;
 import org.openide.util.Exceptions;
@@ -90,6 +91,7 @@ public final class CreateDeviceTopComponent extends TopComponent {
     // Estructuras de datos locales
     private Map<String, List<DeviceModel>> devicesMap;
     private Map<String, String> s88NodesMap;
+    private final Set<String> usedS88Nodes = new HashSet<>();
 
     public CreateDeviceTopComponent() {
         setName(Bundle.CTL_CommunicationsTopComponent());
@@ -118,6 +120,18 @@ public final class CreateDeviceTopComponent extends TopComponent {
         cbS88Node.addItem("-- Seleccione --");
         cbS88Node.setEnabled(false);
         txtS88UUID.setText("");
+
+        usedS88Nodes.clear();
+        HMICommunicationModel model = currentProject != null
+                ? currentProject.getLookup().lookup(HMICommunicationModel.class) : null;
+        if (model != null) {
+            for (DeviceConfigData device : model.getDevices()) {
+                String s88Node = device.getS88Node();
+                if (s88Node != null && !s88Node.isEmpty()) {
+                    usedS88Nodes.add(s88Node);
+                }
+            }
+        }
 
         FileObject plantModel = findPlantModelFile(
                 currentProject != null ? currentProject.getProjectDirectory() : null);
@@ -272,6 +286,21 @@ public final class CreateDeviceTopComponent extends TopComponent {
         // --- 3. Panel S88 Tree ---
         JPanel pnlS88 = card("S88 tree");
         cbS88Node = new JComboBox<>();
+        cbS88Node.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value,
+                    int index, boolean isSelected, boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list, value, index, isSelected, cellHasFocus);
+                if (value instanceof String s && usedS88Nodes.contains(s)) {
+                    label.setEnabled(false);
+                    label.setText(s + "  (en uso)");
+                } else {
+                    label.setEnabled(true);
+                }
+                return label;
+            }
+        });
         cbS88Node.setPreferredSize(FIELD_SIZE);
         txtS88UUID = new JTextField();
         txtS88UUID.setEditable(false);
@@ -469,6 +498,14 @@ public final class CreateDeviceTopComponent extends TopComponent {
         cbS88Node.addActionListener(e -> {
             String selectedNode = (String) cbS88Node.getSelectedItem();
             if (s88NodesMap.containsKey(selectedNode)) {
+                if (usedS88Nodes.contains(selectedNode)) {
+                    JOptionPane.showMessageDialog(CreateDeviceTopComponent.this,
+                            "El área '" + selectedNode + "' ya está asignada a otro dispositivo.",
+                            "Área en uso", JOptionPane.WARNING_MESSAGE);
+                    cbS88Node.setSelectedIndex(0);
+                    txtS88UUID.setText("");
+                    return;
+                }
                 txtS88UUID.setText(s88NodesMap.get(selectedNode));
             } else {
                 txtS88UUID.setText("");

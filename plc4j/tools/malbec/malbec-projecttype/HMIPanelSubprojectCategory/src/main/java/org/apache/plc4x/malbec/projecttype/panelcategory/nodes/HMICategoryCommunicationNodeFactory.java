@@ -21,6 +21,7 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.nodes;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.event.ChangeEvent;
@@ -32,10 +33,16 @@ import org.netbeans.api.project.Project;
 import org.netbeans.spi.project.ui.support.NodeFactory;
 import org.netbeans.spi.project.ui.support.NodeFactorySupport;
 import org.netbeans.spi.project.ui.support.NodeList;
+import org.openide.actions.PropertiesAction;
 import org.openide.filesystems.FileObject;
 import org.openide.nodes.AbstractNode;
 import org.openide.nodes.Children;
 import org.openide.nodes.Node;
+import org.openide.nodes.Node.Property;
+import org.openide.nodes.Node.PropertySet;
+import org.openide.nodes.PropertySupport;
+import org.openide.nodes.Sheet;
+import org.openide.util.actions.SystemAction;
 
 @NodeFactory.Registration(projectType = "org-apache-plc4x-category", position = 70)
 public class HMICategoryCommunicationNodeFactory implements NodeFactory {
@@ -154,6 +161,13 @@ public class HMICategoryCommunicationNodeFactory implements NodeFactory {
             List<Action> allActions = new ArrayList<>();
 //            allActions.add(new HMICategoryCreateCommAction(project, device.getUuid()));
 //            allActions.add(null);
+            allActions.add(new AbstractAction("Propiedades") {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    SystemAction.get(PropertiesAction.class).performAction();
+                }
+            });
+            allActions.add(null);
             allActions.add(new AbstractAction("Eliminar Dispositivo") {
                 @Override
                 public void actionPerformed(ActionEvent e) {
@@ -164,6 +178,46 @@ public class HMICategoryCommunicationNodeFactory implements NodeFactory {
                 }
             });
             return allActions.toArray(new Action[0]);
+        }
+
+        @Override
+        protected Sheet createSheet() {
+            Sheet sheet = super.createSheet();
+            Sheet.Set props = sheet.get(Sheet.PROPERTIES);
+            if (props == null) {
+                props = Sheet.createPropertiesSet();
+                sheet.put(props);
+            }
+            props.put(readOnlyProperty("deviceName", "Nombre", "Nombre del dispositivo", device::getDeviceName));
+            props.put(readOnlyProperty("brand", "Marca", "Marca del dispositivo", device::getBrand));
+            props.put(readOnlyProperty("model", "Modelo", "Modelo del dispositivo", device::getModel));
+            props.put(readOnlyProperty("protocol", "Protocolo", "Protocolo de comunicación", device::getProtocol));
+            props.put(readOnlyProperty("specificParameters", "URL", "URL / parámetros específicos de conexión", device::getSpecificParameters));
+            props.put(readOnlyProperty("s88Node", "S88 Node", "Nodo S88 (área) asociado al dispositivo", device::getS88Node));
+            props.put(readOnlyProperty("s88Uuid", "S88 UUID", "UUID del área S88 asociada", device::getS88Uuid));
+            props.put(readOnlyProperty("deviceKey", "Device Key", "Clave del dispositivo", device::getDeviceKey));
+            props.put(readOnlyProperty("description", "Descripción", "Descripción del dispositivo", device::getDescription));
+            props.put(readOnlyProperty("uuid", "UUID", "Identificador único del dispositivo", device::getUuid));
+            props.put(readOnlyBooleanProperty("enable", "Habilitado", "Indica si el dispositivo está habilitado", device::isEnabled));
+            return sheet;
+        }
+
+        private static Property readOnlyProperty(String name, String displayName, String shortDescription, Supplier<String> getter) {
+            return new PropertySupport.ReadOnly(name, String.class, displayName, shortDescription) {
+                @Override
+                public Object getValue() {
+                    return getter.get();
+                }
+            };
+        }
+
+        private static Property readOnlyBooleanProperty(String name, String displayName, String shortDescription, Supplier<Boolean> getter) {
+            return new PropertySupport.ReadOnly(name, Boolean.class, displayName, shortDescription) {
+                @Override
+                public Object getValue() {
+                    return getter.get();
+                }
+            };
         }
     }
 }

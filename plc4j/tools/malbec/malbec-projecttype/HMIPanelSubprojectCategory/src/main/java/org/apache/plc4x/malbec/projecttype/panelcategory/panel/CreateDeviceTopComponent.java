@@ -29,7 +29,16 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDeviceAction;
+import org.openide.filesystems.FileObject;
+import org.openide.filesystems.FileUtil;
+import org.openide.util.Exceptions;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 @ConvertAsProperties(
         dtd = "-//com.mycompany.communications.ui//Communications//EN",
@@ -92,10 +101,67 @@ public final class CreateDeviceTopComponent extends TopComponent {
 
     public void setProject(Project project) {
         this.currentProject = project;
+        loadS88Nodes();
     }
 
     public Project getProject() {
         return currentProject;
+    }
+
+    /**
+     * Carga las áreas del {@code plant-model.xml} generado al importar el modelo
+     * de planta. El archivo vive en el directorio del panel (padre del
+     * subproyecto categoría), por lo que se busca subiendo en el árbol.
+     */
+    private void loadS88Nodes() {
+        cbS88Node.removeAllItems();
+        cbS88Node.addItem("-- Seleccione --");
+        cbS88Node.setEnabled(false);
+        txtS88UUID.setText("");
+
+        FileObject plantModel = findPlantModelFile(
+                currentProject != null ? currentProject.getProjectDirectory() : null);
+        if (plantModel == null) {
+            return;
+        }
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(FileUtil.toFile(plantModel));
+            Element root = doc.getDocumentElement();
+            NodeList nodes = root.getChildNodes();
+            for (int i = 0; i < nodes.getLength(); i++) {
+                Node node = nodes.item(i);
+                if (node.getNodeType() != Node.ELEMENT_NODE) {
+                    continue;
+                }
+                Element element = (Element) node;
+                if (!"area".equals(element.getTagName())) {
+                    continue;
+                }
+                String id = element.getAttribute("id");
+                if (id.isEmpty()) {
+                    continue;
+                }
+                cbS88Node.addItem(id);
+                s88NodesMap.put(id, element.getAttribute("uuid"));
+            }
+            cbS88Node.setEnabled(true);
+        } catch (Exception ex) {
+            Exceptions.printStackTrace(ex);
+        }
+    }
+
+    private FileObject findPlantModelFile(FileObject projectDir) {
+        FileObject fo = projectDir;
+        while (fo != null) {
+            FileObject xml = fo.getFileObject("plant-model.xml");
+            if (xml != null) {
+                return xml;
+            }
+            fo = fo.getParent();
+        }
+        return null;
     }
 
     private void initData() {
@@ -117,8 +183,6 @@ public final class CreateDeviceTopComponent extends TopComponent {
         ));
 
         s88NodesMap = new HashMap<>();
-        s88NodesMap.put("Node_Area_01", UUID.nameUUIDFromBytes("Node_Area_01".getBytes()).toString());
-        s88NodesMap.put("Node_Unit_02", UUID.nameUUIDFromBytes("Node_Unit_02".getBytes()).toString());
     }
 
     private JPanel card(String title) {
@@ -207,7 +271,7 @@ public final class CreateDeviceTopComponent extends TopComponent {
 
         // --- 3. Panel S88 Tree ---
         JPanel pnlS88 = card("S88 tree");
-        cbS88Node = new JComboBox<>(new String[]{"-- Seleccione --", "Node_Area_01", "Node_Unit_02"});
+        cbS88Node = new JComboBox<>();
         cbS88Node.setPreferredSize(FIELD_SIZE);
         txtS88UUID = new JTextField();
         txtS88UUID.setEditable(false);

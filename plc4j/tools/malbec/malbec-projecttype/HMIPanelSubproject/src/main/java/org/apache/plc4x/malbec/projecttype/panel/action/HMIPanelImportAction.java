@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import javax.swing.AbstractAction;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -46,7 +47,6 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import org.apache.plc4x.malbec.s88.api.S88Element;
-import org.apache.plc4x.malbec.s88.api.S88Level;
 import org.apache.plc4x.malbec.s88.api.S88PlantModel;
 import org.apache.plc4x.malbec.s88.api.S88Storage;
 import org.apache.plc4x.malbec.s88.plant.services.S88ProjectServices;
@@ -62,7 +62,9 @@ import org.xml.sax.SAXException;
 
 public class HMIPanelImportAction extends AbstractAction {
 
-    /** Nombre del archivo donde se vuelca el snapshot del modelo de planta. */
+    /**
+     * Nombre del archivo donde se vuelca el snapshot del modelo de planta.
+     */
     private static final String PLANT_MODEL_DUMP = "plant-model.xml";
 
     private final FileObject panel;
@@ -114,10 +116,9 @@ public class HMIPanelImportAction extends AbstractAction {
             }
         }
 
-        // Snapshot del modelo de planta (áreas + variables) en un XML consultable.
         if (root != null) {
             try {
-                exportPlantModelSnapshot(root);
+                exportPlantModel(root);
             } catch (IOException ex) {
                 Exceptions.printStackTrace(ex);
             }
@@ -130,14 +131,15 @@ public class HMIPanelImportAction extends AbstractAction {
     }
 
     /**
-     * Construye una representación en {@link LinkedHashMap} del árbol S88
-     * (área y jerarquía de elementos) con sus variables (nombre y Type) y la
-     * agrega al {@value #PLANT_MODEL_DUMP} del proyecto. Cada planta importada
-     * queda delimitada por su etiqueta {@code <area>} y no se sobreescribe:
-     * si el archivo ya existe se acumula la nueva planta; si la planta ya
-     * estaba importada (mismo id) se reemplaza solo su sección.
+     * Construye una representación en {@link LinkedHashMap} del árbol S88 (área
+     * y jerarquía de elementos) con sus variables (nombre y Type) y la agrega
+     * al {@value #PLANT_MODEL_DUMP} del proyecto. Cada planta importada queda
+     * delimitada por su etiqueta {@code <area>} con un {@code uuid} propio y no
+     * se sobreescribe: si el archivo ya existe se acumula la nueva planta; si
+     * la planta ya estaba importada (mismo id) se reemplaza solo su sección
+     * conservando el {@code uuid} original.
      */
-    private void exportPlantModelSnapshot(S88Element root) throws IOException {
+    private void exportPlantModel(S88Element root) throws IOException {
         LinkedHashMap<String, Object> snapshot = collectElement(root);
         File dir = FileUtil.toFile(panel);
         if (dir == null) {
@@ -145,11 +147,35 @@ public class HMIPanelImportAction extends AbstractAction {
         }
         File target = new File(dir, PLANT_MODEL_DUMP);
         Document doc = loadOrCreateDocument(target);
-        removePlant(doc, String.valueOf(snapshot.get("id")));
-        doc.getDocumentElement().appendChild(buildElementXml(doc, snapshot));
+        String areaId = String.valueOf(snapshot.get("id"));
+        String areaUuid = findAreaUuid(doc, areaId);
+        Element areaXml = buildElementXml(doc, snapshot);
+        areaXml.setAttribute("uuid", areaUuid != null ? areaUuid : UUID.randomUUID().toString());
+        removePlant(doc, areaId);
+        doc.getDocumentElement().appendChild(areaXml);
         writeSnapshotDocument(target, doc);
         FileUtil.refreshFor(target);
         System.out.println("Snapshot del modelo de planta en: " + target.getAbsolutePath());
+    }
+
+    private String findAreaUuid(Document doc, String id) {
+        Element root = doc.getDocumentElement();
+        if (root == null) {
+            return null;
+        }
+        NodeList nodes = root.getChildNodes();
+        for (int i = 0; i < nodes.getLength(); i++) {
+            Node node = nodes.item(i);
+            if (node.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+            Element element = (Element) node;
+            if ("area".equals(element.getTagName()) && id.equals(element.getAttribute("id"))) {
+                String uuid = element.getAttribute("uuid");
+                return uuid.isEmpty() ? null : uuid;
+            }
+        }
+        return null;
     }
 
     private Document loadOrCreateDocument(File target) throws IOException {
@@ -244,8 +270,8 @@ public class HMIPanelImportAction extends AbstractAction {
         /*
          * Variables: las propiedades estructuradas (mapas). Una variable es un
          * mapa con "Type". Las variables directas van a <variables>; las
-         * agrupadas bajo "Parameters" (entradas) van a <parameters> y las de
-         * "Reports" (salidas) van a <report>. En los EquipmentPropertyChild de
+         * agrupadas bajo "Parameters" (salidas) van a <parameters> y las de
+         * "Reports" (entradas) van a <report>. En los EquipmentPropertyChild de
          * esos grupos también se buscan variables (nombre + Type).
          */
         List<Object> variables = new ArrayList<>();
@@ -259,9 +285,12 @@ public class HMIPanelImportAction extends AbstractAction {
                 variables.add(variable(entry.getKey(), map.get("Type")));
             } else {
                 List<Object> target = switch (entry.getKey().toLowerCase()) {
-                    case "parameters" -> parameters;
-                    case "reports" -> report;
-                    default -> variables;
+                    case "parameters" ->
+                        parameters;
+                    case "reports" ->
+                        report;
+                    default ->
+                        variables;
                 };
                 target.addAll(collectVariables(map));
             }
@@ -292,9 +321,12 @@ public class HMIPanelImportAction extends AbstractAction {
             return "element";
         }
         return switch (node.getLevel()) {
-            case AREA -> "area";
-            case PROCESSCELL -> "processcell";
-            default -> "element";
+            case AREA ->
+                "area";
+            case PROCESSCELL ->
+                "processcell";
+            default ->
+                "element";
         };
     }
 

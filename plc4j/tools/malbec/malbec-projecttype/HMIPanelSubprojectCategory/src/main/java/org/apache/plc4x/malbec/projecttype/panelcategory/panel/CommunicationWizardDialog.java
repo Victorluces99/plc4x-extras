@@ -29,6 +29,8 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,8 +40,7 @@ import java.util.Set;
 import java.util.UUID;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
+import javax.swing.JButton;import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
@@ -80,6 +81,7 @@ public class CommunicationWizardDialog extends JDialog {
     private static final String STEP_DEVICE = "device";
     private static final String STEP_AREA = "area";
     private static final String STEP_PV = "pv";
+    private static final String SIN_GRUPO = "SIN GRUPO";
 
     private final Project project;
     private final HMICommunicationModel model;
@@ -95,8 +97,8 @@ public class CommunicationWizardDialog extends JDialog {
     private final DefaultTableModel groupModel = new DefaultTableModel(new String[]{
         "Nombre", "Descripción", "Scantime (ms)", "Enable", "UUID"}, 0);
     private final JTable tbGroups = new JTable(groupModel);
-    private final DefaultTableModel itemModel = new DefaultTableModel(new String[]{
-        "Nombre", "Descripción", "Tag", "Grupo", "Enable", "UUID"}, 0);
+    private final AreaTableModel itemModel = new AreaTableModel(new String[]{
+            "Nombre", "Descripción", "Tag", "Grupo", "Enable", "UUID"});
     private final JTable tbItems = new JTable(itemModel);
     private final JTextField txtGroupName = new JTextField(14);
     private final JTextField txtGroupDescription = new JTextField(14);
@@ -115,8 +117,17 @@ public class CommunicationWizardDialog extends JDialog {
     private final JButton btnClose = new JButton("Cerrar");
     private final JButton btnBack3 = new JButton("< Atrás");
     private final JButton btnFinish = new JButton("Guardar y cerrar");
-    private final JButton btnAddGroup = new JButton("Añadir grupo");
-    private final JButton btnAddItem = new JButton("Añadir área");
+    private final JButton btnAddGroup = new JButton("Añadir");
+    private final JButton btnUpdateGroup = new JButton("Modificar");
+    private final JButton btnDeleteGroup = new JButton("Eliminar");
+    private final JButton btnCancelGroup = new JButton("Cancelar");
+    private final JButton btnAddItem = new JButton("Añadir");
+    private final JButton btnUpdateItem = new JButton("Modificar");
+    private final JButton btnDeleteItem = new JButton("Eliminar");
+    private final JButton btnCancelItem = new JButton("Cancelar");
+    private final JLabel lblGroupFormTitle = new JLabel("Nuevo grupo de escaneo");
+    private final JLabel lblItemFormTitle =
+            new JLabel("Nueva área de memoria (del dispositivo seleccionado)");
     private final JButton btnSavePv = new JButton("Guardar");
 
     // Paso 3: Variable
@@ -151,6 +162,30 @@ public class CommunicationWizardDialog extends JDialog {
     private boolean pvColumnsSized;
     private boolean groupColumnsSized;
     private boolean itemColumnsSized;
+    private boolean missingGroupsWarned;
+    private boolean rebuildingTables;
+    private boolean cambiosSinGuardar;
+
+    /** Uuid del grupo en modo modificación, o null si se está agregando uno. */
+    private String editGroupUuid;
+    /** Uuid del área en modo modificación, o null si se está agregando una. */
+    private String editItemUuid;
+
+    /**
+     * Modelo de la tabla de áreas: sólo lectura. La asociación con el grupo de
+     * escaneo se fija al crear el área y no se modifica desde la tabla, para que
+     * la configuración no pueda quedar con relaciones sin sentido.
+     */
+    private static final class AreaTableModel extends DefaultTableModel {
+        AreaTableModel(String[] columns) {
+            super(columns, 0);
+        }
+
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    }
 
     public CommunicationWizardDialog(Project project, String deviceUuid) {
         super(WindowManager.getDefault().getMainWindow(), "Nueva Comunicación", ModalityType.APPLICATION_MODAL);
@@ -160,8 +195,14 @@ public class CommunicationWizardDialog extends JDialog {
         buildUi();
         loadDevices(deviceUuid);
 
-        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        getRootPane().registerKeyboardAction(e -> dispose(),
+        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                intentarCerrar();
+            }
+        });
+        getRootPane().registerKeyboardAction(e -> intentarCerrar(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
         pack();
@@ -237,7 +278,7 @@ public class CommunicationWizardDialog extends JDialog {
 
         JButton btnCancel = new JButton("Cancelar");
         JButton btnNext = new JButton("Siguiente >");
-        btnCancel.addActionListener(e -> dispose());
+        btnCancel.addActionListener(e -> intentarCerrar());
         btnNext.addActionListener(e -> {
             if (selectedDevice == null) {
                 JOptionPane.showMessageDialog(this,
@@ -300,7 +341,7 @@ public class CommunicationWizardDialog extends JDialog {
         north.add(forms, BorderLayout.CENTER);
         center.add(north, BorderLayout.NORTH);
 
-        JLabel grpTitle = new JLabel("Nuevo grupo de escaneo");
+        JLabel grpTitle = lblGroupFormTitle;
         grpTitle.setFont(grpTitle.getFont().deriveFont(java.awt.Font.BOLD, 12f));
         g.gridx = 0; g.gridy = 0; g.gridwidth = 4; g.weightx = 0.0;
         forms.add(grpTitle, g); g.gridwidth = 1;
@@ -316,11 +357,15 @@ public class CommunicationWizardDialog extends JDialog {
         g.gridx = 1; g.weightx = 0.5; forms.add(cbGroupScantime, g);
         g.gridx = 2; g.weightx = 0.0; g.fill = GridBagConstraints.NONE; g.anchor = GridBagConstraints.WEST;
         forms.add(chkGroupEnable, g);
-        g.gridx = 3; g.weightx = 0.0; forms.add(btnAddGroup, g);
+        g.gridx = 3; g.weightx = 0.0; g.fill = GridBagConstraints.NONE; g.anchor = GridBagConstraints.EAST;
+        forms.add(buttonRow(btnAddGroup, btnUpdateGroup, btnDeleteGroup, btnCancelGroup), g);
         g.fill = GridBagConstraints.HORIZONTAL; g.anchor = GridBagConstraints.WEST;
         btnAddGroup.addActionListener(e -> addGroup());
+        btnUpdateGroup.addActionListener(e -> updateGroup());
+        btnDeleteGroup.addActionListener(e -> deleteGroup());
+        btnCancelGroup.addActionListener(e -> salirDeEdicionGrupo());
 
-        JLabel itemTitle = new JLabel("Nueva área de memoria (del dispositivo seleccionado)");
+        JLabel itemTitle = lblItemFormTitle;
         itemTitle.setFont(itemTitle.getFont().deriveFont(java.awt.Font.BOLD, 12f));
         g.gridy = 3; g.gridx = 0; g.gridwidth = 4; g.weightx = 0.0;
         forms.add(itemTitle, g); g.gridwidth = 1;
@@ -340,9 +385,23 @@ public class CommunicationWizardDialog extends JDialog {
         g.gridy = 6;
         g.gridx = 1; g.weightx = 0.5; forms.add(chkItemEnable, g);
         g.gridx = 3; g.weightx = 0.0; g.fill = GridBagConstraints.NONE; g.anchor = GridBagConstraints.EAST;
-        forms.add(btnAddItem, g);
+        forms.add(buttonRow(btnAddItem, btnUpdateItem, btnDeleteItem, btnCancelItem), g);
         g.fill = GridBagConstraints.HORIZONTAL; g.anchor = GridBagConstraints.WEST;
         btnAddItem.addActionListener(e -> addItem());
+        btnUpdateItem.addActionListener(e -> updateItem());
+        btnDeleteItem.addActionListener(e -> deleteItem());
+        btnCancelItem.addActionListener(e -> salirDeEdicionItem());
+
+        tbGroups.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting() && !rebuildingTables) {
+                onGroupRowSelected();
+            }
+        });
+        tbItems.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting() && !rebuildingTables) {
+                onItemRowSelected();
+            }
+        });
 
         cbItemGroup.setRenderer(new DefaultListCellRenderer() {
             @Override
@@ -365,7 +424,7 @@ public class CommunicationWizardDialog extends JDialog {
         btnBack2.addActionListener(e -> showStep(STEP_DEVICE));
         btnNext2.addActionListener(e -> showStep(STEP_PV));
         btnSave2.addActionListener(e -> saveNow());
-        btnClose.addActionListener(e -> dispose());
+        btnClose.addActionListener(e -> intentarCerrar());
 
         JPanel buttons = new JPanel(new BorderLayout());
         buttons.add(nav(btnBack2), BorderLayout.WEST);
@@ -487,7 +546,7 @@ public class CommunicationWizardDialog extends JDialog {
         btnSavePv.addActionListener(e -> savePv());
 
         JButton btnCancel = new JButton("Cancelar");
-        btnCancel.addActionListener(e -> dispose());
+        btnCancel.addActionListener(e -> intentarCerrar());
         btnFinish.addActionListener(e -> saveAndClose());
 
         JPanel pvTable = new JPanel(new BorderLayout(0, 4));
@@ -559,6 +618,15 @@ public class CommunicationWizardDialog extends JDialog {
 
     private static JPanel nav(JButton... buttons) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        for (JButton b : buttons) {
+            panel.add(b);
+        }
+        return panel;
+    }
+
+    /** Fila de botones de agregar / modificar / eliminar / cancelar. */
+    private static JPanel buttonRow(JButton... buttons) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         for (JButton b : buttons) {
             panel.add(b);
         }
@@ -650,29 +718,38 @@ public class CommunicationWizardDialog extends JDialog {
             pvs.addAll(comms.getPvs());
         }
         refreshAreaView();
+        warnMissingGroups();
     }
 
+
     private void refreshAreaView() {
-        groupModel.setRowCount(0);
-        for (CommConfigData.GroupConfig g : groups) {
-            groupModel.addRow(new Object[]{
-                g.getName(), g.getDescription(), g.getScantime(),
-                g.isEnable() ? "TRUE" : "FALSE", g.getUuid()
-            });
-        }
-        itemModel.setRowCount(0);
-        for (CommConfigData.ItemConfig i : items) {
-            String groupName = groupNameOf(i.getUuid());
-            itemModel.addRow(new Object[]{
-                i.getName(), i.getDescription(), i.getTag(),
-                groupName.isEmpty() ? "—" : groupName,
-                i.isEnable() ? "TRUE" : "FALSE", i.getUuid()
-            });
+        rebuildingTables = true;
+        try {
+            groupModel.setRowCount(0);
+            for (CommConfigData.GroupConfig g : groups) {
+                groupModel.addRow(new Object[]{
+                    g.getName(), g.getDescription(), g.getScantime(),
+                    g.isEnable() ? "TRUE" : "FALSE", g.getUuid()
+                });
+            }
+            itemModel.setRowCount(0);
+            for (CommConfigData.ItemConfig i : items) {
+                String groupName = groupNameOf(i.getUuid());
+                itemModel.addRow(new Object[]{
+                    i.getName(), i.getDescription(), i.getTag(),
+                    groupName.isEmpty() ? SIN_GRUPO : groupName,
+                    i.isEnable() ? "TRUE" : "FALSE", i.getUuid()
+                });
+            }
+        } finally {
+            rebuildingTables = false;
         }
         refreshPvAreas();
         refreshVariables();
         refreshPvTable();
         refreshGroupCombo();
+        refreshItemFormState();
+        refreshGroupFormState();
         btnNext2.setEnabled(!items.isEmpty());
         if (!groupColumnsSized && !groups.isEmpty()) {
             sizeColumnsToContent(tbGroups, 90, 260);
@@ -682,6 +759,53 @@ public class CommunicationWizardDialog extends JDialog {
             sizeColumnsToContent(tbItems, 90, 260);
             itemColumnsSized = true;
         }
+    }
+
+    /**
+     * El grupo de escaneo es un requisito previo: sin al menos un grupo no se
+     * puede crear ninguna área de memoria, así que el formulario queda bloqueado.
+     * Al modificar un área existente el nombre y el grupo van bloqueados: el
+     * nombre es la identidad del área y el grupo no se cambia desde la UI.
+     */
+    private void refreshItemFormState() {
+        boolean hayGrupo = !groups.isEmpty();
+        boolean editando = editItemUuid != null;
+        btnAddItem.setEnabled(hayGrupo && !editando);
+        btnUpdateItem.setEnabled(hayGrupo && editando);
+        btnCancelItem.setEnabled(editando);
+        btnDeleteItem.setEnabled(editando);
+        cbItemGroup.setEnabled(hayGrupo && !editando);
+        txtItemName.setEnabled(hayGrupo && !editando);
+        txtItemDescription.setEnabled(hayGrupo);
+        txtItemTag.setEnabled(hayGrupo);
+        chkItemEnable.setEnabled(hayGrupo);
+    }
+
+    /**
+     * Estado del formulario de grupos: el nombre queda bloqueado al modificar
+     * porque es la identidad del grupo.
+     */
+    private void refreshGroupFormState() {
+        boolean editando = editGroupUuid != null;
+        btnAddGroup.setEnabled(!editando);
+        btnUpdateGroup.setEnabled(editando);
+        btnDeleteGroup.setEnabled(editando);
+        btnCancelGroup.setEnabled(editando);
+        txtGroupName.setEnabled(!editando);
+        txtGroupDescription.setEnabled(true);
+        cbGroupScantime.setEnabled(!editando);
+        chkGroupEnable.setEnabled(true);
+    }
+
+    /** Áreas sin grupo de escaneo: dato incompleto, nunca asumido. */
+    private List<CommConfigData.ItemConfig> areasSinGrupo() {
+        List<CommConfigData.ItemConfig> sinGrupo = new ArrayList<>();
+        for (CommConfigData.ItemConfig i : items) {
+            if (groupNameOf(i.getUuid()).isEmpty()) {
+                sinGrupo.add(i);
+            }
+        }
+        return sinGrupo;
     }
 
     private String groupNameOf(String itemUuid) {
@@ -707,9 +831,12 @@ public class CommunicationWizardDialog extends JDialog {
             for (int i = 0; i < cbItemGroup.getItemCount(); i++) {
                 if (cbItemGroup.getItemAt(i).getUuid().equals(sel.getUuid())) {
                     cbItemGroup.setSelectedIndex(i);
-                    break;
+                    return;
                 }
             }
+        }
+        if (cbItemGroup.getItemCount() > 0) {
+            cbItemGroup.setSelectedIndex(0);
         }
     }
 
@@ -764,8 +891,12 @@ public class CommunicationWizardDialog extends JDialog {
     private void refreshPvAreas() {
         CommConfigData.ItemConfig sel = (CommConfigData.ItemConfig) cbArea.getSelectedItem();
         cbArea.removeAllItems();
+        // Sólo se listan áreas con grupo de escaneo: una variable no puede
+        // quedar asociada a un área incompleta.
         for (CommConfigData.ItemConfig i : items) {
-            cbArea.addItem(i);
+            if (!groupNameOf(i.getUuid()).isEmpty()) {
+                cbArea.addItem(i);
+            }
         }
         if (sel != null) {
             for (int i = 0; i < cbArea.getItemCount(); i++) {
@@ -826,7 +957,8 @@ public class CommunicationWizardDialog extends JDialog {
     /**
      * Variables ya guardadas que pertenecen al área (PvId) seleccionada.
      */
-    private List<CommConfigData.PvConfig> pvsOfSelectedArea() {        List<CommConfigData.PvConfig> result = new ArrayList<>();
+    private List<CommConfigData.PvConfig> pvsOfSelectedArea() {
+        List<CommConfigData.PvConfig> result = new ArrayList<>();
         CommConfigData.ItemConfig area = (CommConfigData.ItemConfig) cbArea.getSelectedItem();
         if (area == null) {
             return result;
@@ -1018,14 +1150,121 @@ public class CommunicationWizardDialog extends JDialog {
         groups.add(new CommConfigData.GroupConfig(
                 UUID.randomUUID().toString(), name, txtGroupDescription.getText().trim(),
                 scantime, chkGroupEnable.isSelected(), "md5_group_hash"));
+        limpiarFormularioGrupo();
+        cambiosSinGuardar = true;
+        refreshAreaView();
+    }
+
+    /**
+     * Carga el grupo de la fila seleccionada en el formulario, con el nombre
+     * bloqueado: el nombre y el uuid son la identidad del grupo y no se modifican.
+     */
+    private void onGroupRowSelected() {
+        int row = tbGroups.getSelectedRow();
+        if (row < 0 || row >= groups.size()) {
+            salirDeEdicionGrupo();
+            return;
+        }
+        CommConfigData.GroupConfig group = groups.get(row);
+        editGroupUuid = group.getUuid();
+        txtGroupName.setText(group.getName());
+        txtGroupDescription.setText(group.getDescription());
+        cbGroupScantime.setSelectedItem(group.getScantime());
+        chkGroupEnable.setSelected(group.isEnable());
+        lblGroupFormTitle.setText("Modificando grupo: " + group.getName());
+        refreshGroupFormState();
+    }
+
+    private void salirDeEdicionGrupo() {
+        editGroupUuid = null;
+        tbGroups.clearSelection();
+        limpiarFormularioGrupo();
+        refreshGroupFormState();
+    }
+
+    private void limpiarFormularioGrupo() {
         txtGroupName.setText("");
         txtGroupDescription.setText("");
         cbGroupScantime.setSelectedIndex(-1);
         chkGroupEnable.setSelected(true);
+        lblGroupFormTitle.setText("Nuevo grupo de escaneo");
+    }
+
+    /**
+     * Aplica los cambios sobre el grupo ya existente. Se conserva el uuid, de
+     * modo que al guardar se sobreescriba el registro existente en el XML y en la
+     * base de datos, en lugar de crear uno nuevo.
+     */
+    private void updateGroup() {
+        CommConfigData.GroupConfig actual = groupByUuid(editGroupUuid);
+        if (actual == null) {
+            salirDeEdicionGrupo();
+            return;
+        }
+        String scantime = (String) cbGroupScantime.getSelectedItem();
+        if (scantime == null) {
+            scantime = actual.getScantime();
+        }
+        int idx = groups.indexOf(actual);
+        groups.set(idx, new CommConfigData.GroupConfig(
+                actual.getUuid(), actual.getName(), txtGroupDescription.getText().trim(),
+                scantime, chkGroupEnable.isSelected(), actual.getMd5()));
+        salirDeEdicionGrupo();
+        cambiosSinGuardar = true;
         refreshAreaView();
     }
 
+    /**
+     * Un grupo con áreas asociadas no se puede eliminar: como el grupo es
+     * obligatorio para cada área, borrarlo dejaría áreas sin grupo.
+     */
+    private void deleteGroup() {
+        CommConfigData.GroupConfig group = groupByUuid(editGroupUuid);
+        if (group == null) {
+            salirDeEdicionGrupo();
+            return;
+        }
+        List<String> areasDelGrupo = new ArrayList<>();
+        for (CommConfigData.ItemConfig i : items) {
+            if (group.getUuid().equals(i.getGroupUuid())) {
+                areasDelGrupo.add(i.getName());
+            }
+        }
+        if (!areasDelGrupo.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "El grupo '" + group.getName() + "' tiene " + areasDelGrupo.size()
+                            + " área(s) de memoria asociada(s):\n\n"
+                            + String.join(", ", areasDelGrupo)
+                            + "\n\nUn área siempre debe pertenecer a un grupo, por lo que "
+                            + "primero debe reasignar o eliminar esas áreas.",
+                    "No se puede eliminar", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        groups.remove(group);
+        salirDeEdicionGrupo();
+        cambiosSinGuardar = true;
+        refreshAreaView();
+    }
+
+    private CommConfigData.GroupConfig groupByUuid(String uuid) {
+        if (uuid == null) {
+            return null;
+        }
+        for (CommConfigData.GroupConfig g : groups) {
+            if (g.getUuid().equals(uuid)) {
+                return g;
+            }
+        }
+        return null;
+    }
+
     private void addItem() {
+        if (groups.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Debe crear al menos un grupo de escaneo antes de agregar un área de memoria.",
+                    "Falta grupo de escaneo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         CommConfigData.GroupConfig group = (CommConfigData.GroupConfig) cbItemGroup.getSelectedItem();
         if (group == null) {
             JOptionPane.showMessageDialog(this,
@@ -1045,10 +1284,114 @@ public class CommunicationWizardDialog extends JDialog {
                 txtItemTag.getText().trim(), chkItemEnable.isSelected(), "md5_item_hash",
                 group.getUuid()));
         itemsGroup.put(itemUuid, group.getUuid());
+        limpiarFormularioItem();
+        cambiosSinGuardar = true;
+        refreshAreaView();
+    }
+
+    /**
+     * Carga el área de la fila seleccionada en el formulario. El nombre y el
+     * grupo quedan bloqueados: el nombre es la identidad del área y el grupo de
+     * escaneo no se cambia desde la UI.
+     */
+    private void onItemRowSelected() {
+        int row = tbItems.getSelectedRow();
+        if (row < 0 || row >= items.size()) {
+            salirDeEdicionItem();
+            return;
+        }
+        CommConfigData.ItemConfig item = items.get(row);
+        editItemUuid = item.getUuid();
+        txtItemName.setText(item.getName());
+        txtItemDescription.setText(item.getDescription());
+        txtItemTag.setText(item.getTag());
+        chkItemEnable.setSelected(item.isEnable());
+        CommConfigData.GroupConfig group = groupByUuid(item.getGroupUuid());
+        if (group != null) {
+            cbItemGroup.setSelectedItem(group);
+        }
+        lblItemFormTitle.setText("Modificando área: " + item.getName());
+        refreshItemFormState();
+    }
+
+    private void salirDeEdicionItem() {
+        editItemUuid = null;
+        tbItems.clearSelection();
+        limpiarFormularioItem();
+        refreshItemFormState();
+    }
+
+    private void limpiarFormularioItem() {
         txtItemName.setText("");
         txtItemDescription.setText("");
         txtItemTag.setText("");
         chkItemEnable.setSelected(true);
+        lblItemFormTitle.setText("Nueva área de memoria (del dispositivo seleccionado)");
+    }
+
+    /**
+     * Aplica los cambios sobre el área ya existente. Se conservan el uuid y el
+     * grupo de escaneo, de modo que al guardar se sobreescriba el registro
+     * existente en el XML y en la base de datos, en lugar de crear uno nuevo.
+     */
+    private void updateItem() {
+        CommConfigData.ItemConfig actual = itemByUuid(editItemUuid);
+        if (actual == null) {
+            salirDeEdicionItem();
+            return;
+        }
+        int idx = items.indexOf(actual);
+        items.set(idx, new CommConfigData.ItemConfig(
+                actual.getUuid(), actual.getName(), txtItemDescription.getText().trim(),
+                txtItemTag.getText().trim(), chkItemEnable.isSelected(), actual.getMd5(),
+                actual.getGroupUuid()));
+        itemsGroup.put(actual.getUuid(), actual.getGroupUuid());
+        salirDeEdicionItem();
+        cambiosSinGuardar = true;
+        refreshAreaView();
+    }
+
+    /**
+     * Elimina el área. Si tiene variables configuradas también las elimina, para
+     * no dejar variables apuntando a un área que ya no existe; de eso se avisa
+     * antes de confirmar.
+     */
+    private void deleteItem() {
+        CommConfigData.ItemConfig item = itemByUuid(editItemUuid);
+        if (item == null) {
+            salirDeEdicionItem();
+            return;
+        }
+        List<CommConfigData.PvConfig> variables = new ArrayList<>();
+        for (CommConfigData.PvConfig pv : pvs) {
+            if (item.getUuid().equals(pv.getId())) {
+                variables.add(pv);
+            }
+        }
+        if (!variables.isEmpty()) {
+            StringBuilder nombres = new StringBuilder();
+            for (CommConfigData.PvConfig pv : variables) {
+                if (nombres.length() > 0) {
+                    nombres.append(", ");
+                }
+                nombres.append(pv.getName());
+            }
+            int opcion = JOptionPane.showConfirmDialog(this,
+                    "El área '" + item.getName() + "' tiene " + variables.size()
+                            + " variable(s) configurada(s):\n\n" + nombres
+                            + "\n\nSi elimina el área, también se eliminan esas variables. "
+                            + "¿Desea continuar?",
+                    "Eliminar área y variables", JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (opcion != JOptionPane.YES_OPTION) {
+                return;
+            }
+            pvs.removeAll(variables);
+        }
+        items.remove(item);
+        itemsGroup.remove(item.getUuid());
+        salirDeEdicionItem();
+        cambiosSinGuardar = true;
         refreshAreaView();
     }
 
@@ -1058,6 +1401,11 @@ public class CommunicationWizardDialog extends JDialog {
      * que el usuario pueda seguir agregando variables.
      */
     private void savePv() {
+        // Nada se agrega al modelo si la configuración no es válida: el grupo de
+        // escaneo del área es obligatorio.
+        if (!confirmNoMissingGroups()) {
+            return;
+        }
         CommConfigData.ItemConfig area = (CommConfigData.ItemConfig) cbArea.getSelectedItem();
         PlantVariable variable = (PlantVariable) cbVariable.getSelectedItem();
         if (area == null) {
@@ -1118,6 +1466,9 @@ public class CommunicationWizardDialog extends JDialog {
         if (selectedDevice == null || model == null) {
             return;
         }
+        if (!confirmNoMissingGroups()) {
+            return;
+        }
         showSavedMessage("Grupos y áreas guardados.");
     }
 
@@ -1125,8 +1476,69 @@ public class CommunicationWizardDialog extends JDialog {
         if (selectedDevice == null || model == null) {
             return;
         }
-        showSavedMessage("Comunicación guardada.");
+        if (!confirmNoMissingGroups()) {
+            return;
+        }
+        if (!showSavedMessage("Comunicación guardada.")) {
+            return;
+        }
         dispose();
+    }
+
+    /**
+     * Toda área de memoria debe pertenecer a un grupo de escaneo: el grupo es un
+     * requisito previo a la creación del área. Si alguna quedara sin grupo no se
+     * guarda nada, porque en la base de datos no se admiten áreas sin grupo.
+     *
+     * @return true si se puede seguir guardando
+     */
+    private boolean confirmNoMissingGroups() {
+        List<CommConfigData.ItemConfig> sinGrupo = areasSinGrupo();
+        if (sinGrupo.isEmpty()) {
+            return true;
+        }
+        StringBuilder nombres = new StringBuilder();
+        for (CommConfigData.ItemConfig i : sinGrupo) {
+            if (nombres.length() > 0) {
+                nombres.append(", ");
+            }
+            nombres.append(i.getName());
+        }
+        JOptionPane.showMessageDialog(this,
+                "Las siguientes áreas de memoria no tienen grupo de escaneo:\n\n"
+                        + nombres + "\n\nEl grupo de escaneo es obligatorio, por lo que no se "
+                        + "guarda ni el XML ni la base de datos.\n"
+                        + "Vuelva a crear esas áreas eligiendo su grupo.",
+                "Áreas sin grupo", JOptionPane.ERROR_MESSAGE);
+        return false;
+    }
+
+    /**
+     * Avisa una vez por apertura si hay áreas sin grupo de escaneo, dato incompleto
+     * que solo puede venir de configuraciones anteriores a la persistencia del
+     * grupo en el XML.
+     */
+    private void warnMissingGroups() {
+        if (missingGroupsWarned) {
+            return;
+        }
+        List<CommConfigData.ItemConfig> sinGrupo = areasSinGrupo();
+        if (sinGrupo.isEmpty()) {
+            return;
+        }
+        missingGroupsWarned = true;
+        StringBuilder nombres = new StringBuilder();
+        for (CommConfigData.ItemConfig i : sinGrupo) {
+            if (nombres.length() > 0) {
+                nombres.append(", ");
+            }
+            nombres.append(i.getName());
+        }
+        JOptionPane.showMessageDialog(this,
+                "Estas áreas de memoria quedaron guardadas sin grupo de escaneo:\n\n"
+                        + nombres + "\n\nPor seguridad la columna \"Grupo\" no se puede editar: "
+                        + "hay que volver a crear esas áreas eligiendo su grupo.",
+                "Áreas sin grupo de escaneo", JOptionPane.WARNING_MESSAGE);
     }
 
     /**
@@ -1143,8 +1555,11 @@ public class CommunicationWizardDialog extends JDialog {
         return model.save();
     }
 
-    private void showSavedMessage(String what) {
+    private boolean showSavedMessage(String what) {
         boolean databaseUpdated = persist();
+        // Sólo queda limpio si se guardó todo: con un guardado parcial se sigue
+        // avisando al cerrar, porque el modelo en memoria difiere de la base.
+        cambiosSinGuardar = !databaseUpdated;
         if (databaseUpdated) {
             JOptionPane.showMessageDialog(this, what + "\nGuardado en comunicacion.xml y en boot.db.",
                     "Guardado", JOptionPane.INFORMATION_MESSAGE);
@@ -1154,6 +1569,32 @@ public class CommunicationWizardDialog extends JDialog {
                             + "\nRevise la salida de la aplicación para el detalle.",
                     "Guardado parcial", JOptionPane.WARNING_MESSAGE);
         }
+        return databaseUpdated;
+    }
+
+    /**
+     * Cierre del asistente, tanto por botón como por la X de la ventana o la
+     * tecla ESC. Si hay cambios sin guardar pregunta al usuario antes de salir,
+     * porque cerrar descartaría todo lo agregado o modificado.
+     */
+    private void intentarCerrar() {
+        if (cambiosSinGuardar) {
+            int opcion = JOptionPane.showConfirmDialog(this,
+                    "Hay cambios sin guardar en la configuración de comunicación.\n"
+                            + "Si sale ahora, esos cambios se pierden.\n\n"
+                            + "¿Desea guardarlos antes de salir?",
+                    "Cambios sin guardar", JOptionPane.YES_NO_CANCEL_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (opcion == JOptionPane.CANCEL_OPTION || opcion == JOptionPane.CLOSED_OPTION) {
+                return;
+            }
+            if (opcion == JOptionPane.YES_OPTION) {
+                if (!confirmNoMissingGroups() || !showSavedMessage("Comunicación guardada.")) {
+                    return;
+                }
+            }
+        }
+        dispose();
     }
 
     private void showStep(String step) {

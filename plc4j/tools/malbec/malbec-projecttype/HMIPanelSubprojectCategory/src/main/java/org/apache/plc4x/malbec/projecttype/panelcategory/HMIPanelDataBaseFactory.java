@@ -145,12 +145,24 @@ public class HMIPanelDataBaseFactory {
         String driverName = (device != null) ? device.getProtocol() : "DefaultDriver";
         String deviceDescription = (device != null) ? device.getDescription() : "Dispositivo guardado desde DeviceManager";
 
-        String sqlDevice = "INSERT OR IGNORE INTO Devices(DeviceUuId, DriverName, DeviceKey, DeviceUrl, DeviceName, DeviceDescription, DeviceEnable, Md5) VALUES(?,?,?,?,?,?,?,?)";
-        String sqlGroup = "INSERT OR IGNORE INTO Groups(GroupUuid, DeviceUuid, GroupName, GroupDescription, GroupScantime, GroupEnable, Md5) VALUES(?,?,?,?,?,?,?)";
-        String sqlItem = "INSERT OR IGNORE INTO Items(ItemUuid, DeviceUuid, GroupUuid, ItemName, ItemDescription, ItemTag, ItemEnable, Md5) VALUES(?,?,?,?,?,?,?,?)";
-        String sqlPv = "INSERT OR IGNORE INTO PvRecords(PvUuId, PvName, PvType, PvId, PvOffset, PvDescriptor, PvScanTime, PvScanEnable, PvWriteEnable, PvDisplayLimitLow, PvDisplayLimitHigh, PvDisplayDescription, PvDisplayFormat, PvDisplayUnits, PvControlLimitLow, PvControlLimitHigh, PvControlMinStep, Md5) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        // INSERT OR REPLACE: si el uuid ya existe se sobreescribe el registro con
+        // los valores actuales en lugar de ignorarlo o duplicarlo. El esquema no
+        // declara claves foráneas, así que no hay cascadas sobre otras tablas.
+        String sqlDevice = "INSERT OR REPLACE INTO Devices(DeviceUuId, DriverName, DeviceKey, DeviceUrl, DeviceName, DeviceDescription, DeviceEnable, Md5) VALUES(?,?,?,?,?,?,?,?)";
+        String sqlGroup = "INSERT OR REPLACE INTO Groups(GroupUuid, DeviceUuid, GroupName, GroupDescription, GroupScantime, GroupEnable, Md5) VALUES(?,?,?,?,?,?,?)";
+        String sqlItem = "INSERT OR REPLACE INTO Items(ItemUuid, DeviceUuid, GroupUuid, ItemName, ItemDescription, ItemTag, ItemEnable, Md5) VALUES(?,?,?,?,?,?,?,?)";
+        String sqlPv = "INSERT OR REPLACE INTO PvRecords(PvUuId, PvName, PvType, PvId, PvOffset, PvDescriptor, PvScanTime, PvScanEnable, PvWriteEnable, PvDisplayLimitLow, PvDisplayLimitHigh, PvDisplayDescription, PvDisplayFormat, PvDisplayUnits, PvControlLimitLow, PvControlLimitHigh, PvControlMinStep, Md5) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
         try (Connection conn = DriverManager.getConnection(url)) {
+            // No se admite un área sin grupo: el grupo de escaneo es obligatorio,
+            // así que antes de tocar la base se valida la configuración completa.
+            String areaInvalida = primerAreaSinGrupo(comms);
+            if (areaInvalida != null) {
+                System.err.println("No se guardó el dispositivo '" + deviceName
+                        + "': el área '" + areaInvalida + "' no tiene grupo de escaneo.");
+                return false;
+            }
+
             conn.setAutoCommit(false); // Transacción para insertar todo junto
 
             // 1. Insertar Dispositivo
@@ -186,7 +198,7 @@ public class HMIPanelDataBaseFactory {
                     for (CommConfigData.ItemConfig item : orEmpty(comms.getItems())) {
                         pstmt.setString(1, item.getUuid());
                         pstmt.setString(2, deviceUuid);
-                        pstmt.setString(3, groupUuidOf(item, comms));
+                        pstmt.setString(3, item.getGroupUuid());
                         pstmt.setString(4, item.getName());
                         pstmt.setString(5, item.getDescription());
                         pstmt.setString(6, item.getTag());
@@ -233,16 +245,20 @@ public class HMIPanelDataBaseFactory {
     }
 
     /**
-     * Grupo de escaneo al que pertenece un área: el que tiene asignado en la
-     * configuración y, por compatibilidad con configuraciones anteriores que no
-     * lo persistían, el primer grupo del dispositivo.
+     * @return el nombre del primer área sin grupo de escaneo, o {@code null} si
+     *         todas las áreas tienen grupo
      */
-    private static String groupUuidOf(CommConfigData.ItemConfig item, CommConfigData comms) {
-        if (item.getGroupUuid() != null && !item.getGroupUuid().isEmpty()) {
-            return item.getGroupUuid();
+    private static String primerAreaSinGrupo(CommConfigData comms) {
+        if (comms == null) {
+            return null;
         }
-        List<CommConfigData.GroupConfig> groups = orEmpty(comms.getGroups());
-        return groups.isEmpty() ? null : groups.get(0).getUuid();
+        for (CommConfigData.ItemConfig item : orEmpty(comms.getItems())) {
+            String groupUuid = item.getGroupUuid();
+            if (groupUuid == null || groupUuid.isEmpty()) {
+                return item.getName();
+            }
+        }
+        return null;
     }
 
     /**

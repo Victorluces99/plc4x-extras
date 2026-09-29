@@ -21,10 +21,13 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.FontMetrics;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,10 +48,16 @@ import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.JViewport;
 import javax.swing.KeyStroke;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
@@ -62,11 +71,10 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-/**
- * Wizard de comunicación en 3 pasos: Dispositivo -&gt; Grupo/Área -&gt; Variable.
- * Reemplaza al antiguo editor por pestañas. El PvId de cada variable guarda el
- * uuid del Item (área) seleccionado (ver contrato en {@link CommConfigData.PvConfig}).
- */
+/*
+   Wizard de comunicación en 3 pasos: Dispositivo, Grupo/Área, Variable.
+   El PvId de cada variable guarda el uuid del Item (área) seleccionado
+*/
 public class CommunicationWizardDialog extends JDialog {
 
     private static final String STEP_DEVICE = "device";
@@ -84,13 +92,17 @@ public class CommunicationWizardDialog extends JDialog {
     private final JLabel lblDeviceInfo = new JLabel(" ");
 
     // Paso 2: Grupo / Área
-    private final JLabel lblAreaStatus = new JLabel(" ");
-    private final DefaultTableModel entityModel =
-            new DefaultTableModel(new String[]{"Tipo", "Nombre", "Detalle"}, 0);
-    private final JTable tbEntities = new JTable(entityModel);
+    private final DefaultTableModel groupModel = new DefaultTableModel(new String[]{
+        "Nombre", "Descripción", "Scantime (ms)", "Enable", "UUID"}, 0);
+    private final JTable tbGroups = new JTable(groupModel);
+    private final DefaultTableModel itemModel = new DefaultTableModel(new String[]{
+        "Nombre", "Descripción", "Tag", "Grupo", "Enable", "UUID"}, 0);
+    private final JTable tbItems = new JTable(itemModel);
     private final JTextField txtGroupName = new JTextField(14);
     private final JTextField txtGroupDescription = new JTextField(14);
-    private final JTextField txtGroupScantime = new JTextField(8);
+    private final JComboBox<String> cbGroupScantime = new JComboBox<>();
+    private final JCheckBox chkGroupEnable = new JCheckBox("Enable", true);
+    private final JCheckBox chkItemEnable = new JCheckBox("Enable", true);
     private final JTextField txtItemName = new JTextField(14);
     private final JTextField txtItemDescription = new JTextField(14);
     private final JTextField txtItemTag = new JTextField(14);
@@ -105,13 +117,17 @@ public class CommunicationWizardDialog extends JDialog {
     private final JButton btnFinish = new JButton("Guardar y cerrar");
     private final JButton btnAddGroup = new JButton("Añadir grupo");
     private final JButton btnAddItem = new JButton("Añadir área");
-    private final JButton btnAddPv = new JButton("Añadir variable");
+    private final JButton btnSavePv = new JButton("Guardar");
 
     // Paso 3: Variable
     private final JComboBox<CommConfigData.ItemConfig> cbArea = new JComboBox<>();
     private final JComboBox<PlantVariable> cbVariable = new JComboBox<>();
+    private final DefaultTableModel pvModel = new DefaultTableModel(new String[]{
+        "Variable", "Área", "PvId", "Tipo", "Offset", "Descriptor", "ScanTime",
+        "Scan", "Write", "Lím. bajo", "Lím. alto", "Descripción", "Formato", "Unidades",
+        "Ctrl. bajo", "Ctrl. alto", "Ctrl. MinStep", "Ruta S88", "UUID", "Md5"}, 0);
+    private final JTable tbPvs = new JTable(pvModel);
     private final JComboBox<String> cbType = new JComboBox<>();
-    private final JTextField txtOffset = new JTextField(10);
     private final JTextField txtDescriptor = new JTextField(14);
     private final JTextField txtScanTime = new JTextField(8);
     private final JCheckBox chkScanEnable = new JCheckBox("ScanEnable", true);
@@ -124,7 +140,7 @@ public class CommunicationWizardDialog extends JDialog {
     private final JTextField txtControlLimitLow = new JTextField(8);
     private final JTextField txtControlLimitHigh = new JTextField(8);
     private final JTextField txtControlMinStep = new JTextField(8);
-    private final JLabel lblPvCount = new JLabel("Variables: 0");
+    private final JLabel lblTypeLock = new JLabel(" ");
 
     // Estado del wizard
     private DeviceConfigData selectedDevice;
@@ -132,6 +148,9 @@ public class CommunicationWizardDialog extends JDialog {
     private final List<CommConfigData.ItemConfig> items = new ArrayList<>();
     private final List<CommConfigData.PvConfig> pvs = new ArrayList<>();
     private final Map<String, String> itemsGroup = new HashMap<>();
+    private boolean pvColumnsSized;
+    private boolean groupColumnsSized;
+    private boolean itemColumnsSized;
 
     public CommunicationWizardDialog(Project project, String deviceUuid) {
         super(WindowManager.getDefault().getMainWindow(), "Nueva Comunicación", ModalityType.APPLICATION_MODAL);
@@ -146,7 +165,15 @@ public class CommunicationWizardDialog extends JDialog {
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
         pack();
-        setLocationRelativeTo(getOwner());
+        Dimension pref = getPreferredSize();
+        Rectangle screen = getGraphicsConfiguration() != null
+                ? getGraphicsConfiguration().getBounds()
+                : new Rectangle(0, 0, 1024, 768);
+        int maxW = Math.min(1000, Math.max(760, screen.width - 120));
+        int maxH = Math.min(740, Math.max(600, screen.height - 140));
+        setSize(Math.min(pref.width, maxW), Math.min(pref.height, maxH));
+        setMinimumSize(new Dimension(Math.min(780, maxW), Math.min(520, maxH)));
+        setLocationRelativeTo(null);
     }
 
     private void buildUi() {
@@ -176,6 +203,7 @@ public class CommunicationWizardDialog extends JDialog {
             }
         });
         cbDevice.addActionListener(e -> onDeviceSelected());
+        fixComboWidth(cbDevice, 340);
 
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         JPanel inner = new JPanel(new GridBagLayout());
@@ -202,7 +230,7 @@ public class CommunicationWizardDialog extends JDialog {
 
         g.gridy = 4;
         JLabel hint = new JLabel("<html><i>Si no aparece su dispositivo, créelo con "
-                + "«Crear Dispositivo», cierre este asistente y vuelva a abrirlo.</i></html>");
+                + "«Crear Dispositivo»,primero cierre este asistente y vuelva a abrirlo.</i></html>");
         inner.add(hint, g);
 
         panel.add(inner, BorderLayout.CENTER);
@@ -229,10 +257,32 @@ public class CommunicationWizardDialog extends JDialog {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
 
+        for (int ms = 100; ms <= 1000; ms += 100) {
+            cbGroupScantime.addItem(String.valueOf(ms));
+        }
+        cbGroupScantime.setEditable(false);
+        cbGroupScantime.setSelectedIndex(-1);
+        fixComboWidth(cbItemGroup, 300);
+        fixComboWidth(cbGroupScantime, 110);
+        fixTablePreferredSize(tbGroups, 700, 240);
+        fixTablePreferredSize(tbItems, 700, 240);
+        tbGroups.setIntercellSpacing(new Dimension(6, 2));
+        tbItems.setIntercellSpacing(new Dimension(6, 2));
+
         JPanel center = new JPanel(new BorderLayout(6, 6));
-        lblAreaStatus.setBorder(BorderFactory.createEmptyBorder(0, 2, 8, 2));
-        center.add(lblAreaStatus, BorderLayout.NORTH);
-        center.add(new JScrollPane(tbEntities), BorderLayout.CENTER);
+
+        JPanel groupTable = new JPanel(new BorderLayout(0, 4));
+        groupTable.setBorder(BorderFactory.createTitledBorder("Grupos de escaneo"));
+        groupTable.add(new JScrollPane(tbGroups), BorderLayout.CENTER);
+
+        JPanel itemTable = new JPanel(new BorderLayout(0, 4));
+        itemTable.setBorder(BorderFactory.createTitledBorder("Áreas de memoria"));
+        itemTable.add(new JScrollPane(tbItems), BorderLayout.CENTER);
+
+        JSplitPane tableSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, groupTable, itemTable);
+        tableSplit.setResizeWeight(0.5);
+        tableSplit.setDividerLocation(0.5);
+        tableSplit.setContinuousLayout(true);
 
         JPanel forms = new JPanel(new GridBagLayout());
         GridBagConstraints g = new GridBagConstraints();
@@ -240,6 +290,15 @@ public class CommunicationWizardDialog extends JDialog {
         g.anchor = GridBagConstraints.WEST;
         g.weightx = 1.0;
         g.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel stepTitle = new JLabel("Paso 2 de 3 — Grupo de escaneo y área de memoria");
+        stepTitle.setFont(stepTitle.getFont().deriveFont(java.awt.Font.BOLD, 14f));
+        stepTitle.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+
+        JPanel north = new JPanel(new BorderLayout(0, 4));
+        north.add(stepTitle, BorderLayout.NORTH);
+        north.add(forms, BorderLayout.CENTER);
+        center.add(north, BorderLayout.NORTH);
 
         JLabel grpTitle = new JLabel("Nuevo grupo de escaneo");
         grpTitle.setFont(grpTitle.getFont().deriveFont(java.awt.Font.BOLD, 12f));
@@ -254,9 +313,10 @@ public class CommunicationWizardDialog extends JDialog {
 
         g.gridy = 2;
         g.gridx = 0; g.weightx = 0.0; forms.add(new JLabel("Scantime (ms):"), g);
-        g.gridx = 1; g.weightx = 0.5; forms.add(txtGroupScantime, g);
+        g.gridx = 1; g.weightx = 0.5; forms.add(cbGroupScantime, g);
         g.gridx = 2; g.weightx = 0.0; g.fill = GridBagConstraints.NONE; g.anchor = GridBagConstraints.WEST;
-        forms.add(btnAddGroup, g);
+        forms.add(chkGroupEnable, g);
+        g.gridx = 3; g.weightx = 0.0; forms.add(btnAddGroup, g);
         g.fill = GridBagConstraints.HORIZONTAL; g.anchor = GridBagConstraints.WEST;
         btnAddGroup.addActionListener(e -> addGroup());
 
@@ -277,7 +337,9 @@ public class CommunicationWizardDialog extends JDialog {
         g.gridx = 2; g.weightx = 0.0; forms.add(new JLabel("Grupo:"), g);
         g.gridx = 3; g.weightx = 0.5; forms.add(cbItemGroup, g);
 
-        g.gridy = 6; g.gridx = 3; g.weightx = 0.0; g.fill = GridBagConstraints.NONE; g.anchor = GridBagConstraints.EAST;
+        g.gridy = 6;
+        g.gridx = 1; g.weightx = 0.5; forms.add(chkItemEnable, g);
+        g.gridx = 3; g.weightx = 0.0; g.fill = GridBagConstraints.NONE; g.anchor = GridBagConstraints.EAST;
         forms.add(btnAddItem, g);
         g.fill = GridBagConstraints.HORIZONTAL; g.anchor = GridBagConstraints.WEST;
         btnAddItem.addActionListener(e -> addItem());
@@ -295,7 +357,10 @@ public class CommunicationWizardDialog extends JDialog {
             }
         });
 
-        center.add(forms, BorderLayout.SOUTH);
+        JSplitPane areaSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, center, tableSplit);
+        areaSplit.setResizeWeight(0.35);
+        areaSplit.setDividerLocation(250);
+        areaSplit.setContinuousLayout(true);
 
         btnBack2.addActionListener(e -> showStep(STEP_DEVICE));
         btnNext2.addActionListener(e -> showStep(STEP_PV));
@@ -305,7 +370,7 @@ public class CommunicationWizardDialog extends JDialog {
         JPanel buttons = new JPanel(new BorderLayout());
         buttons.add(nav(btnBack2), BorderLayout.WEST);
         buttons.add(nav(btnSave2, btnClose, btnNext2), BorderLayout.EAST);
-        panel.add(center, BorderLayout.CENTER);
+        panel.add(areaSplit, BorderLayout.CENTER);
         panel.add(buttons, BorderLayout.SOUTH);
         return panel;
     }
@@ -318,7 +383,7 @@ public class CommunicationWizardDialog extends JDialog {
 
         JPanel form = new JPanel(new GridBagLayout());
         GridBagConstraints g = new GridBagConstraints();
-        g.insets = new Insets(5, 8, 5, 8);
+        g.insets = new Insets(2, 8, 2, 8);
         g.anchor = GridBagConstraints.WEST;
         g.weightx = 1.0;
 
@@ -334,12 +399,16 @@ public class CommunicationWizardDialog extends JDialog {
         form.add(cbArea, g); g.gridwidth = 1;
 
         addLabel(form, g, ++row, "Variable (del área S88):");
-        g.gridx = 1; g.gridwidth = 3; form.add(cbVariable, g); g.gridwidth = 1;
+        g.gridx = 1; g.gridwidth = 3; g.fill = GridBagConstraints.HORIZONTAL;
+        form.add(cbVariable, g);
+        g.gridwidth = 1; g.fill = GridBagConstraints.NONE;
+
+        ++row;
+        g.gridx = 0; g.gridy = row; g.gridwidth = 4; g.weightx = 1.0;
+        form.add(lblTypeLock, g); g.gridwidth = 1;
 
         addLabel(form, g, ++row, "Tipo:");
         g.gridx = 1; g.gridwidth = 1; form.add(cbType, g);
-        g.gridx = 2; form.add(new JLabel("Offset:"), g);
-        g.gridx = 3; form.add(txtOffset, g);
 
         addLabel(form, g, ++row, "Descriptor:");
         g.gridx = 1; g.gridwidth = 1; form.add(txtDescriptor, g);
@@ -368,13 +437,6 @@ public class CommunicationWizardDialog extends JDialog {
         addLabel(form, g, ++row, "Control MinStep:");
         g.gridx = 1; form.add(txtControlMinStep, g);
 
-        ++row;
-        JPanel addRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        addRow.add(btnAddPv);
-        addRow.add(lblPvCount);
-        g.gridx = 0; g.gridy = row; g.gridwidth = 4;
-        form.add(addRow, g); g.gridwidth = 1;
-
         cbArea.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value,
@@ -397,7 +459,7 @@ public class CommunicationWizardDialog extends JDialog {
                 if (value instanceof PlantVariable v) {
                     String text = v.getPath().isEmpty()
                             ? v.getName() + "  (" + v.getType() + ")"
-                            : v.getPath() + "/" + v.getName() + "  (" + v.getType() + ")";
+                            : v.getPath() + "/" + v.getName(); //+ "  (" + v.getType() + ")";
                     if (v.isUsed()) {
                         label.setEnabled(false);
                         label.setToolTipText("Variable ya asignada a otra configuración");
@@ -411,24 +473,89 @@ public class CommunicationWizardDialog extends JDialog {
             }
         });
         cbVariable.addActionListener(e -> onVariableSelected());
+        fixComboWidth(cbVariable, 340);
+        fixComboWidth(cbArea, 300);
+        cbArea.addActionListener(e -> {
+            refreshVariables();
+        });
 
         cbType.removeAllItems();
         cbType.addItem("—");
         cbType.setEnabled(false);
 
-        btnAddPv.addActionListener(e -> addPv());
         btnBack3.addActionListener(e -> showStep(STEP_AREA));
+        btnSavePv.addActionListener(e -> savePv());
 
         JButton btnCancel = new JButton("Cancelar");
         btnCancel.addActionListener(e -> dispose());
         btnFinish.addActionListener(e -> saveAndClose());
 
-        panel.add(new JScrollPane(form), BorderLayout.CENTER);
-        panel.add(nav(btnBack3, btnCancel, btnFinish), BorderLayout.SOUTH);
+        JPanel pvTable = new JPanel(new BorderLayout(0, 4));
+        pvTable.setBorder(BorderFactory.createTitledBorder("Variables configuradas"));
+        tbPvs.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        tbPvs.setFillsViewportHeight(false);
+        tbPvs.setIntercellSpacing(new Dimension(6, 2));
+        fixTablePreferredSize(tbPvs, 700, 460);
+        pvTable.add(new JScrollPane(tbPvs), BorderLayout.CENTER);
+
+        JScrollPane formScroll = new JScrollPane(form);
+        formScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        formScroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER);
+        formScroll.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
+
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, formScroll, pvTable);
+        split.setResizeWeight(0.0);
+        split.setDividerLocation(340);
+        split.setContinuousLayout(true);
+
+        panel.add(split, BorderLayout.CENTER);
+        panel.add(nav(btnBack3, btnCancel, btnSavePv, btnFinish), BorderLayout.SOUTH);
         return panel;
     }
 
-    // ------------------------------------------------------------- helpers ui
+    // ------------------------------- helpers ui ------------------------------
+
+    /**
+     * Acota el tamaño preferido de una tabla. Sin esto, el preferred size de un
+     * {@link JTable} es la suma del ancho de sus columnas y termina estirando
+     * el diálogo mucho más allá de lo necesario.
+     */
+    private static void fixTablePreferredSize(JTable table, int width, int height) {
+        table.setPreferredSize(new Dimension(width, height));
+    }
+
+    /**
+     * Ancho inicial legible por columna: mide el encabezado y el contenido real
+     * y lo acota entre minWidth y maxWidth. Evita el ancho por defecto de
+     * {@link JTable} (75px), que dejaba todas las celdas pegadas, sin dejar que
+     * un nombre kilométrico infle la columna.
+     */
+    private static void sizeColumnsToContent(JTable table, int minWidth, int maxWidth) {
+        FontMetrics fm = table.getFontMetrics(table.getTableHeader().getFont());
+        TableColumnModel cm = table.getColumnModel();
+        TableCellRenderer cellRenderer = table.getDefaultRenderer(Object.class);
+        for (int i = 0; i < cm.getColumnCount(); i++) {
+            int width = fm.stringWidth(table.getModel().getColumnName(i)) + 28;
+            for (int r = 0; r < table.getRowCount() && width < maxWidth; r++) {
+                Object value = table.getModel().getValueAt(r, i);
+                if (value == null) {
+                    continue;
+                }
+                Component comp = cellRenderer.getTableCellRendererComponent(
+                        table, value, false, false, r, i);
+                width = Math.max(width, comp.getPreferredSize().width + 24);
+            }
+            TableColumn col = cm.getColumn(i);
+            col.setPreferredWidth(Math.max(minWidth, Math.min(maxWidth, width)));
+            col.setMinWidth(minWidth);
+        }
+    }
+
+    private static void fixComboWidth(JComboBox<?> combo, int width) {
+        Dimension pref = combo.getPreferredSize();
+        combo.setPreferredSize(new Dimension(width, pref.height));
+        combo.setMinimumSize(new Dimension(Math.min(120, width), pref.height));
+    }
 
     private static JPanel nav(JButton... buttons) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
@@ -446,7 +573,7 @@ public class CommunicationWizardDialog extends JDialog {
         target.add(new JLabel(text), g);
     }
 
-    // ---------------------------------------------------------------- logica
+    // ------------------------------logica---------------------------------- 
 
     private void loadDevices(String deviceUuid) {
         refreshDevices();
@@ -513,6 +640,11 @@ public class CommunicationWizardDialog extends JDialog {
         }
         if (comms.getItems() != null) {
             items.addAll(comms.getItems());
+            for (CommConfigData.ItemConfig i : items) {
+                if (i.getGroupUuid() != null && !i.getGroupUuid().isEmpty()) {
+                    itemsGroup.put(i.getUuid(), i.getGroupUuid());
+                }
+            }
         }
         if (comms.getPvs() != null) {
             pvs.addAll(comms.getPvs());
@@ -521,24 +653,35 @@ public class CommunicationWizardDialog extends JDialog {
     }
 
     private void refreshAreaView() {
-        entityModel.setRowCount(0);
+        groupModel.setRowCount(0);
         for (CommConfigData.GroupConfig g : groups) {
-            entityModel.addRow(new Object[]{
-                "Grupo", g.getName(), "scan " + g.getScantime() + " ms"
+            groupModel.addRow(new Object[]{
+                g.getName(), g.getDescription(), g.getScantime(),
+                g.isEnable() ? "TRUE" : "FALSE", g.getUuid()
             });
         }
+        itemModel.setRowCount(0);
         for (CommConfigData.ItemConfig i : items) {
             String groupName = groupNameOf(i.getUuid());
-            String detail = groupName.isEmpty() ? i.getTag() : i.getTag() + "  →  " + groupName;
-            entityModel.addRow(new Object[]{
-                "Área", i.getName(), detail
+            itemModel.addRow(new Object[]{
+                i.getName(), i.getDescription(), i.getTag(),
+                groupName.isEmpty() ? "—" : groupName,
+                i.isEnable() ? "TRUE" : "FALSE", i.getUuid()
             });
         }
-        refreshAreaStatus();
         refreshPvAreas();
         refreshVariables();
+        refreshPvTable();
         refreshGroupCombo();
         btnNext2.setEnabled(!items.isEmpty());
+        if (!groupColumnsSized && !groups.isEmpty()) {
+            sizeColumnsToContent(tbGroups, 90, 260);
+            groupColumnsSized = true;
+        }
+        if (!itemColumnsSized && !items.isEmpty()) {
+            sizeColumnsToContent(tbItems, 90, 260);
+            itemColumnsSized = true;
+        }
     }
 
     private String groupNameOf(String itemUuid) {
@@ -570,14 +713,52 @@ public class CommunicationWizardDialog extends JDialog {
         }
     }
 
-    private void refreshAreaStatus() {
-        if (items.isEmpty()) {
-            lblAreaStatus.setText("<html><b>El dispositivo no tiene áreas de memoria.</b> "
-                    + "Cree un grupo de escaneo y al menos un área para poder añadir variables.</html>");
-        } else {
-            lblAreaStatus.setText("Grupos: " + groups.size() + "  ·  Áreas: " + items.size()
-                    + "  ·  Variables: " + pvs.size());
+    /**
+     * Llena la tabla del paso 3 con las variables de proceso configuradas.
+     */
+    private void refreshPvTable() {
+        pvModel.setRowCount(0);
+        for (CommConfigData.PvConfig pv : pvs) {
+            CommConfigData.ItemConfig area = itemByUuid(pv.getId());
+            pvModel.addRow(new Object[]{
+                pv.getName(),
+                area == null ? "—" : area.getName(),
+                pv.getId(),
+                pv.getType(),
+                pv.getOffset(),
+                pv.getDescriptor(),
+                pv.getScanTime(),
+                pv.isScanEnable() ? "TRUE" : "FALSE",
+                pv.isWriteEnable() ? "TRUE" : "FALSE",
+                pv.getDisplayLimitLow(),
+                pv.getDisplayLimitHigh(),
+                pv.getDisplayDescription(),
+                pv.getDisplayFormat(),
+                pv.getDisplayUnits(),
+                pv.getControlLimitLow(),
+                pv.getControlLimitHigh(),
+                pv.getControlMinStep(),
+                pv.getS88Path(),
+                pv.getUuid(),
+                pv.getMd5()
+            });
         }
+        if (!pvColumnsSized && !pvs.isEmpty()) {
+            sizeColumnsToContent(tbPvs, 90, 300);
+            pvColumnsSized = true;
+        }
+    }
+
+    private CommConfigData.ItemConfig itemByUuid(String uuid) {
+        if (uuid == null) {
+            return null;
+        }
+        for (CommConfigData.ItemConfig i : items) {
+            if (uuid.equals(i.getUuid())) {
+                return i;
+            }
+        }
+        return null;
     }
 
     private void refreshPvAreas() {
@@ -596,16 +777,13 @@ public class CommunicationWizardDialog extends JDialog {
         }
     }
 
-    /**
-     * Rellena el desplegable con las variables del área S88 asociada al
-     * dispositivo (leídas de {@code plant-model.xml}). Las variables ya
-     * usadas por algún PV guardado (o de la sesión) se muestran deshabilitadas.
-     */
     private void refreshVariables() {
         cbVariable.removeAllItems();
         cbVariable.addItem(null);
         cbType.removeAllItems();
         cbType.addItem("—");
+        refreshTypeLock();
+        String lockedType = itemLockedType();
         if (selectedDevice == null) {
             return;
         }
@@ -621,19 +799,119 @@ public class CommunicationWizardDialog extends JDialog {
             return;
         }
         Set<String> usedKeys = new HashSet<>();
-        Set<String> usedNames = new HashSet<>();
         for (CommConfigData.PvConfig pv : pvs) {
-            usedNames.add(pv.getName());
-            String path = pv.getS88Path();
-            if (path != null && !path.isEmpty()) {
-                usedKeys.add(path + "/" + pv.getName());
-            }
+            usedKeys.add(pvKey(pv.getS88Path(), pv.getName()));
         }
         for (PlantVariable v : variables) {
-            if (usedKeys.contains(v.getKey()) || usedNames.contains(v.getName())) {
+            if (lockedType != null && !lockedType.equalsIgnoreCase(v.getType())) {
+                continue;
+            }
+            if (usedKeys.contains(v.getKey())) {
                 v.setUsed(true);
             }
             cbVariable.addItem(v);
+        }
+    }
+
+    /**
+     * Clave de identidad de una variable de planta: su ruta dentro del área S88
+     * más su nombre. Dos variables homónimas de jerarquías distintas (p.ej. la
+     * temperatura del tanque 1 y la del tanque 2) tienen claves diferentes y
+     * pueden configurarse por separado.
+     */
+    private static String pvKey(String path, String name) {
+        return (path == null || path.isEmpty() ? "" : path + "/") + name;
+    }
+
+    /**
+     * Variables ya guardadas que pertenecen al área (PvId) seleccionada.
+     */
+    private List<CommConfigData.PvConfig> pvsOfSelectedArea() {        List<CommConfigData.PvConfig> result = new ArrayList<>();
+        CommConfigData.ItemConfig area = (CommConfigData.ItemConfig) cbArea.getSelectedItem();
+        if (area == null) {
+            return result;
+        }
+        for (CommConfigData.PvConfig pv : pvs) {
+            if (area.getUuid().equals(pv.getId())) {
+                result.add(pv);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Tipo al que queda fijado el área seleccionada: el de su primera variable
+     * guardada. Si el área está vacía devuelve {@code null} y todavía admite
+     * cualquier tipo (la primera variable elegida lo fija).
+     */
+    private String itemLockedType() {
+        List<CommConfigData.PvConfig> areaPvs = pvsOfSelectedArea();
+        if (areaPvs.isEmpty()) {
+            return null;
+        }
+        return areaPvs.get(0).getType();
+    }
+
+    /**
+     * Tamaño en bytes de un tipo de dato. Devuelve 0 si el tamaño no es
+     * determinable (p.ej. string), en cuyo caso no se puede aplicar la
+     * fórmula estándar de offset.
+     */
+    private static int typeSizeBytes(String type) {
+        if (type == null || type.isEmpty()) {
+            return 0;
+        }
+        return switch (type.toLowerCase()) {
+            case "boolean", "byte", "ubyte" -> 1;
+            case "short", "ushort" -> 2;
+            case "int", "uint", "long", "ulong", "float" -> 4;
+            case "double" -> 8;
+            case "string" -> 0;
+            default -> 4;
+        };
+    }
+
+    /**
+     * Tamaño en bytes (Tam) que aplica al área seleccionada: el del tipo al que
+     * está fijada o, si todavía está vacía, el de la variable elegida.
+     */
+    private int selectedAreaTam() {
+        String type = itemLockedType();
+        if (type == null || type.isEmpty()) {
+            PlantVariable v = (PlantVariable) cbVariable.getSelectedItem();
+            type = v == null ? null : v.getType();
+        }
+        return typeSizeBytes(type);
+    }
+
+    /**
+     * Offset siguiente para el área seleccionada según la fórmula estándar
+     * {@code (Medición - 1) × Tam}: la medición es la posición de la variable
+     * dentro del área (empieza en 1) y {@code Tam} el tamaño en bytes del tipo.
+     * Devuelve -1 cuando todavía no hay tipo definido.
+     */
+    private int nextOffset() {
+        int tam = selectedAreaTam();
+        if (tam <= 0) {
+            return -1;
+        }
+        return pvsOfSelectedArea().size() * tam;
+    }
+
+    private void refreshTypeLock() {
+        CommConfigData.ItemConfig area = (CommConfigData.ItemConfig) cbArea.getSelectedItem();
+        if (area == null) {
+            lblTypeLock.setText(" ");
+            return;
+        }
+        String locked = itemLockedType();
+        if (locked == null) {
+            lblTypeLock.setText("<html>El área <b>" + area.getName()
+                    + "</b> está vacía: la primera variable elegida fijará su tipo.</html>");
+        } else {
+            lblTypeLock.setText("<html>El área <b>" + area.getName()
+                    + "</b> está fijada al tipo <b>" + locked
+                    + "</b>: solo se listan variables de ese tipo.</html>");
         }
     }
 
@@ -725,21 +1003,25 @@ public class CommunicationWizardDialog extends JDialog {
 
     private void addGroup() {
         String name = txtGroupName.getText().trim();
-        String scantime = txtGroupScantime.getText().trim();
+        String scantime = (String) cbGroupScantime.getSelectedItem();
         if (name.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Ingrese el nombre del grupo de escaneo.",
                     "Campo incompleto", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        if (scantime.isEmpty()) {
-            scantime = "500";
+        if (scantime == null) {
+            JOptionPane.showMessageDialog(this,
+                    "Seleccione el scantime del grupo (100 ms a 1000 ms).",
+                    "Campo incompleto", JOptionPane.WARNING_MESSAGE);
+            return;
         }
         groups.add(new CommConfigData.GroupConfig(
                 UUID.randomUUID().toString(), name, txtGroupDescription.getText().trim(),
-                scantime, true, "md5_group_hash"));
+                scantime, chkGroupEnable.isSelected(), "md5_group_hash"));
         txtGroupName.setText("");
         txtGroupDescription.setText("");
-        txtGroupScantime.setText("");
+        cbGroupScantime.setSelectedIndex(-1);
+        chkGroupEnable.setSelected(true);
         refreshAreaView();
     }
 
@@ -760,15 +1042,22 @@ public class CommunicationWizardDialog extends JDialog {
         String itemUuid = UUID.randomUUID().toString();
         items.add(new CommConfigData.ItemConfig(
                 itemUuid, name, txtItemDescription.getText().trim(),
-                txtItemTag.getText().trim(), true, "md5_item_hash"));
+                txtItemTag.getText().trim(), chkItemEnable.isSelected(), "md5_item_hash",
+                group.getUuid()));
         itemsGroup.put(itemUuid, group.getUuid());
         txtItemName.setText("");
         txtItemDescription.setText("");
         txtItemTag.setText("");
+        chkItemEnable.setSelected(true);
         refreshAreaView();
     }
 
-    private void addPv() {
+    /**
+     * Guarda la variable de proceso del formulario en el área seleccionada y
+     * persiste la configuración en comunicacion.xml sin cerrar el wizard, para
+     * que el usuario pueda seguir agregando variables.
+     */
+    private void savePv() {
         CommConfigData.ItemConfig area = (CommConfigData.ItemConfig) cbArea.getSelectedItem();
         PlantVariable variable = (PlantVariable) cbVariable.getSelectedItem();
         if (area == null) {
@@ -788,12 +1077,20 @@ public class CommunicationWizardDialog extends JDialog {
                     "Variable ocupada", JOptionPane.WARNING_MESSAGE);
             return;
         }
+        int offset = nextOffset();
+        if (offset < 0) {
+            JOptionPane.showMessageDialog(this,
+                    "No se puede calcular el offset automático para el tipo '" + variable.getType()
+                            + "'; el tamaño en bytes no está definido.",
+                    "Offset no calculable", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         pvs.add(new CommConfigData.PvConfig(
                 UUID.randomUUID().toString(),
                 variable.getName(),
                 variable.getType(),
                 area.getUuid(),
-                txtOffset.getText().trim(),
+                String.valueOf(offset),
                 txtDescriptor.getText().trim(),
                 txtScanTime.getText().trim(),
                 chkScanEnable.isSelected(),
@@ -809,43 +1106,54 @@ public class CommunicationWizardDialog extends JDialog {
                 "md5_pv_hash",
                 variable.getPath()));
         cbVariable.setSelectedIndex(0);
-        txtOffset.setText("");
         txtDescriptor.setText("");
         txtScanTime.setText("");
-        lblPvCount.setText("Variables: " + pvs.size());
-        refreshAreaStatus();
         refreshVariables();
+        refreshPvTable();
+        showSavedMessage("Variable '" + variable.getName() + "' guardada en '" + area.getName()
+                + "' con offset " + offset + ".");
     }
 
     private void saveNow() {
         if (selectedDevice == null || model == null) {
             return;
         }
-        persist();
-        JOptionPane.showMessageDialog(this,
-                "Grupos y áreas guardados en comunicacion.xml.",
-                "Guardado", JOptionPane.INFORMATION_MESSAGE);
+        showSavedMessage("Grupos y áreas guardados.");
     }
 
     private void saveAndClose() {
         if (selectedDevice == null || model == null) {
             return;
         }
-        persist();
-        JOptionPane.showMessageDialog(this,
-                "Comunicación guardada en comunicacion.xml.",
-                "Éxito", JOptionPane.INFORMATION_MESSAGE);
+        showSavedMessage("Comunicación guardada.");
         dispose();
     }
 
-    private void persist() {
+    /**
+     * @return true si la configuración quedó guardada en el XML y volcada a la
+     *         base de datos {@code boot.db}
+     */
+    private boolean persist() {
         CommConfigData config = new CommConfigData(
                 selectedDevice.getDeviceName(),
                 new ArrayList<>(groups),
                 new ArrayList<>(items),
                 new ArrayList<>(pvs));
         model.upsertComms(selectedDevice.getUuid(), config);
-        model.save();
+        return model.save();
+    }
+
+    private void showSavedMessage(String what) {
+        boolean databaseUpdated = persist();
+        if (databaseUpdated) {
+            JOptionPane.showMessageDialog(this, what + "\nGuardado en comunicacion.xml y en boot.db.",
+                    "Guardado", JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, what
+                            + "\nGuardado en comunicacion.xml, pero NO se pudo actualizar boot.db."
+                            + "\nRevise la salida de la aplicación para el detalle.",
+                    "Guardado parcial", JOptionPane.WARNING_MESSAGE);
+        }
     }
 
     private void showStep(String step) {
@@ -856,6 +1164,7 @@ public class CommunicationWizardDialog extends JDialog {
         } else if (STEP_PV.equals(step)) {
             refreshPvAreas();
             refreshVariables();
+            refreshPvTable();
         }
     }
 

@@ -91,6 +91,7 @@ public final class DeviceXmlMapper {
                         .append(" description=\"").append(escape(i.getDescription())).append("\"")
                         .append(" tag=\"").append(escape(i.getTag())).append("\"")
                         .append(" enable=\"").append(i.isEnable()).append("\"")
+                        .append(" group=\"").append(escape(i.getGroupUuid())).append("\"")
                         .append(" md5=\"").append(escape(i.getMd5())).append("\"/>");
             }
         }
@@ -214,7 +215,7 @@ public final class DeviceXmlMapper {
                         items.add(new CommConfigData.ItemConfig(
                                 attr(i, "uuid"), attr(i, "name"), attr(i, "description"),
                                 attr(i, "tag"), Boolean.parseBoolean(attr(i, "enable")),
-                                attr(i, "md5")));
+                                attr(i, "md5"), attr(i, "group")));
                     }
                 }
                 List<CommConfigData.PvConfig> pvs = new ArrayList<>();

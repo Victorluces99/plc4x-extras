@@ -142,7 +142,13 @@ public final class HMICommunicationModel {
         return config.removeDevice(uuid);
     }
 
-    public void save() {
+    /**
+     * Guarda la configuración en {@code comunicacion.xml} y la vuelca a la base
+     * de datos {@code boot.db} del proyecto.
+     *
+     * @return true si el XML se guardó y la base de datos quedó actualizada
+     */
+    public boolean save() {
         try {
             FileObject projectDir = project.getProjectDirectory();
             if (file == null || !file.isValid()) {
@@ -163,12 +169,18 @@ public final class HMICommunicationModel {
         } catch (Exception ex) {
             throw new IllegalStateException("No se pudo guardar la configuración de comunicaciones", ex);
         }
+        boolean databaseUpdated;
         try {
-            HMIPanelDataBaseFactory.rebuild(project.getProjectDirectory(), config);
+            databaseUpdated = HMIPanelDataBaseFactory.rebuild(project.getProjectDirectory(), config);
         } catch (Exception ex) {
             System.err.println("Error volcando configuracion a boot.db: " + ex.getMessage());
+            databaseUpdated = false;
+        }
+        if (!databaseUpdated) {
+            System.err.println("boot.db no pudo actualizarse; revise la salida de la aplicacion.");
         }
         cs.fireChange();
+        return databaseUpdated;
     }
 
     public void addChangeListener(ChangeListener cl) {

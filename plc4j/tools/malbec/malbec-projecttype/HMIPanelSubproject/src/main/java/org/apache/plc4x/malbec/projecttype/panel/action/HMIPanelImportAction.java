@@ -63,7 +63,7 @@ import org.xml.sax.SAXException;
 public class HMIPanelImportAction extends AbstractAction {
 
     /**
-     * Nombre del archivo donde se vuelca el snapshot del modelo de planta.
+     * Nombre del archivo donde se vuelca el modelo de planta.
      */
     private static final String PLANT_MODEL_DUMP = "plant-model.xml";
 

@@ -103,7 +103,7 @@ public class HMIPanelDataBaseFactory {
             + "PvControlMinStep TEXT,"
             + "Md5 TEXT)";
 
-    public static void createDB(String rutaCarpeta) {
+    public static boolean createDB(String rutaCarpeta) {
         File carpeta = new File(rutaCarpeta);
         // Construir la URL de JDBC con la ruta completa
         File archivoDB = new File(carpeta, "boot.db");
@@ -124,17 +124,18 @@ public class HMIPanelDataBaseFactory {
 
                 System.out.println("Las 4 tablas fueron creadas exitosamente (vacías).");
             }
-
+            return true;
         } catch (SQLException e) {
             System.err.println("Error al crear las tablas: " + e.getMessage());
+            return false;
         }
     }
     
-    public static void insertDeviceConfig(String rutaCarpeta, CommConfigData config) {
-        insertDeviceConfig(rutaCarpeta, null, config);
+    public static boolean insertDeviceConfig(String rutaCarpeta, CommConfigData config) {
+        return insertDeviceConfig(rutaCarpeta, null, config);
     }
 
-    public static void insertDeviceConfig(String rutaCarpeta, DeviceConfigData device, CommConfigData comms) {
+    public static boolean insertDeviceConfig(String rutaCarpeta, DeviceConfigData device, CommConfigData comms) {
         File archivoDB = new File(rutaCarpeta, "boot.db");
         String url = "jdbc:sqlite:" + archivoDB;
 
@@ -185,7 +186,7 @@ public class HMIPanelDataBaseFactory {
                     for (CommConfigData.ItemConfig item : orEmpty(comms.getItems())) {
                         pstmt.setString(1, item.getUuid());
                         pstmt.setString(2, deviceUuid);
-                        pstmt.setString(3, orEmpty(comms.getGroups()).isEmpty() ? null : orEmpty(comms.getGroups()).get(0).getUuid());
+                        pstmt.setString(3, groupUuidOf(item, comms));
                         pstmt.setString(4, item.getName());
                         pstmt.setString(5, item.getDescription());
                         pstmt.setString(6, item.getTag());
@@ -223,24 +224,41 @@ public class HMIPanelDataBaseFactory {
 
             conn.commit();
             System.out.println("--- TODAS LAS TABLAS GUARDADAS CORRECTAMENTE EN BOOT.DB ---");
+            return true;
 
         } catch (SQLException e) {
             System.err.println("Error insertando datos en SQLite: " + e.getMessage());
+            return false;
         }
+    }
+
+    /**
+     * Grupo de escaneo al que pertenece un área: el que tiene asignado en la
+     * configuración y, por compatibilidad con configuraciones anteriores que no
+     * lo persistían, el primer grupo del dispositivo.
+     */
+    private static String groupUuidOf(CommConfigData.ItemConfig item, CommConfigData comms) {
+        if (item.getGroupUuid() != null && !item.getGroupUuid().isEmpty()) {
+            return item.getGroupUuid();
+        }
+        List<CommConfigData.GroupConfig> groups = orEmpty(comms.getGroups());
+        return groups.isEmpty() ? null : groups.get(0).getUuid();
     }
 
     /**
      * Vuelca la configuración completa (devices + grupos/items/pvs) desde el
      * modelo en el archivo {@code boot.db} del directorio del proyecto.
      * Las tablas se regeneran desde cero; el XML es la fuente de verdad.
+     *
+     * @return true si todas las tablas quedaron escritas correctamente
      */
-    public static void rebuild(FileObject projectDir, CommunicationsConfig config) {
+    public static boolean rebuild(FileObject projectDir, CommunicationsConfig config) {
         if (projectDir == null || config == null) {
-            return;
+            return false;
         }
         File dbFolder = FileUtil.toFile(projectDir);
         if (dbFolder == null || !dbFolder.isDirectory()) {
-            return;
+            return false;
         }
         File archivoDB = new File(dbFolder, "boot.db");
         String url = "jdbc:sqlite:" + archivoDB;
@@ -253,13 +271,17 @@ public class HMIPanelDataBaseFactory {
             stmt.execute("DROP TABLE IF EXISTS Devices");
         } catch (SQLException e) {
             System.err.println("Error limpiando boot.db: " + e.getMessage());
-            return;
+            return false;
         }
 
-        createDB(dbFolder.getAbsolutePath());
-        for (DeviceConfigData device : config.getDevices()) {
-            insertDeviceConfig(dbFolder.getAbsolutePath(), device, config.getComms(device.getUuid()));
+        if (!createDB(dbFolder.getAbsolutePath())) {
+            return false;
         }
+        boolean ok = true;
+        for (DeviceConfigData device : config.getDevices()) {
+            ok &= insertDeviceConfig(dbFolder.getAbsolutePath(), device, config.getComms(device.getUuid()));
+        }
+        return ok;
     }
 
     private static <T> List<T> orEmpty(List<T> list) {

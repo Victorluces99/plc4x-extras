@@ -23,10 +23,10 @@ import java.util.Properties;
 
 public class CommConfigData {
 
-    private String deviceName;
-    private List<GroupConfig> groups;
-    private List<ItemConfig> items;
-    private List<PvConfig> pvs;
+    private final String deviceName;
+    private final List<GroupConfig> groups;
+    private final List<ItemConfig> items;
+    private final List<PvConfig> pvs;
 
     public CommConfigData(String deviceName, List<GroupConfig> groups, List<ItemConfig> items, List<PvConfig> pvs) {
         this.deviceName = deviceName;

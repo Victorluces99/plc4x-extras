@@ -20,14 +20,10 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.action;
 
 import java.awt.event.ActionEvent;
 import javax.swing.AbstractAction;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommunicationWizardDialog;
+import org.apache.plc4x.malbec.projecttype.panelcategory.panel.wizard.CommunicationWizardDialog;
 import org.netbeans.api.project.Project;
 
-/**
- * Abre el wizard de comunicación ({@link CommunicationWizardDialog}) desde el
- * nodo de carpeta "Comunicación". Si se suministra {@code deviceUuid}, el
- * dispositivo queda preseleccionado en el primer paso.
- */
+
 public class HMICategoryCreateCommAction extends AbstractAction {
 
     private final Project project;
@@ -48,6 +44,7 @@ public class HMICategoryCreateCommAction extends AbstractAction {
         if (project == null) {
             return;
         }
+        
         CommunicationWizardDialog dialog = new CommunicationWizardDialog(project, deviceUuid);
         dialog.setVisible(true);
     }

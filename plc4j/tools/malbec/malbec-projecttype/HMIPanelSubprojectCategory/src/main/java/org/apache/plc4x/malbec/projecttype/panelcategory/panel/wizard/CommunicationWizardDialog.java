@@ -40,25 +40,11 @@ import org.netbeans.api.project.Project;
 import org.openide.windows.WindowManager;
 
 /**
- * Asistente de configuración de comunicación, en tres pasos: dispositivo, grupo
- * de escaneo y área de memoria, y variables de proceso.
- *
- * <p>El diálogo sólo coordina: muestra un paso por vez, decide qué botones de la
- * barra de navegación están habilitados y centraliza los dos modales que
- * cruzan pasos, el de áreas sin grupo y el de resultado del guardado. Toda la
- * lógica de las reglas vive en {@link CommunicationWizardController} y la vista
- * de cada paso en su panel.</p>
- *
- * <p>Hay una única barra de navegación para los tres pasos, en lugar de una por
- * paso: los mismos botones se habilitan o deshabilitan según el paso visible.
- * El asistente original tenía dos botones de salida distintos, «Cerrar» en el
- * paso 2 y «Cancelar» en los pasos 1 y 3, pero ambos ejecutaban exactamente lo
- * mismo; acá hay un solo «Cancelar» en los tres. Se reduce así el número de
- * controles sin cambiar el flujo.</p>
- *
- * <p>Cerrar siempre pasa por {@link #intentarCerrar()}, tanto por botón como por
- * la X o la tecla ESC, para que un guardado parcial nunca se pierda en
- * silencio.</p>
+    Asistente de configuración de comunicación, en tres pasos: dispositivo, grupo
+    de escaneo y área de memoria, y variables de proceso.
+    Cerrar siempre pasa por intentarCerrar(), tanto por botón como por
+    la X o la tecla ESC, para que un guardado parcial nunca se pierda en
+    silencio.
  */
 public class CommunicationWizardDialog extends JDialog {
 
@@ -68,15 +54,9 @@ public class CommunicationWizardDialog extends JDialog {
     private static final String STEP_AREA = "area";
     private static final String STEP_PV = "pv";
 
-    private final Project project;
+//    private final Project project;
     private final HMICommunicationModel model;
     private final CommunicationWizardState state = new CommunicationWizardState();
-
-    /**
-     * El controlador y los tres paneles se arman en el constructor: dependen de
-     * {@code project}, que todavía no tiene valor durante la inicialización de
-     * los campos.
-     */
     private final CommunicationWizardController controller;
     private final StepDevicePanel devicePanel;
     private final StepGroupAreaPanel areaPanel;
@@ -97,7 +77,7 @@ public class CommunicationWizardDialog extends JDialog {
     public CommunicationWizardDialog(Project project, String deviceUuid) {
         super(WindowManager.getDefault().getMainWindow(), "Nueva Comunicación",
                 ModalityType.APPLICATION_MODAL);
-        this.project = project;
+//        this.project = project;
         this.model = project != null ? project.getLookup().lookup(HMICommunicationModel.class) : null;
         this.controller = new CommunicationWizardController(project, state);
         this.devicePanel = new StepDevicePanel(controller);

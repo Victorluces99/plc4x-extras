@@ -20,46 +20,30 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.action;
 
 import java.awt.event.ActionEvent;
 import javax.swing.AbstractAction;
-import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CreateDeviceTopComponent;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
+import javax.swing.SwingUtilities;
+import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CreateDeviceDialog;
 import org.netbeans.api.project.Project;
 import org.openide.windows.WindowManager;
 
-
+/**
+ * Abre el alta de dispositivo de comunicación como diálogo modal.
+ *
+ * <p>Antes esto buscaba un TopComponent por su id de string y, si la pestaña no
+ * estaba abierta, no pasaba nada sin avisar. Un diálogo nuevo por invocación no
+ * tiene ese problema y tampoco deja estado de una alta en la siguiente.
+ */
 public class HMICategoryCreateDeviceAction extends AbstractAction {
+
     private final Project project;
 
     public HMICategoryCreateDeviceAction(Project project) {
         putValue(NAME, "Crear Dispositivo");
         this.project = project;
     }
-    
+
     @Override
     public void actionPerformed(ActionEvent e) {
-        // Obtenemos o creamos la instancia del TopComponent
-        CreateDeviceTopComponent tc = (CreateDeviceTopComponent) WindowManager.getDefault()
-                .findTopComponent("CommunicationsTopComponent");
-
-        if (tc != null) {
-            tc.setProject(project); // Asociamos el proyecto actual
-            tc.resetForm();          // Limpiamos la información previa
-            tc.open();              // Abre la pestaña en el editor
-            tc.requestActive();     // Le da el foco activo
-        }
-    }
-    
-    public static void createDevice(Project project, DeviceConfigData data) {
-        if (project == null || data == null) {
-            return;
-        }
-        HMICommunicationModel model = project.getLookup().lookup(HMICommunicationModel.class);
-        if (model == null) {
-            System.err.println("No se encontró HMICommunicationModel en el Lookup del proyecto");
-            return;
-        }
-        model.upsertDevice(data);
-        model.save();
-        System.out.println("Dispositivo guardado en comunicacion.xml: " + data.getDeviceName());
+        SwingUtilities.invokeLater(() -> new CreateDeviceDialog(
+                WindowManager.getDefault().getMainWindow(), project).setVisible(true));
     }
 }

@@ -1,0 +1,131 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
+
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Window;
+import java.awt.event.KeyEvent;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.KeyStroke;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
+import org.netbeans.api.project.Project;
+
+/**
+ * Ventana modal de alta de dispositivo de comunicación.
+ *
+ * <p>El formulario vive en {@link CreateDevicePanel} para poder probarlo sin
+ * construir un {@code JDialog}, que exige un entorno gráfico. Esta clase sólo
+ * aporta modality, teclado y el guardado contra el modelo.
+ *
+ * <p>Cada invocación crea una instancia nueva, así que el formulario arranca
+ * siempre limpio y dos altas consecutivas no se pisan entre sí.
+ */
+public final class CreateDeviceDialog extends JDialog {
+
+    private final transient Project project;
+    private final transient CreateDevicePanel panel;
+    private final JButton btnOk = new JButton("Guardar");
+    private final JButton btnCancel = new JButton("Cancelar");
+
+    public CreateDeviceDialog(Window owner, Project project) {
+        super(owner, "Nuevo dispositivo de comunicación", ModalityType.APPLICATION_MODAL);
+        this.project = project;
+        this.panel = new CreateDevicePanel(project);
+
+        JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        botones.add(btnCancel);
+        botones.add(btnOk);
+
+        // El scroll va alrededor del formulario para que, si el usuario achica
+        // la ventana por debajo del alto natural, aparezca barra en vez de
+        // quedar campos cortados sin forma de llegar a ellos.
+        JScrollPane scroll = new JScrollPane(panel);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.setMinimumSize(new Dimension(420, 260));
+
+        JPanel content = new JPanel(new BorderLayout(0, 8));
+        content.add(scroll, BorderLayout.CENTER);
+        content.add(botones, BorderLayout.SOUTH);
+        setContentPane(content);
+
+        // El binding va en el root pane y no en el content pane: si se
+        // registrara antes de setContentPane, quedaría sobre el panel por
+        // defecto que este llamada reemplaza, y ESC dejaría de funcionar.
+        getRootPane().registerKeyboardAction(e -> dispose(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
+        getRootPane().setDefaultButton(btnOk);
+
+        // La X cierra sin guardar, igual que Cancelar.
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+
+        btnOk.addActionListener(e -> guardar());
+        btnCancel.addActionListener(e -> dispose());
+
+        // Sin ancho fijo en píxeles: pack() respeta el ancho natural de los
+        // campos y el mínimo sólo impide que la ventana quede ilegible.
+        setMinimumSize(new Dimension(660, 420));
+        pack();
+        setLocationRelativeTo(owner);
+    }
+
+    /**
+     * Valida, persiste y cierra.
+     *
+     * <p>El modelo se busca desde acá y no desde el panel: el formulario sólo
+     * arma datos y el guardado es responsabilidad de quien abrió la ventana.
+     */
+    private void guardar() {
+        DeviceConfigData data = panel.getDeviceConfigData();
+        if (data == null) {
+            return;
+        }
+        if (project == null) {
+            JOptionPane.showMessageDialog(this,
+                    "No hay un proyecto asociado.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        HMICommunicationModel model = project.getLookup().lookup(HMICommunicationModel.class);
+        if (model == null) {
+            JOptionPane.showMessageDialog(this,
+                    "No se encontró el modelo de comunicación del proyecto.",
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        model.upsertDevice(data);
+        if (!model.save()) {
+            // save() ya dejó escrito el XML; lo que falló fue la base.
+            JOptionPane.showMessageDialog(this,
+                    "El dispositivo se guardó en comunicacion.xml pero no se pudo\n"
+                            + "actualizar la base de datos. Revisá la consola.",
+                    "Guardado parcial", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        dispose();
+    }
+}

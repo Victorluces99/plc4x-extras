@@ -157,6 +157,11 @@ public class SiemensPanelBuilder implements DeviceDynamicPanelBuilder {
     }
 
     @Override
+    public LinkedHashMap<String, String> getParameters() {
+        return new LinkedHashMap<>(params);
+    }
+
+    @Override
     public String getSpecificParametersAsString() {
         LinkedHashMap<String, String> ordered = new LinkedHashMap<>(params);
         String controllerType = ordered.remove("controller-type");

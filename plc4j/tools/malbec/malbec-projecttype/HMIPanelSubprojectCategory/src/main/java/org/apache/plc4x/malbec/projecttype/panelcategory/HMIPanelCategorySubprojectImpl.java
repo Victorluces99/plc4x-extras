@@ -35,7 +35,6 @@ import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectInformation;
 import org.netbeans.spi.project.ProjectState;
 import org.netbeans.spi.project.ui.LogicalViewProvider;
-import org.netbeans.spi.project.ui.support.CommonProjectActions;
 import org.netbeans.spi.project.ui.support.NodeFactorySupport;
 import org.openide.filesystems.FileObject;
 import org.openide.loaders.DataFolder;
@@ -138,12 +137,9 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                 FileObject projectDirectory = project.getProjectDirectory();
                 DataFolder projectFolder = DataFolder.findFolder(projectDirectory);
                 Node nodeOfProjectFolder = projectFolder.getNodeDelegate();
-                //Decorate the project directory's node:
                 return new PanelProjectNode(nodeOfProjectFolder, project);
             } catch (DataObjectNotFoundException donfe) {
                 Exceptions.printStackTrace(donfe);
-                //Fallback-the directory couldn't be created -
-                //read-only filesystem or something evil happened
                 return new AbstractNode(Children.LEAF);
             }
         }
@@ -162,7 +158,6 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                 super(node,
                         NodeFactorySupport.createCompositeChildren(project,
                                 "Projects/org-apache-plc4x-category/Nodes"),
-                        //                  new FilterNode.Children(node),
 
                         new ProxyLookup(
                                 new Lookup[]{
@@ -208,13 +203,8 @@ public class HMIPanelCategorySubprojectImpl implements Project {
             public Action[] getActionForName(Action[] customAction) {
                 List<Action> actionList = new ArrayList<>();
 
-                // 1. Acciones estándar
-                actionList.add(CommonProjectActions.closeProjectAction());
-                actionList.add(CommonProjectActions.deleteProjectAction());
-
                 // 2. Si existen acciones personalizadas, agregamos separador y el listado
                 if (customAction.length > 0) {
-                    actionList.add(null); // Separador en el menú de NetBeans
                     actionList.addAll(Arrays.asList(customAction));
                 }
 

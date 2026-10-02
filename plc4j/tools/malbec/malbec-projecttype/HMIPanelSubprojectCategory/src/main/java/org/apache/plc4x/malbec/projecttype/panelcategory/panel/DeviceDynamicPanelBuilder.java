@@ -77,6 +77,19 @@ public interface DeviceDynamicPanelBuilder {
 
     void clearParameters();
 
+    /**
+     * Parámetros realmente cargados, en orden, a diferencia de
+     * {@link #getParameterDefaults()} que devuelve el catálogo con los valores
+     * de fábrica.
+     *
+     * <p>Sin esto el formulario no puede distinguir "este parámetro vale 0" de
+     * "este parámetro no está en la conexión", y al precargar un dispositivo
+     * existente mostraría los defaults en lugar de lo que está en el XML.
+     *
+     * @return copia defensiva: el llamador no debe mutar el builder por acá
+     */
+    LinkedHashMap<String, String> getParameters();
+
     String getSpecificParametersAsString();
 
     static String assembleUrl(String protocol, String transport, String host, String port,

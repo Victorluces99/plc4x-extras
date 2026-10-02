@@ -43,7 +43,8 @@ public class HMICategoryCreateDeviceAction extends AbstractAction {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        SwingUtilities.invokeLater(() -> new CreateDeviceDialog(
-                WindowManager.getDefault().getMainWindow(), project).setVisible(true));
+        SwingUtilities.invokeLater(() -> CreateDeviceDialog
+                .forCreate(WindowManager.getDefault().getMainWindow(), project)
+                .setVisible(true));
     }
 }

@@ -20,6 +20,8 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
+import java.util.UUID;
 import javax.swing.event.ChangeListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.HMIPanelDataBaseFactory;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRepository;
@@ -104,14 +106,73 @@ public final class HMICommunicationModel {
         } catch (Throwable t) {
             config = new CommunicationsConfig();
         }
+        boolean reparado = repararUuidsAusentes();
         if (created) {
             try {
                 repository.save(config);
             } catch (Exception ignored) {
                 // el archivo vacío se materializará en el primer save()
             }
+        } else if (reparado) {
+            try {
+                repository.save(config);
+            } catch (Exception ex) {
+                System.err.println("No se pudo guardar el UUID reparado de "
+                        + CONFIG_FILE + ": " + ex.getMessage());
+            }
         }
         cs.fireChange();
+    }
+
+    private boolean repararUuidsAusentes() {
+        return repararUuidsAusentes(config);
+    }
+
+    /**
+     * Asigna un UUID a los dispositivos que llegaron sin él.
+     *
+     * <p>El UUID es la identidad del dispositivo: {@code CommunicationsConfig}
+     * matchea por él, así que uno vacío nunca encuentra su lugar y cada
+     * modificación lo agrega como un dispositivo nuevo en vez de reemplazarlo.
+     * La alta lo genera siempre, pero el atributo puede faltar si el
+     * {@code comunicacion.xml} es más viejo que él o si alguien editó el
+     * archivo a mano, y en ese caso la identidad rota entraba en silencio.
+     *
+     * <p>Se repara al cargar y no en el alta porque el alta ya valida, y porque
+     * el archivo puede haber entrado por cualquier otro lado. Queda registrado
+     * en consola para que el cambio de identidad sea visible y no un misterio.
+     *
+     * @return {@code true} si se tuvo que completar algún UUID
+     */
+    static boolean repararUuidsAusentes(CommunicationsConfig config) {
+        boolean reparado = false;
+        for (int i = 0; i < config.getDevices().size(); i++) {
+            DeviceConfigData device = config.getDevices().get(i);
+            if (device.getUuid() != null && !device.getUuid().isBlank()) {
+                continue;
+            }
+            reparado = true;
+            String uuid = UUID.randomUUID().toString();
+            System.err.println(CONFIG_FILE + ": el dispositivo '" + device.getDeviceName()
+                    + "' no tenía UUID y recibió " + uuid + " al cargar.");
+            Properties p = new Properties();
+            p.put("brand", device.getBrand());
+            p.put("model", device.getModel());
+            p.put("protocol", device.getProtocol());
+            p.put("deviceName", device.getDeviceName());
+            p.put("deviceKey", device.getDeviceKey());
+            p.put("description", device.getDescription());
+            p.put("uuid", uuid);
+            p.put("enable", device.isEnabled());
+            p.put("s88Node", device.getS88Node() == null ? "" : device.getS88Node());
+            p.put("s88Uuid", device.getS88Uuid() == null ? "" : device.getS88Uuid());
+            p.put("specificParameters",
+                    device.getSpecificParameters() == null ? "" : device.getSpecificParameters());
+            // getDevices() devuelve una vista no modificable, así que el
+            // reemplazo va por la lista real que mantiene la configuración.
+            config.replaceDevice(i, new DeviceConfigData(p));
+        }
+        return reparado;
     }
 
     public CommunicationsConfig getConfig() {
@@ -142,11 +203,10 @@ public final class HMICommunicationModel {
         return config.removeDevice(uuid);
     }
 
-    /**
-     * Guarda la configuración en {@code comunicacion.xml} y la vuelca a la base
-     * de datos {@code boot.db} del proyecto.
-     *
-     * @return true si el XML se guardó y la base de datos quedó actualizada
+    /*
+       Guarda la configuración en comunicacion.xml y la vuelca a la base
+       de datos {@code boot.db} del proyecto.
+       return true si el XML se guardó y la base de datos quedó actualizada
      */
     public boolean save() {
         try {

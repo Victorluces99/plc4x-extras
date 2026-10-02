@@ -91,6 +91,11 @@ public class AllenBradleyPanelBuilder implements DeviceDynamicPanelBuilder {
     }
 
     @Override
+    public LinkedHashMap<String, String> getParameters() {
+        return new LinkedHashMap<>(params);
+    }
+
+    @Override
     public String getSpecificParametersAsString() {
         return DeviceDynamicPanelBuilder.assembleUrl(getProtocol(), transport, host, port, params);
     }

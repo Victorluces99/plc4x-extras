@@ -35,11 +35,16 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicat
 import org.netbeans.api.project.Project;
 
 /**
- * Ventana modal de alta de dispositivo de comunicación.
+ * Ventana modal de alta y modificación de dispositivo de comunicación.
  *
  * <p>El formulario vive en {@link CreateDevicePanel} para poder probarlo sin
  * construir un {@code JDialog}, que exige un entorno gráfico. Esta clase sólo
  * aporta modality, teclado y el guardado contra el modelo.
+ *
+ * <p>Alta y modificación comparten ventana: la única diferencia es si el
+ * formulario recibe un {@code DeviceConfigData} para precargar. Guardar no
+ * necesita un camino distinto porque {@code upsertDevice} reemplaza por UUID y
+ * en edición el UUID es el original.
  *
  * <p>Cada invocación crea una instancia nueva, así que el formulario arranca
  * siempre limpio y dos altas consecutivas no se pisan entre sí.
@@ -48,13 +53,29 @@ public final class CreateDeviceDialog extends JDialog {
 
     private final transient Project project;
     private final transient CreateDevicePanel panel;
+    private final boolean editando;
     private final JButton btnOk = new JButton("Guardar");
     private final JButton btnCancel = new JButton("Cancelar");
 
-    public CreateDeviceDialog(Window owner, Project project) {
-        super(owner, "Nuevo dispositivo de comunicación", ModalityType.APPLICATION_MODAL);
+    public static CreateDeviceDialog forCreate(Window owner, Project project) {
+        return new CreateDeviceDialog(owner, project, null);
+    }
+
+    /**
+     * Abre la ventana sobre un dispositivo existente, con el formulario
+     * precargado y la marca y el nodo S88 bloqueados.
+     */
+    public static CreateDeviceDialog forEdit(Window owner, Project project, DeviceConfigData device) {
+        return new CreateDeviceDialog(owner, project, device);
+    }
+
+    private CreateDeviceDialog(Window owner, Project project, DeviceConfigData device) {
+        super(owner, device == null
+                ? "Nuevo dispositivo de comunicación"
+                : "Modificar dispositivo", ModalityType.APPLICATION_MODAL);
         this.project = project;
-        this.panel = new CreateDevicePanel(project);
+        this.panel = new CreateDevicePanel(project, device);
+        this.editando = device != null;
 
         JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         botones.add(btnCancel);
@@ -93,13 +114,17 @@ public final class CreateDeviceDialog extends JDialog {
         setLocationRelativeTo(owner);
     }
 
-    /**
+/**
      * Valida, persiste y cierra.
      *
      * <p>El modelo se busca desde acá y no desde el panel: el formulario sólo
      * arma datos y el guardado es responsabilidad de quien abrió la ventana.
+     *
+     * <p>No distingue entre alta y modificación: {@code upsertDevice} reemplaza
+     * el dispositivo cuyo UUID coincide y agrega si no hay ninguno, y en
+     * edición el UUID es siempre el original.
      */
-    private void guardar() {
+private void guardar() {
         DeviceConfigData data = panel.getDeviceConfigData();
         if (data == null) {
             return;
@@ -126,6 +151,26 @@ public final class CreateDeviceDialog extends JDialog {
                     "Guardado parcial", JOptionPane.WARNING_MESSAGE);
             return;
         }
+        avisarGuardado(data);
         dispose();
+    }
+
+    /**
+     * Confirma que el dispositivo quedó guardado.
+     *
+     * <p>Sin esto el guardado era silencioso: la ventana se cerraba y no había
+     * forma de distinguir un guardado del de un formulario cerrado con la X o
+     * con Cancelar.
+     */
+    private void avisarGuardado(DeviceConfigData data) {
+        String nombre = data.getDeviceName();
+        if (nombre == null || nombre.isBlank()) {
+            nombre = "(sin nombre)";
+        }
+        JOptionPane.showMessageDialog(this,
+                "El dispositivo '" + nombre + "' fue "
+                        + (editando ? "modificado" : "creado") + " correctamente.",
+                editando ? "Modificación exitosa" : "Dispositivo creado",
+                JOptionPane.INFORMATION_MESSAGE);
     }
 }

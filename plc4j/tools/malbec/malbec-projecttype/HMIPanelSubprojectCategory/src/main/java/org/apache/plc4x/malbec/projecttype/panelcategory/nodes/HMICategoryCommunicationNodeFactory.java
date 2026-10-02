@@ -18,16 +18,23 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.nodes;
 
+import java.awt.Frame;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.function.Supplier;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateCommAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CreateDeviceDialog;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
 import org.netbeans.api.project.Project;
 import org.netbeans.spi.project.ui.support.NodeFactory;
@@ -39,10 +46,11 @@ import org.openide.nodes.AbstractNode;
 import org.openide.nodes.Children;
 import org.openide.nodes.Node;
 import org.openide.nodes.Node.Property;
-import org.openide.nodes.Node.PropertySet;
 import org.openide.nodes.PropertySupport;
 import org.openide.nodes.Sheet;
+import org.openide.util.Exceptions;
 import org.openide.util.actions.SystemAction;
+import org.openide.windows.WindowManager;
 
 @NodeFactory.Registration(projectType = "org-apache-plc4x-category", position = 70)
 public class HMICategoryCommunicationNodeFactory implements NodeFactory {
@@ -66,13 +74,11 @@ public class HMICategoryCommunicationNodeFactory implements NodeFactory {
         private final HMICommunicationModel model;
         private final List<ChangeListener> listeners = new ArrayList<>();
         private final List<String> keys = new ArrayList<>();
+        private final Map<String, HMICommNode> nodesUuid = new LinkedHashMap<>();
 
         public HMICategoryCommunicationNodeList(Project project, HMICommunicationModel model) {
             this.project = project;
             this.model = model;
-            if (model != null) {
-                model.addChangeListener(this);
-            }
             refreshKeys();
         }
 
@@ -86,11 +92,20 @@ public class HMICategoryCommunicationNodeFactory implements NodeFactory {
             if (model == null) {
                 return null;
             }
-            DeviceConfigData device = model.findByUuid(uuid);
-            if (device == null) {
+            if (device(uuid) == null) {
                 return null;
             }
-            return new HMICommNode(device, project);
+            HMICommNode existente = nodesUuid.get(uuid);
+            if (existente != null) {
+                return existente;
+            }
+            HMICommNode creado = new HMICommNode(uuid, project, this);
+            nodesUuid.put(uuid, creado);
+            return creado;
+        }
+
+        DeviceConfigData device(String uuid) {
+            return model == null || uuid == null ? null : model.findByUuid(uuid);
         }
 
         @Override
@@ -138,29 +153,94 @@ public class HMICategoryCommunicationNodeFactory implements NodeFactory {
         @Override
         public void stateChanged(ChangeEvent e) {
             refreshKeys();
+            refreshNodes();
+        }
+
+        private void refreshNodes() {
+            nodesUuid.values().removeIf(nodo -> nodo.device() == null);
+            for (HMICommNode nodo : new ArrayList<>(nodesUuid.values())) {
+                nodo.refresh();
+            }
         }
     }
 
     private static class HMICommNode extends AbstractNode {
 
-        private final DeviceConfigData device;
-        private final Project project;
+        /** Nombres de las propiedades que hay que avisar cuando cambia el modelo. */
+        private static final List<String> PROPERTIES = List.of(
+                "deviceName", "brand", "model", "protocol", "specificParameters",
+                "s88Node", "s88Uuid", "deviceKey", "description", "uuid", "enable");
 
-        public HMICommNode(DeviceConfigData device, Project project) {
+        /** Texto único para cuando el dispositivo no tiene nombre. */
+        private static final String SIN_NOMBRE = "(sin nombre)";
+
+        private final String uuid;
+        private final Project project;
+        private final HMICategoryCommunicationNodeList list;
+        private String displayNameBefore;
+
+        HMICommNode(String uuid, Project project, HMICategoryCommunicationNodeList list) {
             super(Children.LEAF);
-            this.device = device;
+            this.uuid = uuid;
             this.project = project;
-            setName(device.getDeviceName());
-            setDisplayName(device.getDeviceName());
-            setShortDescription(device.getBrand() + " / " + device.getModel() + " / " + device.getProtocol());
+            this.list = list;
+            DeviceConfigData inicial = list.device(uuid);
+            if (inicial != null) {
+                setLabelsFrom(inicial);
+            }
             setIconBaseWithExtension("org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/comm.png");
+        }
+
+        /** Dispositivo vigente, o null si fue borrado. */
+        DeviceConfigData device() {
+            return list.device(uuid);
+        }
+
+        private void setLabelsFrom(DeviceConfigData d) {
+            String name = nameOf(d);
+            displayNameBefore = name;
+            setName(name);
+            setDisplayName(name);
+            setShortDescription(tooltipOf(d));
+        }
+
+        private static String nameOf(DeviceConfigData d) {
+            String name = d.getDeviceName();
+            return name == null || name.isBlank() ? SIN_NOMBRE : name;
+        }
+
+        /** Tooltip del nodo: lo que identifica al dispositivo de un vistazo. */
+        private static String tooltipOf(DeviceConfigData d) {
+            return d.getBrand() + " / " + d.getModel() + " / " + d.getProtocol();
+        }
+
+        void refresh() {
+            DeviceConfigData d = device();
+            if (d == null) {
+                return;
+            }
+            String name = nameOf(d);
+            if (!Objects.equals(name, displayNameBefore)) {
+                setName(name);
+                firePropertyChange(Node.PROP_DISPLAY_NAME, displayNameBefore, name);
+                displayNameBefore = name;
+            }
+            setShortDescription(tooltipOf(d));
+            for (String property : PROPERTIES) {
+                firePropertyChange(property, null, null);
+            }
         }
 
         @Override
         public Action[] getActions(boolean context) {
             List<Action> allActions = new ArrayList<>();
-//            allActions.add(new HMICategoryCreateCommAction(project, device.getUuid()));
-//            allActions.add(null);
+            allActions.add(new AbstractAction("Modificar Dispositivo") {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    SwingUtilities.invokeLater(() -> openEditForm());
+                }
+            });
+            allActions.add(null);
             allActions.add(new AbstractAction("Propiedades") {
                 @Override
                 public void actionPerformed(ActionEvent e) {
@@ -171,13 +251,106 @@ public class HMICategoryCommunicationNodeFactory implements NodeFactory {
             allActions.add(new AbstractAction("Eliminar Dispositivo") {
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    HMICommunicationModel model = project.getLookup().lookup(HMICommunicationModel.class);
-                    if (model != null && model.removeDevice(device.getUuid())) {
-                        model.save();
-                    }
+                    deleteDevice();
                 }
             });
             return allActions.toArray(new Action[0]);
+        }
+
+        private void openEditForm() {
+            Frame ventana = WindowManager.getDefault().getMainWindow();
+            try {
+                DeviceConfigData actual = device();
+                if (actual == null) {
+                    JOptionPane.showMessageDialog(ventana,
+                            "El dispositivo '" + currentName()
+                                    + "' ya no está en la configuración.\n"
+                                    + "Puede que se haya borrado desde otra vista.",
+                            "No se puede modificar", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                CreateDeviceDialog.forEdit(ventana, project, actual).setVisible(true);
+            } catch (RuntimeException ex) {
+                Exceptions.printStackTrace(ex);
+                JOptionPane.showMessageDialog(ventana,
+                        "No se pudo abrir la modificación del dispositivo:\n\n" + ex.getMessage(),
+                        "Error al modificar", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+
+        private void deleteDevice() {
+            HMICommunicationModel model = project.getLookup().lookup(HMICommunicationModel.class);
+            if (model == null) {
+                return;
+            }
+            Frame ventana = WindowManager.getDefault().getMainWindow();
+            Object[] opciones = {"Aceptar", "Cancelar"};
+            int elegida = JOptionPane.showOptionDialog(ventana,
+                    deleteMessage(model.getComms(uuid)),
+                    "Eliminar dispositivo", JOptionPane.WARNING_MESSAGE,
+                    JOptionPane.DEFAULT_OPTION, null, opciones, opciones[0]);
+            if (elegida != 0) {
+                return;
+            }
+
+            String nombre = currentName();
+            if (!model.removeDevice(uuid)) {
+                JOptionPane.showMessageDialog(ventana,
+                        "No se encontró el dispositivo '" + nombre + "'.",
+                        "Nada que eliminar", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            boolean baseActualizada;
+            try {
+                baseActualizada = model.save();
+            } catch (RuntimeException ex) {
+                // save() lanza IllegalStateException si falla la escritura del
+                // XML, así que sin este catch el error salía sin avisar.
+                Exceptions.printStackTrace(ex);
+                JOptionPane.showMessageDialog(ventana,
+                        "No se pudo eliminar '" + nombre + "'.\n\n" + ex.getMessage(),
+                        "Error al eliminar", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            if (!baseActualizada) {
+                JOptionPane.showMessageDialog(ventana,
+                        "El dispositivo '" + nombre + "' se quitó de comunicacion.xml pero no se pudo\n"
+                                + "actualizar boot.db. Revisá la consola.",
+                        "Guardado parcial", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            JOptionPane.showMessageDialog(ventana,
+                    "Se eliminó el dispositivo '" + nombre + "' correctamente.",
+                    "Eliminación exitosa", JOptionPane.INFORMATION_MESSAGE);
+        }
+
+        /** Nombre del device, o un texto utilizable si viniera vacío. */
+        private String currentName() {
+            DeviceConfigData actual = device();
+            return actual == null ? SIN_NOMBRE : nameOf(actual);
+        }
+
+        private String deleteMessage(CommConfigData comms) {
+            StringBuilder texto = new StringBuilder("Va a eliminar el dispositivo '")
+                    .append(currentName()).append("'.")
+                    .append("\n\nAl borrarlo se pierden todas sus configuraciones.");
+            if (comms != null) {
+                int grupos = comms.getGroups().size();
+                int areas = comms.getItems().size();
+                int variables = comms.getPvs().size();
+                if (grupos > 0 || areas > 0 || variables > 0) {
+                    texto.append("\n\n  • ").append(grupos)
+                            .append(grupos == 1 ? " grupo" : " grupos")
+                            .append("\n  • ").append(areas)
+                            .append(areas == 1 ? " área" : " áreas")
+                            .append("\n  • ").append(variables)
+                            .append(variables == 1 ? " variable" : " variables");
+                }
+            }
+            return texto.append("\n\nTambién se quitará de comunicacion.xml y de boot.db.")
+                    .append("\n\n¿Desea continuar?").toString();
         }
 
         @Override
@@ -188,34 +361,44 @@ public class HMICategoryCommunicationNodeFactory implements NodeFactory {
                 props = Sheet.createPropertiesSet();
                 sheet.put(props);
             }
-            props.put(readOnlyProperty("deviceName", "Nombre", "Nombre del dispositivo", device::getDeviceName));
-            props.put(readOnlyProperty("brand", "Marca", "Marca del dispositivo", device::getBrand));
-            props.put(readOnlyProperty("model", "Modelo", "Modelo del dispositivo", device::getModel));
-            props.put(readOnlyProperty("protocol", "Protocolo", "Protocolo de comunicación", device::getProtocol));
-            props.put(readOnlyProperty("specificParameters", "URL", "URL / parámetros específicos de conexión", device::getSpecificParameters));
-            props.put(readOnlyProperty("s88Node", "S88 Node", "Nodo S88 (área) asociado al dispositivo", device::getS88Node));
-            props.put(readOnlyProperty("s88Uuid", "S88 UUID", "UUID del área S88 asociada", device::getS88Uuid));
-            props.put(readOnlyProperty("deviceKey", "Device Key", "Clave del dispositivo", device::getDeviceKey));
-            props.put(readOnlyProperty("description", "Descripción", "Descripción del dispositivo", device::getDescription));
-            props.put(readOnlyProperty("uuid", "UUID", "Identificador único del dispositivo", device::getUuid));
-            props.put(readOnlyBooleanProperty("enable", "Habilitado", "Indica si el dispositivo está habilitado", device::isEnabled));
+            // Cada propiedad vuelve a leer el device al consultarse: la
+            // ventana de Propiedades muestra el valor que devuelve getValue()
+            // cuando se abre o cuando el nodo avisa que cambió.
+            props.put(readOnlyProperty("deviceName", "Nombre", "Nombre del dispositivo", DeviceConfigData::getDeviceName));
+            props.put(readOnlyProperty("brand", "Marca", "Marca del dispositivo", DeviceConfigData::getBrand));
+            props.put(readOnlyProperty("model", "Modelo", "Modelo del dispositivo", DeviceConfigData::getModel));
+            props.put(readOnlyProperty("protocol", "Protocolo", "Protocolo de comunicación", DeviceConfigData::getProtocol));
+            props.put(readOnlyProperty("specificParameters", "URL", "URL / parámetros específicos de conexión", DeviceConfigData::getSpecificParameters));
+            props.put(readOnlyProperty("s88Node", "S88 Node", "Nodo S88 (área) asociado al dispositivo", DeviceConfigData::getS88Node));
+            props.put(readOnlyProperty("s88Uuid", "S88 UUID", "UUID del área S88 asociada", DeviceConfigData::getS88Uuid));
+            props.put(readOnlyProperty("deviceKey", "Device Key", "Clave del dispositivo", DeviceConfigData::getDeviceKey));
+            props.put(readOnlyProperty("description", "Descripción", "Descripción del dispositivo", DeviceConfigData::getDescription));
+            props.put(readOnlyProperty("uuid", "UUID", "Identificador único del dispositivo", DeviceConfigData::getUuid));
+            props.put(readOnlyBooleanProperty("enable", "Habilitado", "Indica si el dispositivo está habilitado", DeviceConfigData::isEnabled));
             return sheet;
         }
 
-        private static Property readOnlyProperty(String name, String displayName, String shortDescription, Supplier<String> getter) {
-            return new PropertySupport.ReadOnly(name, String.class, displayName, shortDescription) {
+        /** Valor legible de la propiedad, o cadena vacía si no hay dispositivo. */
+        private static String safeText(DeviceConfigData d, Function<DeviceConfigData, String> getter) {
+            String value = d == null ? null : getter.apply(d);
+            return value == null ? "" : value;
+        }
+
+        private Property readOnlyProperty(String propertyName, String label, String shortDescription, Function<DeviceConfigData, String> getter) {
+            return new PropertySupport.ReadOnly(propertyName, String.class, label, shortDescription) {
                 @Override
                 public Object getValue() {
-                    return getter.get();
+                    return safeText(device(), getter);
                 }
             };
         }
 
-        private static Property readOnlyBooleanProperty(String name, String displayName, String shortDescription, Supplier<Boolean> getter) {
-            return new PropertySupport.ReadOnly(name, Boolean.class, displayName, shortDescription) {
+        private Property readOnlyBooleanProperty(String propertyName, String label, String shortDescription, Function<DeviceConfigData, Boolean> getter) {
+            return new PropertySupport.ReadOnly(propertyName, Boolean.class, label, shortDescription) {
                 @Override
                 public Object getValue() {
-                    return getter.get();
+                    DeviceConfigData d = device();
+                    return d != null && Boolean.TRUE.equals(getter.apply(d));
                 }
             };
         }

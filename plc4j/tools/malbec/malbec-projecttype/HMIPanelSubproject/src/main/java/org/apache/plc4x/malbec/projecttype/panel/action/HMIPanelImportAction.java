@@ -28,6 +28,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -37,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import javax.swing.AbstractAction;
+import javax.swing.JOptionPane;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -100,34 +104,69 @@ public class HMIPanelImportAction extends AbstractAction {
             return;
         }
         File file = selected[0];
-        Storage storage = new Storage(file);
-        S88PlantModel modelo = S88ProjectServices
-                .createRepository("xml", storage).loadPlant();
+
+        S88PlantModel modelo;
+        try {
+            modelo = S88ProjectServices.createRepository("xml", new Storage(file)).loadPlant();
+        } catch (RuntimeException ex) {
+            // createRepository lanza IllegalArgumentException si ningún provider
+            // acepta el formato, y el parseo puede fallar por formas que los
+            // repositorios no reachan a envolver.
+            Exceptions.printStackTrace(ex);
+            avisarFallo(file, ex.getMessage());
+            return;
+        }
+
+        // loadPlant() devuelve null cuando el archivo no es un modelo de planta:
+        // está vacío, no es XML, o es XML válido que no es un B2MML. Antes esto
+        // seguía adelante y terminaba en NullPointerException al pedir la raíz.
+        S88Element root = modelo == null ? null : modelo.getRoot();
+        String areaId = root == null || root.getId() == null ? "" : root.getId().trim();
+        if (areaId.isEmpty()) {
+            avisarFallo(file, "el archivo no define un área de planta.");
+            return;
+        }
+
         File panelFile = FileUtil.toFile(panel);
         if (panelFile != null) {
             FileUtil.refreshFor(panelFile);
         }
 
         FileObject imageFo = panel.getFileObject("image");
-        S88Element root = modelo.getRoot();
-        if (root != null && root.getChildren() != null) {
+        if (root.getChildren() != null) {
             for (S88Element child : root.getChildren()) {
                 reversechildstack(child, imageFo);
             }
         }
 
-        if (root != null) {
-            try {
-                exportPlantModel(root);
-            } catch (IOException ex) {
-                Exceptions.printStackTrace(ex);
+        try {
+            if (!exportPlantModel(root)) {
+                avisarFallo(file, "no se pudo escribir " + PLANT_MODEL_DUMP + " en el proyecto.");
+                return;
             }
+        } catch (IOException ex) {
+            Exceptions.printStackTrace(ex);
+            avisarFallo(file, ex.getMessage());
+            return;
         }
 
         if (panelFile != null) {
             FileUtil.refreshAll();
             ProjectManager.getDefault().clearNonProjectCache();
         }
+        avisarExito(file, areaId);
+    }
+
+    private void avisarExito(File file, String areaId) {
+        JOptionPane.showMessageDialog(null,
+                "Se importó el modelo de planta '" + areaId + "' desde '" + file.getName() + "'.",
+                "Importación exitosa", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void avisarFallo(File file, String motivo) {
+        JOptionPane.showMessageDialog(null,
+                "No se pudo importar '" + file.getName() + "'.\n\n" + motivo,
+                "Error de importación", JOptionPane.ERROR_MESSAGE);
     }
 
     /**
@@ -139,11 +178,11 @@ public class HMIPanelImportAction extends AbstractAction {
      * la planta ya estaba importada (mismo id) se reemplaza solo su sección
      * conservando el {@code uuid} original.
      */
-    private void exportPlantModel(S88Element root) throws IOException {
+    private boolean exportPlantModel(S88Element root) throws IOException {
         LinkedHashMap<String, Object> snapshot = collectElement(root);
         File dir = FileUtil.toFile(panel);
         if (dir == null) {
-            return;
+            return false;
         }
         File target = new File(dir, PLANT_MODEL_DUMP);
         Document doc = loadOrCreateDocument(target);
@@ -156,6 +195,7 @@ public class HMIPanelImportAction extends AbstractAction {
         writeSnapshotDocument(target, doc);
         FileUtil.refreshFor(target);
         System.out.println("Snapshot del modelo de planta en: " + target.getAbsolutePath());
+        return true;
     }
 
     private String findAreaUuid(Document doc, String id) {
@@ -185,7 +225,14 @@ public class HMIPanelImportAction extends AbstractAction {
                 DocumentBuilder builder = factory.newDocumentBuilder();
                 return builder.parse(target);
             } catch (SAXException | ParserConfigurationException ex) {
-                Exceptions.printStackTrace(ex);
+                // El archivo existe pero no se puede leer. Antes de esto la
+                // excepción se imprimía y se devolvía un documento vacío, así que
+                // la importación siguiente lo sobreescribía y se perdían todas
+                // las plantas ya cargadas. Ahora se corta la operación y se avisa:
+                // un plant-model.xml corrupto no se reemplaza a ciegas.
+                throw new IOException(PLANT_MODEL_DUMP + " ya existe pero no se puede leer, "
+                        + "por lo que la importación se canceló para no perder su contenido. "
+                        + "Revisá el archivo y, si ya no sirve, borralo a mano.", ex);
             }
         }
         try {
@@ -249,16 +296,42 @@ public class HMIPanelImportAction extends AbstractAction {
         parent.appendChild(section);
     }
 
+    /**
+     * Serializa el documento sobre un temporal, lo relee y recién entonces
+     * reemplaza el destino.
+     *
+     * <p>Escribir directo sobre el archivo deja un XML truncado si la
+     * aplicación se corta a mitad de la escritura, y este es el único lugar
+     * donde quedan registradas las plantas importadas. Con el temporal hay dos
+     * garantías simples: el archivo anterior sobrevive intacto ante cualquier
+     * fallo, y lo nuevo se comprueba legible antes de pisarlo.
+     */
     private void writeSnapshotDocument(File target, Document doc) throws IOException {
+        Path temporal = Files.createTempFile(target.toPath().getParent(), PLANT_MODEL_DUMP, ".tmp");
         try {
             TransformerFactory factory = TransformerFactory.newInstance();
             Transformer transformer = factory.newTransformer();
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
             transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
             transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-            transformer.transform(new DOMSource(doc), new StreamResult(target));
+            transformer.transform(new DOMSource(doc), new StreamResult(temporal.toFile()));
+            verificarLegible(temporal.toFile());
+            Files.move(temporal, target.toPath(), StandardCopyOption.REPLACE_EXISTING);
         } catch (TransformerException ex) {
             throw new IOException(ex);
+        } finally {
+            Files.deleteIfExists(temporal);
+        }
+    }
+
+    /** Vuelve a parsear el archivo para confirmar que quedó un XML válido. */
+    private void verificarLegible(File archivo) throws IOException {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.newDocumentBuilder().parse(archivo);
+        } catch (SAXException | ParserConfigurationException ex) {
+            throw new IOException("El " + PLANT_MODEL_DUMP + " generado no se pudo leer, "
+                    + "por lo que no se reemplazó el archivo existente.", ex);
         }
     }
 

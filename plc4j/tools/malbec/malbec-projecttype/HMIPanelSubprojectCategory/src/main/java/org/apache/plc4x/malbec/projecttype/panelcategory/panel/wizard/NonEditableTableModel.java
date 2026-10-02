@@ -22,14 +22,6 @@ import javax.swing.table.DefaultTableModel;
 
 /**
  * Modelo de tabla que no admite edición de celda.
- *
- * <p>Las tablas del asistente son un espejo del modelo: muestran lo que hay
- * guardado y no son un canal de entrada. Editar una celda en el lugar no
- * actualizaría la configuración en memoria, de modo que el cambio se perdería
- * sin aviso al refrescar, o peor, quedaría a medias entre la tabla y el modelo.
- * Toda modificación pasa por el formulario de la izquierda, que valida las
- * reglas y escribe a través del controlador.</p>
- *
  * <p>El nombre dice "no editable" y no "sólo lectura" a propósito: los datos
  * cambian, lo que no cambia nunca es la celda.</p>
  */

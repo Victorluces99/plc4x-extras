@@ -60,7 +60,7 @@ public class StepGroupAreaPanel extends JPanel {
     private final JTable tbGroups = new JTable(groupModel);
 
     private final NonEditableTableModel itemModel = new NonEditableTableModel(new String[]{
-        "Nombre", "Descripción", "Tag", "Grupo", "Enable", "UUID"});
+        "Nombre", "Descripción", "Tag", "Tipo", "Libre", "Grupo", "Enable", "UUID"});
     private final JTable tbItems = new JTable(itemModel);
 
     private final JTextField txtGroupName = new JTextField(14);
@@ -271,6 +271,7 @@ public class StepGroupAreaPanel extends JPanel {
                 String groupName = controller.getState().groupNameOf(i.getUuid());
                 itemModel.addRow(new Object[]{
                     i.getName(), i.getDescription(), i.getTag(),
+                    tipoDelArea(i), capacidadDe(i),
                     groupName.isEmpty() ? SIN_GRUPO : groupName,
                     i.isEnable() ? "TRUE" : "FALSE", i.getUuid()
                 });
@@ -286,6 +287,28 @@ public class StepGroupAreaPanel extends JPanel {
             WizardUi.sizeColumnsToContent(tbItems, 90, 260);
             itemColumnsSized = true;
         }
+    }
+
+    /**
+     * Tipo al que está fijada el área. El guion significa que todavía admite varios:
+     * el tag no declara familia y el área aún no tiene variables.
+     */
+    private String tipoDelArea(CommConfigData.ItemConfig item) {
+        DataType type = controller.lockedType(item.getUuid());
+        if (type == null) {
+            return "—";
+        }
+        return type.bitAddressed() ? type.label() + " (1 bit)" : type.label();
+    }
+
+    /** Bytes que abarca el área, o un aviso de que no se pueden calcular. */
+    private String capacidadDe(CommConfigData.ItemConfig item) {
+        MemoryTag tag = MemoryTag.parse(item.getTag());
+        if (tag == null) {
+            return "sin tag";
+        }
+        int bytes = tag.byteCapacity();
+        return bytes > 0 ? bytes + " bytes" : "sin límite";
     }
 
     /**
@@ -440,6 +463,57 @@ public class StepGroupAreaPanel extends JPanel {
 
     // --- áreas ---------------------------------------------------------------
 
+    /**
+     * Comprueba el tag del área. Sólo se para lo que es un error evidente: que esté
+     * vacío, que el rango vaya al revés o que pise a otra área.
+     *
+     * <p>El formato en sí no se juzga. El tag depende del driver y del PLC, así que
+     * se acepta tanto {@code %DB231.DBB0[0..1848]:BOOL} como
+     * {@code DB1.DBX0.0}, {@code MW2}, {@code Control_Panel.Start_Button} o
+     * {@code 40001}. Un tag del que no se reconoce nada se guarda tal cual.</p>
+     *
+     * <p>El tag tampoco puede estar repetido. El solapamiento de bytes sólo
+     * detecta el conflicto cuando el tag se puede desdoblar en bloque y código, de
+     * modo que dos áreas con el mismo tag simbólico se colarían; por eso el tag
+     * repetido se comprueba aparte, antes.</p>
+     *
+     * @param uuidEnEdicion área que se está modificando, que no choca consigo misma
+     * @return el mensaje para el usuario, o null si el tag sirve
+     */
+    private String problemaDelTag(String tag, String uuidEnEdicion) {
+        if (tag.isEmpty()) {
+            return "Indique el tag del área. Por ejemplo: "
+                    + "%DB231.DBB0[0..1848]:BOOL, DB1.DBX0.0, %MW66:WORD, MW2 "
+                    + "o 40001.\n\n"
+                    + "El símbolo % sólo hace falta con direccionamiento absoluto "
+                    + "en S7-1200; con tags optimizados, S7 clásico, Modbus u OPC UA "
+                    + "no se pone. El rango [0..9] y el tipo son opcionales.\n\n"
+                    + "Tipos admitidos: " + DataType.nombres() + ".";
+        }
+        MemoryTag t = MemoryTag.parse(tag);
+        if (t != null && !t.rangoValido()) {
+            return "El rango del tag '" + tag + "' va al revés: empieza en "
+                    + t.firstByte() + " y acaba en " + t.lastByte() + ".";
+        }
+        CommConfigData.ItemConfig mismoTag = controller.areaConMismoTag(tag, uuidEnEdicion);
+        if (mismoTag != null) {
+            return "El tag '" + tag + "' ya lo usa el área '" + mismoTag.getName() + "'.\n\n"
+                    + "Es un tag sin dirección, así que no se puede comprobar si se"
+                    + " pisan comparando bytes: se toma que son el mismo sitio.\n\n"
+                    + "Si de verdad son sitios distintos, dótalos de una dirección con"
+                    + " rango, del tipo %DB22.DBB4[10..16], y el panel lo comprobará.";
+        }
+        CommConfigData.ItemConfig choca = controller.areaQueChoca(tag, uuidEnEdicion);
+        if (choca != null) {
+            MemoryTag otro = MemoryTag.parse(choca.getTag());
+            return "El tag '" + tag + "' ocupa los bytes " + t.absoluteFirst()
+                    + " a " + t.absoluteLast() + " y se pisa con el área '" + choca.getName()
+                    + "', que ocupa los bytes " + otro.absoluteFirst()
+                    + " a " + otro.absoluteLast() + ".";
+        }
+        return null;
+    }
+
     private void addItem() {
         if (controller.getState().getGroups().isEmpty()) {
             JOptionPane.showMessageDialog(this,
@@ -458,6 +532,12 @@ public class StepGroupAreaPanel extends JPanel {
         if (name.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Ingrese el nombre del área de memoria.",
                     "Campo incompleto", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        String problemaTag = problemaDelTag(txtItemTag.getText().trim(), null);
+        if (problemaTag != null) {
+            JOptionPane.showMessageDialog(this, problemaTag,
+                    "Tag no válido", JOptionPane.WARNING_MESSAGE);
             return;
         }
         controller.addItem(UUID.randomUUID().toString(), name,
@@ -510,6 +590,12 @@ public class StepGroupAreaPanel extends JPanel {
     private void updateItem() {
         if (controller.getState().itemByUuid(editItemUuid) == null) {
             salirDeEdicionItem();
+            return;
+        }
+        String problemaTag = problemaDelTag(txtItemTag.getText().trim(), editItemUuid);
+        if (problemaTag != null) {
+            JOptionPane.showMessageDialog(this, problemaTag,
+                    "Tag no válido", JOptionPane.WARNING_MESSAGE);
             return;
         }
         controller.updateItem(editItemUuid, txtItemDescription.getText().trim(),

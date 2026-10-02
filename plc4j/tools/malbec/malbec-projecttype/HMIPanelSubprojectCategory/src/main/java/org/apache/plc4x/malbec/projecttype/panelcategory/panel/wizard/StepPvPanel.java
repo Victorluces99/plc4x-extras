@@ -85,7 +85,7 @@ public class StepPvPanel extends JPanel {
 
     private final JComboBox<CommConfigData.ItemConfig> cbArea = new JComboBox<>();
     private final JComboBox<PlantVariable> cbVariable = new JComboBox<>();
-    private final JComboBox<String> cbType = new JComboBox<>();
+    private final JComboBox<DataType> cbType = new JComboBox<>();
     private final JLabel lblTypeLock = new JLabel(" ");
     private final JLabel lblFormTitle = WizardUi.formTitle("Nueva variable de proceso");
 
@@ -160,9 +160,26 @@ public class StepPvPanel extends JPanel {
         WizardUi.fixComboWidth(cbVariable, 340);
         WizardUi.fixComboWidth(cbArea, 300);
 
-        cbType.addItem("—");
-        // El tipo nunca se edita: se deduce de la variable elegida o del área.
-        cbType.setEnabled(false);
+        cbType.setSelectedIndex(-1);
+        // El tipo es la decisión que fija el tamaño de la ranura, así que aquí sí
+        // se elige. Lo que no se puede es elegir un tipo sin peso: sale en gris.
+        cbType.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value,
+                    int index, boolean isSelected, boolean cellHasFocus) {
+                JLabel label = (JLabel) super.getListCellRendererComponent(
+                        list, value, index, isSelected, cellHasFocus);
+                if (value instanceof DataType t) {
+                    boolean elegible = controller.typeAllowed(selectedAreaUuid(), t);
+                    label.setEnabled(elegible);
+                    label.setText(t.label() + "  ("
+                            + (elegible ? pesoDe(t) : "no disponible") + ")");
+                } else {
+                    label.setText("—");
+                }
+                return label;
+            }
+        });
 
         cbArea.setRenderer(new DefaultListCellRenderer() {
             @Override
@@ -392,9 +409,7 @@ public class StepPvPanel extends JPanel {
     private void refreshVariables() {
         cbVariable.removeAllItems();
         cbVariable.addItem(null);
-        cbType.removeAllItems();
-        cbType.addItem("—");
-        refreshTypeLock();
+        rellenarTipos();
 
         if (controller.getState().getSelectedDevice() == null) {
             return;
@@ -410,7 +425,7 @@ public class StepPvPanel extends JPanel {
             Exceptions.printStackTrace(ex);
             return;
         }
-        String lockedType = controller.itemLockedType(selectedAreaUuid());
+        DataType lockedType = controller.lockedType(selectedAreaUuid());
         Set<String> usedKeys = controller.getUsedPvKeys();
         CommConfigData.PvConfig enEdicion = controller.getState().pvByUuid(editPvUuid);
         if (enEdicion != null) {
@@ -418,7 +433,7 @@ public class StepPvPanel extends JPanel {
                     enEdicion.getS88Path(), enEdicion.getName()));
         }
         for (PlantVariable v : variables) {
-            if (lockedType != null && !lockedType.equalsIgnoreCase(v.getType())) {
+            if (!controller.areaAdmiteTipo(selectedAreaUuid(), v.getType(), lockedType)) {
                 continue;
             }
             if (usedKeys.contains(v.getKey())) {
@@ -428,21 +443,82 @@ public class StepPvPanel extends JPanel {
         }
     }
 
+    /**
+     * Rellena el desplegable con el catálogo completo y deja marcado el tipo cuando
+     * el área sólo admite uno.
+     */
+    private void rellenarTipos() {
+        cbType.removeAllItems();
+        for (DataType t : controller.typesForCombo(selectedAreaUuid())) {
+            cbType.addItem(t);
+        }
+        cbType.setSelectedIndex(-1);
+        List<DataType> permitidos = controller.typesAllowed(selectedAreaUuid());
+        if (permitidos.size() == 1) {
+            cbType.setSelectedItem(permitidos.get(0));
+        }
+        refreshTypeLock();
+    }
+
+    /** Peso de un tipo, tal y como se muestra en el desplegable. */
+    private static String pesoDe(DataType type) {
+        return type.bitAddressed() ? "1 bit" : type.byteSize() + " bytes";
+    }
+
+    /** Tipo marcado en el desplegable, o null si no hay ninguno. */
+    private DataType tipoElegido() {
+        Object sel = cbType.getSelectedItem();
+        return sel instanceof DataType t ? t : null;
+    }
+
+    /** Deja marcado un tipo, si el desplegable lo ofrece. */
+    private void seleccionarTipo(DataType type) {
+        for (int i = 0; i < cbType.getItemCount(); i++) {
+            if (cbType.getItemAt(i) == type) {
+                cbType.setSelectedIndex(i);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Explica el tipo del área y cuánto le queda. El usuario no puede deducir el
+     * offset a ojo, así que el panel se lo dice en vez de dejarle adivinarlo por la
+     * tabla.
+     */
     private void refreshTypeLock() {
         CommConfigData.ItemConfig area = selectedArea();
         if (area == null) {
             lblTypeLock.setText(" ");
             return;
         }
-        String locked = controller.itemLockedType(area.getUuid());
-        if (locked == null) {
-            lblTypeLock.setText("<html>El área <b>" + area.getName()
-                    + "</b> está vacía: la primera variable elegida fijará su tipo.</html>");
+        DataType elegido = tipoElegido();
+        StringBuilder texto = new StringBuilder("<html>El área <b>")
+                .append(area.getName()).append("</b> ");
+        if (elegido == null) {
+            texto.append("aún no tiene tipo: elígelo arriba. Todas sus variables")
+                    .append(" usarán ese mismo tipo.");
         } else {
-            lblTypeLock.setText("<html>El área <b>" + area.getName()
-                    + "</b> está fijada al tipo <b>" + locked
-                    + "</b>: solo se listan variables de ese tipo.</html>");
+            texto.append("usa <b>").append(elegido.label()).append("</b> (")
+                    .append(pesoDe(elegido)).append(" por variable). Todas sus")
+                    .append(" variables serán de ese tipo.");
         }
+        int libres = controller.areaFreeSlots(area.getUuid(), elegido);
+        int bytesLibres = controller.areaFreeBytes(area.getUuid());
+        if (bytesLibres < 0) {
+            texto.append("<br>Del tag no se sabe el tamaño, así que no se lleva la cuenta.");
+        } else if (libres <= 0) {
+            texto.append("<br><b>No cabe una variable más: se ha llegado al límite.</b>")
+                    .append(" El área abarca ")
+                    .append(controller.areaCapacityBytes(area.getUuid()))
+                    .append(" bytes y están todos ocupados.");
+        } else {
+            texto.append("<br>Quedan <b>").append(bytesLibres).append(" bytes</b> libres, ")
+                    .append("que es lo mismo que <b>").append(libres)
+                    .append(" ").append(elegido == null ? "variables" : elegido.label())
+                    .append("</b> de ").append(pesoDe(elegido)).append(".");
+        }
+        lblTypeLock.setText(texto.append("</html>").toString());
     }
 
     private void onVariableSelected() {
@@ -451,8 +527,8 @@ public class StepPvPanel extends JPanel {
         }
         PlantVariable v = (PlantVariable) cbVariable.getSelectedItem();
         if (v == null) {
-            cbType.removeAllItems();
-            cbType.addItem("—");
+            cbType.setSelectedIndex(-1);
+            refreshTypeLock();
             return;
         }
         if (v.isUsed()) {
@@ -462,8 +538,35 @@ public class StepPvPanel extends JPanel {
             cbVariable.setSelectedIndex(0);
             return;
         }
-        cbType.removeAllItems();
-        cbType.addItem(v.getType());
+        seleccionarTipoDePlanta(v);
+        refreshTypeLock();
+    }
+
+    /**
+     * De los tipos que ofrece el área, deja marcado el que corresponde a la variable
+     * de planta. Se comparan por familia y no por nombre exacto, porque en la
+     * planta INTEGER puede ser short, int o long según lo que imponga el área.
+     *
+     * <p>Si no hay equivalencia clara se deja el que ya estuviera marcado: elegir el
+     * tipo definitivo es cosa del usuario.</p>
+     */
+    private void seleccionarTipoDePlanta(PlantVariable v) {
+        List<DataType> permitidos = controller.typesAllowed(selectedAreaUuid());
+        DataType exacto = DataType.find(v.getType());
+        if (exacto != null && permitidos.contains(exacto)) {
+            seleccionarTipo(exacto);
+            return;
+        }
+        MemoryTag tag = controller.areaTag(selectedAreaUuid());
+        if (tag != null) {
+            for (DataType t : DataType.candidatos(v.getType(), tag.codeBits())) {
+                if (permitidos.contains(t)) {
+                    seleccionarTipo(t);
+                    return;
+                }
+            }
+        }
+        seleccionarTipo(permitidos.isEmpty() ? null : permitidos.get(0));
     }
 
     private void refreshPvTable() {
@@ -621,8 +724,7 @@ public class StepPvPanel extends JPanel {
                     break;
                 }
             }
-            cbType.removeAllItems();
-            cbType.addItem(pv.getType());
+            seleccionarTipo(DataType.find(pv.getType()));
         } finally {
             loadingEdit = false;
         }
@@ -654,8 +756,7 @@ public class StepPvPanel extends JPanel {
         txtControlLimitHigh.setText("");
         txtControlMinStep.setText("");
         cbVariable.setSelectedIndex(0);
-        cbType.removeAllItems();
-        cbType.addItem("—");
+        cbType.setSelectedIndex(-1);
         lblFormTitle.setText("Nueva variable de proceso");
     }
 
@@ -674,7 +775,7 @@ public class StepPvPanel extends JPanel {
 
         cbArea.setEnabled(hayArea && !editando);
         cbVariable.setEnabled(hayArea && !editando);
-        cbType.setEnabled(false);
+        cbType.setEnabled(hayArea && !editando);
 
         txtDescriptor.setEnabled(hayArea);
         txtScanTime.setEnabled(hayArea);
@@ -724,20 +825,62 @@ public class StepPvPanel extends JPanel {
                     "Variable ocupada", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        int offset = controller.nextOffset(area.getUuid(), variable.getType());
-        if (offset < 0) {
+        DataType type = tipoElegido();
+        if (!controller.typeAllowed(area.getUuid(), type)) {
             JOptionPane.showMessageDialog(this,
-                    "No se puede calcular el offset automático para el tipo '" + variable.getType()
-                            + "'; el tamaño en bytes no está definido.",
+                    "Seleccione un tipo de dato que el área admita. Los que salen en "
+                            + "gris no tienen tamaño definido y no se pueden usar.",
+                    "Falta tipo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        int libres = controller.areaFreeSlots(area.getUuid(), type);
+        int bytesLibres = controller.areaFreeBytes(area.getUuid());
+        if (bytesLibres < 0) {
+            JOptionPane.showMessageDialog(this,
+                    "No se puede calcular el offset para el tipo '" + type.label()
+                            + "': del tag del área '" + area.getName() + "' no se sabe"
+                            + " el tamaño.\n\n"
+                            + "Añada un rango al tag, del tipo %DB21.DBB0[0..9], para que"
+                            + " se pueda calcular dónde va cada variable.",
                     "Offset no calculable", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        String offset = controller.nextOffset(area.getUuid(), type);
+        // El hueco se busca antes que el recuento: con diez bytes y un int, los
+        // offsets 0, 4 y 8 están detrás de tres variables y sólo queda un byte
+        // suelto, que no da para un cuarto int aunque el recuento de casillas
+        // suene a que sí.
+        if (offset == null) {
+            JOptionPane.showMessageDialog(this,
+                    "No cabe una variable más de tipo '" + type.label() + "' en el área '"
+                            + area.getName() + "'.\n\n"
+                            + "El área abarca " + controller.areaCapacityBytes(area.getUuid())
+                            + " bytes y cada " + type.label() + " ocupa "
+                            + pesoDe(type) + ".\n"
+                            + (bytesLibres > 0
+                                    ? "Quedan " + bytesLibres + " bytes sueltos, pero no llegan"
+                                            + " para uno entero, así que se considera llena.\n"
+                                    : "")
+                            + "Amplíe el rango del tag del área si necesita más sitio.",
+                    "Se ha llegado al límite del área", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        if (libres == 0) {
+            JOptionPane.showMessageDialog(this,
+                    "El área '" + area.getName() + "' ya está llena.\n\n"
+                            + "Abarca " + controller.areaCapacityBytes(area.getUuid())
+                            + " bytes y admite " + type.label() + " de " + pesoDe(type)
+                            + ", así que no cabe una variable más.\n"
+                            + "Amplíe el rango del tag del área si necesita más sitio.",
+                    "Área de memoria llena", JOptionPane.WARNING_MESSAGE);
             return;
         }
         controller.addPv(new CommConfigData.PvConfig(
                 UUID.randomUUID().toString(),
                 variable.getName(),
-                variable.getType(),
+                type.label(),
                 area.getUuid(),
-                String.valueOf(offset),
+                offset,
                 txtDescriptor.getText().trim(),
                 txtScanTime.getText().trim(),
                 chkScanEnable.isSelected(),

@@ -20,11 +20,6 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.panel.wizard;
 
 import javax.swing.table.DefaultTableModel;
 
-/**
- * Modelo de tabla que no admite edición de celda.
- * <p>El nombre dice "no editable" y no "sólo lectura" a propósito: los datos
- * cambian, lo que no cambia nunca es la celda.</p>
- */
 public class NonEditableTableModel extends DefaultTableModel {
 
     private static final long serialVersionUID = 1L;

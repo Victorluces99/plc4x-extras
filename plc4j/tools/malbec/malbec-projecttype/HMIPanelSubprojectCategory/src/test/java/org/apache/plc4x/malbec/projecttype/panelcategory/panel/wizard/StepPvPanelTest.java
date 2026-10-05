@@ -20,10 +20,17 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.panel.wizard;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
+import javax.swing.JComboBox;
+import javax.swing.JSpinner;
 import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.table.TableColumnModel;
+import javax.swing.text.Document;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 import org.junit.jupiter.api.Test;
 
@@ -54,6 +61,30 @@ class StepPvPanelTest {
                 new PlantModelReader(null));
         panel.refresh();
         return panel;
+    }
+
+    /** Panel limpio, para mirar el formulario sin nada cargado. */
+    private StepPvPanel panelVacio() {
+        return new StepPvPanel(
+                new CommunicationWizardController(null, new CommunicationWizardState()),
+                new PlantModelReader(null));
+    }
+
+    /**
+     * Variable con los valores que se le pasan, para probar qué hace el formulario
+     * con lo que viene guardado, incluidos los que no encajan.
+     */
+    private static CommConfigData.PvConfig pvCon(String scanTime, String limiteBajo,
+            String limiteAlto, String minStep) {
+        return new CommConfigData.PvConfig(
+                "uuid-pv", "Level", "float", "uuid-area", "0", "descripcion",
+                scanTime, true, false,
+                limiteBajo, limiteAlto, "fwefwe", "123", "3123", "2", "6", minStep,
+                "md5-pv", "Area/Level");
+    }
+
+    private static int valorDe(JSpinner spinner) {
+        return ((Number) spinner.getValue()).intValue();
     }
 
     @Test
@@ -104,9 +135,181 @@ class StepPvPanelTest {
     }
 
     @Test
+    void lasColumnasNoSePuedenReodenar() {
+        // La tabla tiene veinte columnas y su orden lo fija el código que las lee.
+        JTable tabla = panelConUnaVariable().getPvTable();
+        assertFalse(tabla.getTableHeader().getReorderingAllowed(),
+                "las columnas se pueden mover de sitio");
+    }
+
+    @Test
     void lasCeldasNoSeEditanDirectamente() {
         JTable tabla = panelConUnaVariable().getPvTable();
         assertFalse(tabla.getModel().isCellEditable(0, 0));
         assertFalse(tabla.getModel().isCellEditable(0, 11));
+    }
+
+    // --- ScanTime como desplegable --------------------------------------------
+
+    @Test
+    void elScanTimeOfreceLasMismasOfertasQueElGrupo() {
+        JComboBox<String> combo = panelVacio().getScanTimeCombo();
+        assertEquals(10, combo.getItemCount(), "de 100 a 1000 de cien en cien son diez");
+        assertEquals("100", combo.getItemAt(0));
+        assertEquals("1000", combo.getItemAt(9));
+        assertFalse(combo.isEditable(), "las ofertas son cerradas, no se escribe una de otra");
+    }
+
+    @Test
+    void elScanTimeEmpiezaSinSeleccionPorqueEsObligatorio() {
+        assertNull(panelVacio().getScanTimeCombo().getSelectedItem(),
+                "con algo seleccionado de salida no se sabría qué falta completar");
+    }
+
+    @Test
+    void unScanTimeGuardadoSeSeleccionaSiEstaEnLasOfertas() {
+        StepPvPanel panel = panelVacio();
+        panel.cargarEnFormulario(pvCon("300", "1", "5", "1"));
+        assertEquals("300", panel.getScanTimeCombo().getSelectedItem());
+    }
+
+    @Test
+    void unScanTimeFueraDeLasOfertasSeQuedaSinSeleccionar() {
+        // Antes esto se perdía al guardar: el desplegable no tenía ese valor, no
+        // seleccionaba nada y se escribía el que hubiera. Ahora no se elige por el
+        // usuario, y como es obligatorio no se puede guardar hasta que lo elija.
+        StepPvPanel panel = panelVacio();
+        panel.cargarEnFormulario(pvCon("2500", "1", "5", "1"));
+        assertNull(panel.getScanTimeCombo().getSelectedItem(),
+                "se inventó un ScanTime que no estaba en las ofertas");
+        assertFalse(panel.getAjustesAlCargar().isEmpty(),
+                "y no se avisa de que el valor guardado no tiene sitio en el desplegable");
+    }
+
+    // --- los cinco campos numéricos -------------------------------------------
+
+    @Test
+    void losCamposNumericosTienenElRangoPedido() {
+        StepPvPanel panel = panelVacio();
+        for (JSpinner spinner : List.of(panel.getDisplayLimitLow(), panel.getDisplayLimitHigh(),
+                panel.getControlLimitLow(), panel.getControlLimitHigh(), panel.getControlMinStep())) {
+            SpinnerNumberModel modelo = (SpinnerNumberModel) spinner.getModel();
+            assertEquals(1, modelo.getMinimum(), "el mínimo es 1");
+            assertEquals(65535, modelo.getMaximum(), "el máximo es 65535");
+            assertEquals(1, modelo.getStepSize(), "sube de uno en uno");
+        }
+    }
+
+    @Test
+    void losCamposNumericosSePuedenEscribirYNoSoloPulsarLasFlechas() {
+        // Con el editor por defecto el usuario teclea la cifra y no la teclea 3999
+        // veces con la flecha, que era el problema de buscar la cantidad a pulso.
+        StepPvPanel panel = panelVacio();
+        JSpinner spinner = panel.getDisplayLimitHigh();
+        assertTrue(spinner.getEditor() instanceof JSpinner.NumberEditor,
+                "el editor por defecto no deja escribir el número");
+        spinner.setValue(4000);
+        assertEquals(4000, valorDe(spinner));
+    }
+
+    @Test
+    void loGuardadoSeCargaTalCualCuandoEncaja() {
+        StepPvPanel panel = panelVacio();
+        panel.cargarEnFormulario(pvCon("100", "10", "500", "5"));
+        assertEquals(10, valorDe(panel.getDisplayLimitLow()));
+        assertEquals(500, valorDe(panel.getDisplayLimitHigh()));
+        assertEquals(5, valorDe(panel.getControlMinStep()));
+        assertTrue(panel.getAjustesAlCargar().isEmpty(),
+                "no hay nada que corregir: " + panel.getAjustesAlCargar());
+    }
+
+    @Test
+    void unDecimalSeQuedaConSuParteEntera() {
+        // 12.5 se guarda como 12, no se redondea a 13. Lo que sale del truncado se
+        // recorta al rango: -273.15 da -273 y no cabe, y 0.9 da 0 y tampoco.
+        StepPvPanel panel = panelVacio();
+        panel.cargarEnFormulario(pvCon("100", "12.5", "-273.15", "0.9"));
+        assertEquals(12, valorDe(panel.getDisplayLimitLow()), "trunca, no redondea");
+        assertEquals(1, valorDe(panel.getDisplayLimitHigh()), "un negativo no cabe en el rango");
+        assertEquals(1, valorDe(panel.getControlMinStep()),
+                "0.9 truncado es 0, que tampoco llega al mínimo");
+        assertEquals(2, panel.getAjustesAlCargar().size(),
+                "los dos descartes se avisan: " + panel.getAjustesAlCargar());
+    }
+
+    @Test
+    void unValorFueraDeRangoSeRecortaAlExtremo() {
+        StepPvPanel panel = panelVacio();
+        panel.cargarEnFormulario(pvCon("100", "70000", "0", "1"));
+        assertEquals(65535, valorDe(panel.getDisplayLimitLow()), "por encima del máximo");
+        assertEquals(1, valorDe(panel.getDisplayLimitHigh()), "por debajo del mínimo");
+        assertFalse(panel.getAjustesAlCargar().isEmpty(),
+                "un recorte tiene que avisarse antes de guardar, o el usuario no"
+                        + " se entera de que el valor guardado cambia");
+    }
+
+    @Test
+    void unValorQueNoEsNumeroSeSustituyePorElMinimo() {
+        // pvCon deja el control límite bajo en "2" fijo, así que ese no se toca:
+        // se comprueban los tres que sí llegan desde los parámetros.
+        StepPvPanel panel = panelVacio();
+        panel.cargarEnFormulario(pvCon("100", "abc", "", null));
+        assertEquals(1, valorDe(panel.getDisplayLimitLow()));
+        assertEquals(1, valorDe(panel.getDisplayLimitHigh()), "un vacío tampoco es un número");
+        assertEquals(1, valorDe(panel.getControlMinStep()), "y un nulo tampoco");
+        assertEquals(3, panel.getAjustesAlCargar().size(),
+                "los tres se avisan por separado: " + panel.getAjustesAlCargar());
+    }
+
+@Test
+    void losCamposNumericosEmpiecenEnElMinimo() {
+        // Antes eran obligatorios y había que escribirlos. Ahora un spinner siempre
+        // tiene valor, así que se guardan sin que el usuario toque nada.
+        StepPvPanel panel = panelVacio();
+        assertEquals(1, valorDe(panel.getDisplayLimitLow()));
+        assertEquals(1, valorDe(panel.getDisplayLimitHigh()));
+        assertEquals(1, valorDe(panel.getControlLimitLow()));
+        assertEquals(1, valorDe(panel.getControlLimitHigh()));
+        assertEquals(1, valorDe(panel.getControlMinStep()));
+    }
+
+    @Test
+    void losCamposNumericosNoAdmitenLetras() throws Exception {
+        // Una tecla no entra por setText sino por el documento del editor, así que
+        // la reproducción tiene que ir por ahí para saber qué hace de verdad.
+        JSpinner spinner = panelVacio().getDisplayLimitHigh();
+        JSpinner.NumberEditor editor = (JSpinner.NumberEditor) spinner.getEditor();
+        JTextField campo = editor.getTextField();
+        campo.setText("12");
+        Document doc = campo.getDocument();
+        doc.insertString(doc.getLength(), "a", null);
+        doc.insertString(doc.getLength(), "-", null);
+        doc.insertString(doc.getLength(), ",", null);
+        assertEquals("12", campo.getText(),
+                "el editor dejó pasar algo que no es un dígito");
+    }
+
+    // --- topes de caracteres ---------------------------------------------------
+
+    @Test
+    void escribirMasDeSesentaEnUnaDescripcionSeRecorta() {
+        StepPvPanel panel = panelVacio();
+        panel.getDisplayDescription().setText("d".repeat(80));
+        assertEquals(60, panel.getDisplayDescription().getText().length(),
+                "la descripción del PV admite más de 60 caracteres");
+        panel.getDescriptor().setText("x".repeat(80));
+        assertEquals(60, panel.getDescriptor().getText().length(),
+                "el descriptor admite más de 60 caracteres");
+    }
+
+    @Test
+    void elFormatoYLasUnidadesNoSeCortan() {
+        // No son descripciones: un patrón de formato cortado a media palabra no
+        // sirve de nada.
+        StepPvPanel panel = panelVacio();
+        panel.getDisplayFormat().setText("f".repeat(80));
+        assertEquals(80, panel.getDisplayFormat().getText().length());
+        panel.getDisplayUnits().setText("u".repeat(80));
+        assertEquals(80, panel.getDisplayUnits().getText().length());
     }
 }

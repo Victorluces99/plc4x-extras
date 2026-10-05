@@ -32,7 +32,6 @@ public class DeviceConfigData {
 private final String s88Node;
     private final String s88Uuid;
     private final String deviceKey;
-    // Parámetros dinámicos específicos del PLC (IP, Rack, Slot, Path, etc.)
     private final String specificParameters;
 
 //    public DeviceConfigData(String brand, String model, String protocol, String deviceName, 
@@ -56,19 +55,14 @@ private final String s88Node;
         this.deviceName = pDevice.getProperty("deviceName");
         this.description = pDevice.getProperty("description");
         this.uuid = pDevice.getProperty("uuid");
-
-        // Convertimos el String "true"/"false" de vuelta a boolean primitivo.
-        // Acepta String o Boolean porque getProperty no devuelve valores no-String.
         Object enableValue = pDevice.get("enable");
         this.enabled = enableValue != null && Boolean.parseBoolean(String.valueOf(enableValue));
-
         this.s88Node = pDevice.getProperty("s88Node");
         this.s88Uuid = pDevice.getProperty("s88Uuid");
         this.deviceKey = pDevice.getProperty("deviceKey");
         this.specificParameters = pDevice.getProperty("specificParameters");
     }
 
-    // Getters
     public String getBrand() {
         return brand;
     }
@@ -113,10 +107,6 @@ private final String s88Node;
         return specificParameters;
     }
 
-    /**
-     * Convierte toda la configuración a un formato de texto (p. ej. JSON o
-     * Properties) para escribirlo en el archivo del proyecto.
-     */
     public String toFileContent() {
         StringBuilder sb = new StringBuilder();
         sb.append("DeviceName=").append(deviceName).append("\n");

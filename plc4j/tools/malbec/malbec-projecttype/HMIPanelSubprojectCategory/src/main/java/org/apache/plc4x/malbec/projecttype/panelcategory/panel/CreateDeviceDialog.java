@@ -37,16 +37,19 @@ import org.netbeans.api.project.Project;
 /**
  * Ventana modal de alta y modificación de dispositivo de comunicación.
  *
- * <p>El formulario vive en {@link CreateDevicePanel} para poder probarlo sin
+ * <p>
+ * El formulario vive en {@link CreateDevicePanel} para poder probarlo sin
  * construir un {@code JDialog}, que exige un entorno gráfico. Esta clase sólo
  * aporta modality, teclado y el guardado contra el modelo.
  *
- * <p>Alta y modificación comparten ventana: la única diferencia es si el
+ * <p>
+ * Alta y modificación comparten ventana: la única diferencia es si el
  * formulario recibe un {@code DeviceConfigData} para precargar. Guardar no
  * necesita un camino distinto porque {@code upsertDevice} reemplaza por UUID y
  * en edición el UUID es el original.
  *
- * <p>Cada invocación crea una instancia nueva, así que el formulario arranca
+ * <p>
+ * Cada invocación crea una instancia nueva, así que el formulario arranca
  * siempre limpio y dos altas consecutivas no se pisan entre sí.
  */
 public final class CreateDeviceDialog extends JDialog {
@@ -81,9 +84,9 @@ public final class CreateDeviceDialog extends JDialog {
         botones.add(btnCancel);
         botones.add(btnOk);
 
-        // El scroll va alrededor del formulario para que, si el usuario achica
-        // la ventana por debajo del alto natural, aparezca barra en vez de
-        // quedar campos cortados sin forma de llegar a ellos.
+        // El scroll va alrededor del formulario para que, si el alto natural del
+        // formulario no cabe en la pantalla, aparezca barra en vez de quedar campos
+        // cortados sin forma de llegar a ellos.
         JScrollPane scroll = new JScrollPane(panel);
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.setMinimumSize(new Dimension(420, 260));
@@ -107,24 +110,27 @@ public final class CreateDeviceDialog extends JDialog {
         btnOk.addActionListener(e -> guardar());
         btnCancel.addActionListener(e -> dispose());
 
-        // Sin ancho fijo en píxeles: pack() respeta el ancho natural de los
-        // campos y el mínimo sólo impide que la ventana quede ilegible.
-        setMinimumSize(new Dimension(660, 420));
+        // Sin ancho fijo en píxeles: pack() respeta el ancho natural de los campos. El
+        // tamaño queda congelado con setResizable(false), que es lo que impide
+        // estirarlo o encogerlo, de modo que el mínimo ya no hace falta.
+        setResizable(false);
         pack();
         setLocationRelativeTo(owner);
     }
 
-/**
+    /**
      * Valida, persiste y cierra.
      *
-     * <p>El modelo se busca desde acá y no desde el panel: el formulario sólo
-     * arma datos y el guardado es responsabilidad de quien abrió la ventana.
+     * <p>
+     * El modelo se busca desde acá y no desde el panel: el formulario sólo arma
+     * datos y el guardado es responsabilidad de quien abrió la ventana.
      *
-     * <p>No distingue entre alta y modificación: {@code upsertDevice} reemplaza
-     * el dispositivo cuyo UUID coincide y agrega si no hay ninguno, y en
-     * edición el UUID es siempre el original.
+     * <p>
+     * No distingue entre alta y modificación: {@code upsertDevice} reemplaza el
+     * dispositivo cuyo UUID coincide y agrega si no hay ninguno, y en edición
+     * el UUID es siempre el original.
      */
-private void guardar() {
+    private void guardar() {
         DeviceConfigData data = panel.getDeviceConfigData();
         if (data == null) {
             return;
@@ -144,10 +150,9 @@ private void guardar() {
 
         model.upsertDevice(data);
         if (!model.save()) {
-            // save() ya dejó escrito el XML; lo que falló fue la base.
             JOptionPane.showMessageDialog(this,
                     "El dispositivo se guardó en comunicacion.xml pero no se pudo\n"
-                            + "actualizar la base de datos. Revisá la consola.",
+                    + "actualizar la base de datos. Revisá la consola.",
                     "Guardado parcial", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -155,12 +160,8 @@ private void guardar() {
         dispose();
     }
 
-    /**
+    /*
      * Confirma que el dispositivo quedó guardado.
-     *
-     * <p>Sin esto el guardado era silencioso: la ventana se cerraba y no había
-     * forma de distinguir un guardado del de un formulario cerrado con la X o
-     * con Cancelar.
      */
     private void avisarGuardado(DeviceConfigData data) {
         String nombre = data.getDeviceName();
@@ -169,7 +170,7 @@ private void guardar() {
         }
         JOptionPane.showMessageDialog(this,
                 "El dispositivo '" + nombre + "' fue "
-                        + (editando ? "modificado" : "creado") + " correctamente.",
+                + (editando ? "modificado" : "creado") + " correctamente.",
                 editando ? "Modificación exitosa" : "Dispositivo creado",
                 JOptionPane.INFORMATION_MESSAGE);
     }

@@ -21,24 +21,10 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 import java.util.LinkedHashMap;
 
 /**
- * Inverso de {@link DeviceDynamicPanelBuilder#assembleUrl}.
+ * Inverso de DeviceDynamicPanelBuilder/assembleUrl.
  *
- * <p>Descompone el formato que los builders producen y que hoy vive
+ * Descompone el formato que los builders producen y que hoy vive
  * únicamente como string dentro del XML:
- *
- * <pre>
- * protocol[:transport]://host[:port][?clave=valor&amp;clave=valor]
- * </pre>
- *
- * <p>No hay validación de la URL: los separadores se toman tal cual, porque
- * {@code assembleUrl} tampoco escapa nada. Un parámetro cuyo valor contenga
- * {@code &amp;} o {@code =} no vuelve entero, y eso no se corrige acá a propósito:
- * hacerlo exigiría codificar, que cambiaría el formato de los archivos ya
- * escritos. Si algún día hace falta, el cambio va del lado de {@code assembleUrl}
- * y en el mismo commit.
- *
- * <p>Es de paquete a propósito: sólo lo necesita el formulario, no es parte
- * de la API que consume el resto de la aplicación.
  */
 final class UrlDisassembler {
 
@@ -54,17 +40,10 @@ final class UrlDisassembler {
      * @param params    en el orden en que aparecen, que es el orden en que
      *                  {@code assembleUrl} los escribe
      */
-    record Partes(String protocol, String transport, String host, String port,
+    public record Partes(String protocol, String transport, String host, String port,
                  LinkedHashMap<String, String> params) {
     }
 
-    /**
-     * Descompone una URL de conexión.
-     *
-     * @return {@code null} si la URL es {@code null} o no tiene el separador
-     *         {@code ://}, que es lo único que no se puede recuperar de otra
-     *         forma
-     */
     static Partes disassemble(String url) {
         if (url == null) {
             return null;

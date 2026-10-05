@@ -22,17 +22,11 @@ import java.util.List;
 
 /**
  * Tipos de dato que admite el programa, con el tamaño que ocupa cada uno.
- *
- * <p>El nombre es exactamente el que se guarda en {@code PvConfig.type}, así que
- * no se renombran: son el contrato con el XML ya escrito.</p>
- *
- * <p>El peso importa porque determina el salto de una variable a la siguiente. Por
- * eso {@code long} y {@code ulong} valen 8 bytes y no 4.</p>
- *
- * <p>Los tipos sin soporte quedan en la lista pero no se pueden elegir: se
+ * El peso importa porque determina el salto de una variable a la siguiente. 
+ * Los tipos sin soporte quedan en la lista pero no se pueden elegir: se
  * desconoce su tamaño en bytes, y sin tamaño no hay forma de calcular el offset.
  * Aparecen en gris en el desplegable para dejar constancia de que se han
- * contemplado.</p>
+ * contemplado.
  */
 public enum DataType {
 
@@ -80,10 +74,6 @@ public enum DataType {
 
     /**
      * Nombre con el que se persiste el tipo.
-     *
-     * <p>No se llama {@code name()} porque ese método de {@link Enum} es final y
-     * devolvería el nombre de la constante, que es mayúsculas y no el valor que se
-     * guarda en el XML.</p>
      */
     public String label() {
         return name;
@@ -154,24 +144,6 @@ public enum DataType {
     /**
      * Tipos que caben en la familia que declara el tag, al tamaño que impone su
      * código de área.
-     *
-     * <p>Las familias INTEGER y REAL abarcan tres y dos tamaños respectivamente,
-     * así que sin el código de área no hay forma de saber cuál es: por eso hace
-     * falta el segundo argumento.</p>
-     *
-     * <p>BOOL admite 1 bit (DBX) y 8 bits (DBB), porque un byte entero empaqueta
-     * ocho booleanos.</p>
-     *
-     * <p>REAL devuelve los dos tamaños, float y double, siempre que el área tenga
-     * sitio para al menos un float. Que los dos entren no significa que quepan:
-     * un double necesita ocho bytes y en un área de cuatro no va. La diferencia
-     * con INTEGER es que allí los tamaños son de la misma familia aritmética y el
-     * código de área dice cuál toca, mientras que float y double son ambos números
-     * reales y el usuario decide cuál quiere. Si se escondiera el que no cabe,
-     * un área de ocho bytes vería las dos opciones y una de cuatro ninguna, y en
-     * ambos casos es el mismo sitio: no cabe un double en cuatro bytes.</p>
-     *
-     * @return los tipos posibles, o lista vacía si la combinación no encaja
      */
     public static List<DataType> candidatos(String familia, int bitsArea) {
         if (familia == null) {
@@ -191,16 +163,7 @@ public enum DataType {
             default -> List.of();
         };
     }
-
-    /**
-     * true si el área es lo bastante ancha para guardar un número real.
-     *
-     * <p>El mínimo es el float, cuatro bytes. Un double son ocho, así que en un
-     * área de cuatro bytes no entra: se ofrece igualmente y es la comprobación de
-     * capacidad la que dice que no cabe, en lugar de esconderlo del desplegable.
-     * Ocultarlo daría la impresión de que el área no admite reales, que no es
-     * cierto.</p>
-     */
+    
     private static boolean esReal(int bitsArea) {
         return bitsArea == 0 || bitsArea >= 32;
     }

@@ -64,23 +64,27 @@ import org.w3c.dom.NodeList;
 /**
  * Formulario de alta y modificación de dispositivo de comunicación.
  *
- * <p>Vive en un {@code JPanel} y no en un {@code JDialog} a propósito: el
- * diálogo es el cascaron modal y sólo aporta teclado y guardado. Así el
- * formulario se puede instanciar y verificar en un test sin ventana.
+ * <p>
+ * Vive en un {@code JPanel} y no en un {@code JDialog} a propósito: el diálogo
+ * es el cascaron modal y sólo aporta teclado y guardado. Así el formulario se
+ * puede instanciar y verificar en un test sin ventana.
  *
- * <p>No comparte una sola clase con el asistente de comunicación
+ * <p>
+ * No comparte una sola clase con el asistente de comunicación
  * ({@code panel.wizard}): son dos flujos distintos y acoplar el alta de
  * dispositivo a los pasos del asistente sólo serviría para arrastrar cambios de
  * un flujo al otro. Por eso este panel trae sus propias utilidades de layout.
  *
- * <p>El mismo formulario sirve para los dos casos; lo que cambia es qué se
- * deja tocar. Al modificar, la marca y el nodo S88 quedan bloqueados y el UUID
- * es inmutable: {@code CommunicationsConfig.upsertDevice} matchea por UUID, así
+ * <p>
+ * El mismo formulario sirve para los dos casos; lo que cambia es qué se deja
+ * tocar. Al modificar, la marca y el nodo S88 quedan bloqueados y el UUID es
+ * inmutable: {@code CommunicationsConfig.upsertDevice} matchea por UUID, así
  * que regenerarlo convertiría una modificación en un dispositivo nuevo. El
  * resto —modelo, nombre, clave, descripción, host, puerto, transporte y
  * parámetros— se edita igual que en el alta.
  *
- * <p>Los datos salen por {@link #getDeviceConfigData()}, que arma un
+ * <p>
+ * Los datos salen por {@link #getDeviceConfigData()}, que arma un
  * {@link Properties} con las doce claves que {@link DeviceConfigData} lee. Esa
  * clase es inmutable, así que no hay setters: todo se concentra en el
  * constructor.
@@ -90,8 +94,8 @@ public final class CreateDevicePanel extends JPanel {
     private static final String SELECCIONE = "-- Seleccione --";
     private final transient Project project;
     // --- Marca y modelo ---
-    private final JComboBox<String> cbMarca =
-            new JComboBox<>(new String[]{SELECCIONE, "Siemens", "Allen Bradley", "Modbus"});
+    private final JComboBox<String> cbMarca
+            = new JComboBox<>(new String[]{SELECCIONE, "Siemens", "Allen Bradley", "Modbus"});
     private final JComboBox<DeviceModel> cbModelo = new JComboBox<>();
     private final JTextField txtProtocol = new JTextField();
     // --- Dispositivo ---
@@ -118,16 +122,7 @@ public final class CreateDevicePanel extends JPanel {
     private final Map<String, String> s88NodesMap = new HashMap<>();
     private final Set<String> usedS88Nodes = new HashSet<>();
     // --- Modo edición ---
-    /** Dispositivo que se está modificando, o {@code null} en el alta. */
     private final transient DeviceConfigData editing;
-    /**
-     * Modelo tal como venía en el dispositivo que se edita.
-     *
-     * <p>Sirve para distinguir los dos momentos en que se dispara el listener
-     * del modelo: al cargar el formulario, donde hay que desensamblar la URL
-     * guardada, y después, cuando el usuario elige otro modelo, donde la URL
-     * anterior ya no aplica y hay que empezar de cero.
-     */
     private final String modeloAlAbrir;
     private final boolean editando;
 
@@ -135,9 +130,6 @@ public final class CreateDevicePanel extends JPanel {
         this(project, null);
     }
 
-    /**
-     * @param edit dispositivo a modificar, o {@code null} para el alta
-     */
     public CreateDevicePanel(Project project, DeviceConfigData edit) {
         this.project = project;
         this.editing = edit;
@@ -178,7 +170,8 @@ public final class CreateDevicePanel extends JPanel {
     /**
      * Título de sección a lo ancho de la fila.
      *
-     * <p>Fijar {@code gridx} y {@code gridwidth} acá no es redundante: las
+     * <p>
+     * Fijar {@code gridx} y {@code gridwidth} acá no es redundante: las
      * restricciones se reutilizan de fila en fila y, si la fila anterior dejó
      * {@code gridx} en 3, el título sale pegado al borde derecho en vez de
      * arrancar en la primera columna.
@@ -195,7 +188,9 @@ public final class CreateDevicePanel extends JPanel {
         return y + 1;
     }
 
-    /** Label en la primera columna y campo ocupando las tres siguientes. */
+    /**
+     * Label en la primera columna y campo ocupando las tres siguientes.
+     */
     private int addWide(JPanel form, GridBagConstraints g, int y, JLabel label, JComponent field) {
         g.gridy = y;
         g.gridwidth = 1;
@@ -210,7 +205,9 @@ public final class CreateDevicePanel extends JPanel {
         return y + 1;
     }
 
-    /** Dos pares label/campo en una misma fila: label, campo, label, campo. */
+    /**
+     * Dos pares label/campo en una misma fila: label, campo, label, campo.
+     */
     private int addPair(JPanel form, GridBagConstraints g, int y,
             JLabel label1, JComponent field1, JLabel label2, JComponent field2) {
         g.gridy = y;
@@ -348,8 +345,6 @@ public final class CreateDevicePanel extends JPanel {
         cbMarca.addActionListener(e -> {
             cbModelo.removeAllItems();
             txtProtocol.setText("");
-            // En edición el UUID no se toca: es la clave con la que
-            // upsertDevice reconoce el dispositivo a reemplazar.
             if (!editando) {
                 txtUUID.setText("");
             }
@@ -386,7 +381,7 @@ public final class CreateDevicePanel extends JPanel {
             // los parámetros del anterior produciría una URL sin sentido.
             //
             // Va antes de armar el builder a propósito: limpiar y después dejar
-            // que loadBuilderParams corra es exactamente lo que pasa en el alta,
+            // que loadBuilderParams corra es exactamente lo que pasa en la creación,
             // donde el modelo nuevo queda con sus defaults y el controller-type
             // que initForModel deduce del modelo elegido.
             if (editando && !Objects.equals(modeloAlAbrir, selectedDevice.getModel())) {
@@ -406,7 +401,9 @@ public final class CreateDevicePanel extends JPanel {
         });
     }
 
-    /** En alta el UUID se genera al elegir marca o modelo; en edición nunca. */
+    /**
+     * En creación el UUID se genera al elegir marca o modelo. En edición nunca.
+     */
     private void generarUuidSiCorresponde() {
         if (!editando) {
             txtUUID.setText(UUID.randomUUID().toString());
@@ -457,7 +454,6 @@ public final class CreateDevicePanel extends JPanel {
     }
 
     // --- Datos ----------------------------------------------------------------
-
     private void initData() {
         devicesMap.put("Siemens", Arrays.asList(
                 new DeviceModel("Siemens", "S7-300", "S7"),
@@ -477,8 +473,8 @@ public final class CreateDevicePanel extends JPanel {
     }
 
     /**
-     * Carga las áreas del {@code plant-model.xml} generado al importar el modelo
-     * de planta. El archivo vive en el directorio del panel (padre del
+     * Carga las áreas del {@code plant-model.xml} generado al importar el
+     * modelo de planta. El archivo vive en el directorio del panel (padre del
      * subproyecto categoría), por lo que se busca subiendo en el árbol.
      */
     private void loadS88Nodes() {
@@ -575,12 +571,14 @@ public final class CreateDevicePanel extends JPanel {
 
     /**
      * Transporte que está realmente en pantalla.
- *
- * <p>El combo es editable y un transporte guardado no siempre está en la lista
- * que propone el catálogo —{@code s7:cotp://} es el caso normal y el catálogo de
- * Siemens sólo ofrece "" y "tcp"—. El valor tipeado manda sobre el seleccionado:
-     * mientras no se confirma con Enter, {@code getSelectedItem} sigue devolviendo
-     * el anterior y el transporte nuevo se perdería al guardar.
+     *
+     * <p>
+     * El combo es editable y un transporte guardado no siempre está en la lista
+     * que propone el catálogo —{@code s7:cotp://} es el caso normal y el
+     * catálogo de Siemens sólo ofrece "" y "tcp"—. El valor tipeado manda sobre
+     * el seleccionado: mientras no se confirma con Enter,
+     * {@code getSelectedItem} sigue devolviendo el anterior y el transporte
+     * nuevo se perdería al guardar.
      */
     private String transportActual() {
         if (cbTransport.isEditable()) {
@@ -662,13 +660,15 @@ public final class CreateDevicePanel extends JPanel {
     /**
      * Precarga el formulario con un dispositivo existente.
      *
-     * <p>El orden importa. Elegir la marca dispara el listener de marca, que
+     * <p>
+     * El orden importa. Elegir la marca dispara el listener de marca, que
      * limpia todo y selecciona el primer modelo; elegir el modelo dispara el
      * listener de modelo, que arma el builder correspondiente y su catálogo de
      * parámetros. Recién con el builder listo tiene sentido desensamblar la URL
      * guardada.
      *
-     * <p>La marca y el nodo S88 quedan deshabilitados al final: son los dos
+     * <p>
+     * La marca y el nodo S88 quedan deshabilitados al final: son los dos
      * valores que no admiten cambio una vez creado el dispositivo.
      */
     private void cargarParaEditar(DeviceConfigData d) {
@@ -682,9 +682,6 @@ public final class CreateDevicePanel extends JPanel {
         cargarConexion(d.getSpecificParameters());
         restaurarNodoS88(d);
         txtS88UUID.setText(d.getS88Uuid());
-
-        // Al final, porque los listeners ya corrieron: el UUID tiene que ganar
-        // contra cualquier cosa que hayan generado.
         txtUUID.setText(d.getUuid());
         txtDeviceName.setText(d.getDeviceName());
         txtDeviceKey.setText(d.getDeviceKey());
@@ -698,8 +695,9 @@ public final class CreateDevicePanel extends JPanel {
     /**
      * Vuelca en el formulario la URL de conexión guardada.
      *
-     * <p>Es el camino inverso de {@link UrlDisassembler}: lo que se desensambla
-     * se vuelve a armar con el mismo builder, de modo que la URL que se vea al
+     * <p>
+     * Es el camino inverso de {@link UrlDisassembler}: lo que se desensambla se
+     * vuelve a armar con el mismo builder, de modo que la URL que se vea al
      * abrir el formulario sea la misma que quedó guardada.
      */
     private void cargarConexion(String url) {
@@ -713,7 +711,7 @@ public final class CreateDevicePanel extends JPanel {
             txtUrlPreview.setText(url.trim());
             JOptionPane.showMessageDialog(this,
                     "No se pudo interpretar la URL de conexión guardada:\n\n" + url.trim()
-                            + "\n\nRevisá host, puerto y parámetros antes de guardar.",
+                    + "\n\nRevisá host, puerto y parámetros antes de guardar.",
                     "Conexión a revisar", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -740,14 +738,16 @@ public final class CreateDevicePanel extends JPanel {
     /**
      * Deja en el combo el nodo S88 que tiene el dispositivo.
      *
-     * <p>{@code setSelectedItem} no hace nada cuando el valor no está en el
+     * <p>
+     * {@code setSelectedItem} no hace nada cuando el valor no está en el
      * modelo, y el modelo sale de {@code plant-model.xml}. Si ese archivo no
      * existe —que es lo que pasa en los proyectos sin modelo de planta
      * importado— el combo queda con el placeholder solamente, la validación ve
      * el nodo como vacío y el dispositivo queda sin forma de modificarse: el
      * formulario se abre precargado pero nunca supera la validación.
      *
-     * <p>El valor guardado se agrega al combo para que se vea y se conserve tal
+     * <p>
+     * El valor guardado se agrega al combo para que se vea y se conserve tal
      * cual. El combo va deshabilitado en edición, así que agregar un ítem es
      * inocuo: no habilita nada que el usuario pueda cambiar por error.
      */
@@ -769,7 +769,9 @@ public final class CreateDevicePanel extends JPanel {
         cbS88Node.setSelectedItem(node);
     }
 
-    /** Deja la conexión en blanco, con el estado por defecto del modelo activo. */
+    /**
+     * Deja la conexión en blanco, con el estado por defecto del modelo activo.
+     */
     private void limpiarConexion() {
         txtHost.setText("");
         txtPort.setText("");
@@ -804,13 +806,13 @@ public final class CreateDevicePanel extends JPanel {
     }
 
     // --- Validación y armado del dispositivo ----------------------------------
-
     /**
      * Nodo S88 elegido, o {@code null} si el combo sigue en el placeholder.
      *
-     * <p>Es la diferencia entre un dispositivo sin nodo y un dispositivo
-     * apuntando a un área llamada "-- Seleccione --": el segundo caso se
-     * estaba escribiendo en el XML sin que nadie lo pidiera.
+     * <p>
+     * Es la diferencia entre un dispositivo sin nodo y un dispositivo apuntando
+     * a un área llamada "-- Seleccione --": el segundo caso se estaba
+     * escribiendo en el XML sin que nadie lo pidiera.
      */
     String nodoS88Seleccionado() {
         Object selected = cbS88Node.getSelectedItem();
@@ -821,7 +823,8 @@ public final class CreateDevicePanel extends JPanel {
     /**
      * Etiquetas de los campos obligatorios que están vacíos.
      *
-     * <p>No muestra diálogos a propósito: el mensaje vive en
+     * <p>
+     * No muestra diálogos a propósito: el mensaje vive en
      * {@link #getDeviceConfigData()} y esto se puede verificar en un test sin
      * ventana gráfica.
      */
@@ -842,11 +845,6 @@ public final class CreateDevicePanel extends JPanel {
         if (nodoS88Seleccionado() == null) {
             faltantes.add("Node");
         }
-        // El UUID se genera solo al elegir marca, así que vacío significa que
-        // algo se rompió. Sin esta comprobación el dispositivo se guardaba sin
-        // identidad: upsertDevice matchea por UUID, y un dispositivo sin él no
-        // matchea nunca, así que modificarlo en vez de reemplazar lo agregaba de
-        // nuevo. El UUID no se edita, pero tiene que existir.
         if (txtUUID.getText().trim().isEmpty()) {
             faltantes.add("UUID");
         }
@@ -854,11 +852,12 @@ public final class CreateDevicePanel extends JPanel {
     }
 
     /**
-     * Valida y arma el {@link DeviceConfigData}, o devuelve {@code null} si
+     * Valida y arma el DeviceConfigData, o devuelve null si
      * falta algún campo obligatorio.
      *
-     * <p>Las doce claves tienen que coincidir con las que lee el constructor de
-     * {@code DeviceConfigData(Properties)}.
+     * 
+     * Las doce claves tienen que coincidir con las que lee el constructor de
+     * DeviceConfigData(Properties).
      */
     public DeviceConfigData getDeviceConfigData() {
         List<String> faltantes = camposObligatoriosVacios();
@@ -884,8 +883,6 @@ public final class CreateDevicePanel extends JPanel {
         pDevice.put("deviceKey", txtDeviceKey.getText().trim());
         pDevice.put("description", txtDescription.getText());
         pDevice.put("uuid", txtUUID.getText());
-        // Boolean a propósito: DeviceConfigData lo lee con get("enable") y no
-        // con getProperty, que devolvería null para un valor no-String.
         pDevice.put("enable", chkEnable.isSelected());
         pDevice.put("s88Node", nodoS88Seleccionado());
         pDevice.put("s88Uuid", txtS88UUID.getText());
@@ -896,13 +893,6 @@ public final class CreateDevicePanel extends JPanel {
     }
 
     // --- Accesores de test ----------------------------------------------------
-
-    /**
-     * Registra un nodo S88 como si estuviera presente en {@code plant-model.xml}.
-     *
-     * <p>Existe porque sin un proyecto real no hay archivo que leer, y sin un
-     * nodo la validación nunca deja llegar al camino feliz. Sólo para tests.
-     */
     void registrarNodoS88(String id, String uuid) {
         cbS88Node.addItem(id);
         s88NodesMap.put(id, uuid);
@@ -936,22 +926,14 @@ public final class CreateDevicePanel extends JPanel {
     JTextField getTxtPort() {
         return txtPort;
     }
-
-    /**
-     * UUID tal como está en el formulario, para verificar que la edición no lo
-     * regenera.
-     */
     JTextField getTxtUUID() {
         return txtUUID;
     }
-
-    /** URL que se persistiría en este momento, sin pasar por el guardado. */
     String urlActual() {
         return activeBuilder == null ? "" : activeBuilder.getSpecificParametersAsString();
     }
 
-    // --- Utilidades -----------------------------------------------------------
-
+    // --- Utilidades de Swing -----------------------------------------------------------
     private static final class SimpleDocumentListener implements DocumentListener {
 
         private final Runnable action;

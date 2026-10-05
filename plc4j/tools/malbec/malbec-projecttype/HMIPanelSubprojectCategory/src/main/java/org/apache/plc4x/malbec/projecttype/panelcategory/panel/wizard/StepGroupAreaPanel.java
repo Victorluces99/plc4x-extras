@@ -38,7 +38,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
-import javax.swing.table.DefaultTableModel;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 
 /**
@@ -55,21 +54,27 @@ public class StepGroupAreaPanel extends JPanel {
 
     private final CommunicationWizardController controller;
 
-    private final DefaultTableModel groupModel = new DefaultTableModel(new String[]{
-        "Nombre", "Descripción", "Scantime (ms)", "Enable", "UUID"}, 0);
+    private final NonEditableTableModel groupModel = new NonEditableTableModel(new String[]{
+        "Nombre", "Descripción", "Scantime (ms)", "Enable", "UUID"});
     private final JTable tbGroups = new JTable(groupModel);
 
     private final NonEditableTableModel itemModel = new NonEditableTableModel(new String[]{
         "Nombre", "Descripción", "Tag", "Tipo", "Libre", "Grupo", "Enable", "UUID"});
     private final JTable tbItems = new JTable(itemModel);
 
-    private final JTextField txtGroupName = new JTextField(14);
-    private final JTextField txtGroupDescription = new JTextField(14);
+    private final JTextField txtGroupName =
+            WizardUi.textoLimitado(14, WizardUi.MAX_NOMBRE);
+    private final JTextField txtGroupDescription =
+            WizardUi.textoLimitado(14, WizardUi.MAX_DESCRIPCION);
     private final JComboBox<String> cbGroupScantime = new JComboBox<>();
     private final JCheckBox chkGroupEnable = new JCheckBox("Enable", true);
 
-    private final JTextField txtItemName = new JTextField(14);
-    private final JTextField txtItemDescription = new JTextField(14);
+    private final JTextField txtItemName =
+            WizardUi.textoLimitado(14, WizardUi.MAX_NOMBRE);
+    private final JTextField txtItemDescription =
+            WizardUi.textoLimitado(14, WizardUi.MAX_DESCRIPCION);
+    // El tag no lleva límite: es una dirección, y recortarla daría una dirección
+    // distinta, que es peor que un campo un poco largo.
     private final JTextField txtItemTag = new JTextField(14);
     private final JComboBox<CommConfigData.GroupConfig> cbItemGroup = new JComboBox<>();
     private final JCheckBox chkItemEnable = new JCheckBox("Enable", true);
@@ -113,12 +118,16 @@ public class StepGroupAreaPanel extends JPanel {
         WizardUi.fixComboWidth(cbGroupScantime, 110);
         tbGroups.setIntercellSpacing(new Dimension(6, 2));
         tbItems.setIntercellSpacing(new Dimension(6, 2));
-
+        WizardUi.configColumns(tbItems);
+        WizardUi.configColumns(tbGroups);
+        
         JScrollPane groupScroll = new JScrollPane(tbGroups);
         WizardUi.limitTableSpace(groupScroll, 700, 240);
+        WizardUi.rellenarAnchoVisible(tbGroups);
 
         JScrollPane itemScroll = new JScrollPane(tbItems);
         WizardUi.limitTableSpace(itemScroll, 700, 240);
+        WizardUi.rellenarAnchoVisible(tbItems);
 
         JPanel groupTable = new JPanel(new BorderLayout(0, 4));
         groupTable.setBorder(BorderFactory.createTitledBorder("Grupos de escaneo"));
@@ -247,6 +256,39 @@ public class StepGroupAreaPanel extends JPanel {
         add(areaSplit, BorderLayout.CENTER);
     }
 
+    // Visibles para los tests: las tablas son espejo del estado y su comportamiento
+    // de columnas es parte de lo que hay que comprobar.
+
+    JTable getGroupTable() {
+        return tbGroups;
+    }
+
+    JTable getItemTable() {
+        return tbItems;
+    }
+
+    // Sólo para pruebas: para comprobar el tope de caracteres de cada campo.
+
+    JTextField getGroupName() {
+        return txtGroupName;
+    }
+
+    JTextField getGroupDescription() {
+        return txtGroupDescription;
+    }
+
+    JTextField getItemName() {
+        return txtItemName;
+    }
+
+    JTextField getItemDescription() {
+        return txtItemDescription;
+    }
+
+    JTextField getItemTag() {
+        return txtItemTag;
+    }
+
     /** Repuebla tablas y reevalúa el estado de los formularios. */
     public void refresh() {
         rebuildTables();
@@ -287,6 +329,11 @@ public class StepGroupAreaPanel extends JPanel {
             WizardUi.sizeColumnsToContent(tbItems, 90, 260);
             itemColumnsSized = true;
         }
+        // El reparto va en cada refresco y no sólo al medir: el ajuste por contenido
+        // se lleva por delante el ancho de las columnas, y el visor puede cambiar de
+        // tamaño después de la primera vez.
+        WizardUi.rellenarAnchoVisible(tbGroups);
+        WizardUi.rellenarAnchoVisible(tbItems);
     }
 
     /**

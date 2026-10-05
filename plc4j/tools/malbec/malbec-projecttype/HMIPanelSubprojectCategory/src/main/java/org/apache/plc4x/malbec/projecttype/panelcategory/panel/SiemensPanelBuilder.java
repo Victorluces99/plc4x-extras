@@ -23,10 +23,10 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Builder de conexiones Siemens S7. El esquema de la cadena es {@code s7://...}:
+ * Builder de conexiones Siemens S7. El esquema de la cadena es s7://...
  * cotp es la única capa de transporte y no se muestra por defecto (puede
  * declararse si el usuario lo desea). El catálogo de opciones (nivel driver +
- * opciones {@code cotp.*}) sigue la documentación oficial del driver S7 1.0.0.
+ * opciones code cotp.*)
  */
 public class SiemensPanelBuilder implements DeviceDynamicPanelBuilder {
 
@@ -89,7 +89,6 @@ public class SiemensPanelBuilder implements DeviceDynamicPanelBuilder {
 
     @Override
     public String[] getTransportOptions() {
-        // "" = formato oficial s7:// (cotp implícito); "tcp" opcional si el usuario lo declara.
         return new String[]{"", "tcp"};
     }
 

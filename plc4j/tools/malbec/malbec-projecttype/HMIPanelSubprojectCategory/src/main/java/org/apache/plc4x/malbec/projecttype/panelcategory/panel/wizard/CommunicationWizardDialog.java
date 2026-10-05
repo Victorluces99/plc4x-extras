@@ -109,7 +109,11 @@ public class CommunicationWizardDialog extends JDialog {
         int maxW = Math.min(1000, Math.max(760, screen.width - 120));
         int maxH = Math.min(740, Math.max(600, screen.height - 140));
         setSize(Math.min(pref.width, maxW), Math.min(pref.height, maxH));
-        setMinimumSize(new Dimension(Math.min(780, maxW), Math.min(520, maxH)));
+        // Tamaño fijo: los tres pasos se ven siempre igual, con las tablas al mismo
+        // ancho y sin que la ventana se pueda estirar ni encoger. Como el ancho ya no
+        // cambia, el reparto de las columnas es el que se hizo al construirlas y no
+        // hay que ir recalculándolo.
+        setResizable(false);
         setLocationRelativeTo(null);
     }
 

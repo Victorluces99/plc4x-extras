@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   https://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -21,38 +21,18 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.panel.wizard;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Tag de un área de memoria, junto con lo que se ha conseguido interpretar de él.
- *
- * <p>El tag no es una dirección absoluta con una forma fija. En WinCC el campo
- * depende del driver y del PLC: con S7-1200 en direccionamiento absoluto empieza
- * por % ({@code %DB10.DBX0.0}, {@code %MW20}), con S7-300 clásico no lleva %
- * ({@code DB1.DBX0.0}, {@code M0.0}, {@code MW2}) y con tags optimizados o Modbus
- * no hay ni % ni estructura ({@code Control_Panel.Start_Button},
- * {@code 40001}).</p>
- *
- * <p>Por eso aquí <strong>nada es obligatorio y nada se rechaza</strong>. Se
- * aparta el rango, el tipo y el bit si están, y del resto se saca el bloque, el
- * código de área y el número si se reconocen. Lo que no se reconoce se guarda tal
- * cual y no estorba: un tag del que sólo sabemos el rango sirve para calcular
- * capacidad, y uno del que no sabemos nada se acepta y simplemente no se acota.</p>
- *
- * <p>El único caso que se considera inválido es un rango al revés, porque ahí sí
- * hay un error de tecleo evidente.</p>
- *
- * <p>El rango, cuando lo hay, es relativo al byte base. En
- * {@code %DB21.DBB4[0..9]} el byte base es el 4 y los diez bytes del área son del
- * 4 al 13. Por eso los offsets que se guardan en cada variable también son
- * relativos.</p>
- */
+                   
 public final class MemoryTag {
-
-    private static final Pattern RANGO = Pattern.compile("\\[(\\d+)\\s*\\.\\.\\s*(\\d+)\\]");
-    private static final Pattern FAMILIA = Pattern.compile(":(\\w+)\\s*$");
-    private static final Pattern BIT = Pattern.compile("\\.(\\d)\\s*$");
-    private static final Pattern BLOQUE_Y_CODIGO = Pattern.compile("^(\\w+)\\.([A-Za-z]+)(\\d+)$");
+    private static final Pattern RANGO = Pattern.compile("\\[\\s*(\\d+)\\s*\\.\\.\\s*(\\d+)\\s*]");
+    private static final Pattern CORCHETE = Pattern.compile("\\[\\s*(\\d*)\\s*]");
+    private static final Pattern LONGITUD = Pattern.compile("\\((\\d+)\\)");
+    private static final Pattern DB_CON_CODIGO =
+            Pattern.compile("^([A-Za-z]+)(\\d+)\\.DB([A-Za-z]*)(\\d+)$");
+    private static final Pattern DB_CORTO = Pattern.compile("^([A-Za-z]+)(\\d+):(\\d+)$");
     private static final Pattern CODIGO_Y_NUMERO = Pattern.compile("^([A-Za-z]+)(\\d+)$");
     private static final Pattern SOLO_NUMERO = Pattern.compile("^(\\d+)$");
+    private static final Pattern TIPO =
+            Pattern.compile("^[A-Za-z_][A-Za-z0-9_]*(\\s*\\(\\s*\\d+\\s*\\))?(\\s*\\[\\s*\\d*\\s*])?$");
 
     private final String raw;
     private final String block;
@@ -61,10 +41,11 @@ public final class MemoryTag {
     private final int bit;
     private final int firstByte;
     private final int lastByte;
+    private final int cantidad;
     private final String family;
 
     private MemoryTag(String raw, String block, String code, int baseByte, int bit,
-            int firstByte, int lastByte, String family) {
+            int firstByte, int lastByte, int cantidad, String family) {
         this.raw = raw;
         this.block = block;
         this.code = code;
@@ -72,168 +53,190 @@ public final class MemoryTag {
         this.bit = bit;
         this.firstByte = firstByte;
         this.lastByte = lastByte;
+        this.cantidad = cantidad;
         this.family = family;
     }
 
-    /**
-     * Interpreta un tag.
-     *
-     * <p>No falla nunca por formato: si no reconoce una parte, esa parte queda
-     * vacía. Sólo devuelve null si el tag viene vacío, porque un área sin tag no
-     * tiene sentido y eso sí lo avisa la vista.</p>
-     *
-     * @return el tag descompuesto, o null si el tag es null o está en blanco
-     */
-    public static MemoryTag parse(String tag) {
-        if (tag == null || tag.isBlank()) {
+    public static MemoryTag parse(String raw) {
+        if (raw == null) {
             return null;
         }
-        // Los espacios no significan nada en una dirección y rompen el
-        // desglose: en "%DB20. DBB4" el punto queda separado del código, el tag no
-        // se reconoce como bloque y se acaba comparando como texto suelto, donde
-        // el rango vuelve a importar y %DB20.DBB4[0..16] pasa por ser distinto de
-        // %DB20.DBB4[0..10]. Se quitan antes de mirar nada.
-        String resto = tag.replaceAll("\\s+", "");
+        String original = raw;
+        String tag = raw.trim();
+        if (tag.isEmpty()) {
+            return null;
+        }
+        String resto = tag;
         if (resto.startsWith("%")) {
             resto = resto.substring(1);
         }
 
-        int first = 0;
-        int last = -1;
-        Matcher rango = RANGO.matcher(resto);
+        String tipo = null;
+        int cantidad = -1;
+        int[] seleccion = new int[]{-1, -1};
+
+        String[] partes = separarTipo(resto);
+        String direccionTags = partes[0];
+        if (partes[1] != null) {
+            tipo = partes[1];
+            Matcher mt = LONGITUD.matcher(tipo);
+            if (mt.find()) {
+                cantidad = Integer.parseInt(mt.group(1));
+            }
+            Matcher mc = CORCHETE.matcher(tipo);
+            if (mc.find() && !mc.group(1).isEmpty()) {
+                cantidad = Integer.parseInt(mc.group(1));
+            }
+            tipo = tipo.replaceFirst("\\s*\\(\\s*\\d+\\s*\\)", "")
+                    .replaceFirst("\\s*\\[\\s*\\d*\\s*]", "")
+                    .trim().toUpperCase();
+        }
+
+        Matcher rango = RANGO.matcher(direccionTags);
         if (rango.find()) {
-            first = Integer.parseInt(rango.group(1));
-            last = Integer.parseInt(rango.group(2));
-            resto = rango.replaceAll("").trim();
+            seleccion[0] = Integer.parseInt(rango.group(1));
+            seleccion[1] = Integer.parseInt(rango.group(2));
+            direccionTags = rango.replaceFirst("");
+        } else {
+            Matcher indice = CORCHETE.matcher(direccionTags);
+            if (indice.find()) {
+                String valor = indice.group(1);
+                seleccion[0] = valor.isEmpty() ? -1 : Integer.parseInt(valor);
+                seleccion[1] = seleccion[0];
+                direccionTags = indice.replaceFirst("");
+            }
         }
 
-        String family = null;
-        Matcher fam = FAMILIA.matcher(resto);
-        if (fam.find()) {
-            family = fam.group(1);
-            resto = resto.substring(0, fam.start()).trim();
-        }
-
-        // El bit se aparta antes de buscar bloque y código, porque con el bit detrás
-        // M0.0 nunca encajaría con CODIGO_Y_NUMERO. Luego sólo se confirma si lo que
-        // queda es una dirección de verdad: en Data_Block_1.Motor1 el 1 final es
-        // parte del nombre, no un bit.
+        String direccion = direccionTags.replaceAll("\\s+", "");
         int bit = -1;
-        String candidatoBit = resto;
-        Matcher b = BIT.matcher(resto);
-        if (b.find()) {
-            bit = Integer.parseInt(b.group(1));
-            candidatoBit = resto.substring(0, b.start()).trim();
+        int posPunto = direccion.lastIndexOf('.');
+        if (posPunto > 0 && posPunto < direccion.length() - 1) {
+            String posibleBit = direccion.substring(posPunto + 1);
+            if (posibleBit.matches("[0-7]")) {
+                bit = Integer.parseInt(posibleBit);
+                direccion = direccion.substring(0, posPunto);
+            }
         }
 
         String block = "";
         String code = "";
-        int numero = 0;
-        Matcher conBloque = BLOQUE_Y_CODIGO.matcher(candidatoBit);
-        Matcher conCodigo = CODIGO_Y_NUMERO.matcher(candidatoBit);
-        Matcher conNumero = SOLO_NUMERO.matcher(candidatoBit);
-        boolean esDireccion = conBloque.matches();
-        if (esDireccion) {
-            block = conBloque.group(1);
-            code = conBloque.group(2);
-            numero = Integer.parseInt(conBloque.group(3));
-        } else if (conCodigo.matches()) {
-            esDireccion = true;
-            code = conCodigo.group(1);
-            numero = Integer.parseInt(conCodigo.group(2));
-        } else if (conNumero.matches()) {
-            esDireccion = true;
-            numero = Integer.parseInt(conNumero.group(1));
-        }
-        if (!esDireccion) {
-            bit = -1;
+        int numero = -1;
+
+        Matcher dbCodigo = DB_CON_CODIGO.matcher(direccion);
+        Matcher dbCorto = DB_CORTO.matcher(direccion);
+        Matcher codNum = CODIGO_Y_NUMERO.matcher(direccion);
+        Matcher soloNum = SOLO_NUMERO.matcher(direccion);
+
+        if (dbCodigo.matches()) {
+            block = dbCodigo.group(1) + dbCodigo.group(2);
+            code = dbCodigo.group(3).isEmpty() ? "" : "DB" + dbCodigo.group(3).toUpperCase();
+            numero = Integer.parseInt(dbCodigo.group(4));
+        } else if (dbCorto.matches()) {
+            block = dbCorto.group(1) + dbCorto.group(2);
+            numero = Integer.parseInt(dbCorto.group(3));
+        } else if (codNum.matches()) {
+            code = codNum.group(1).toUpperCase();
+            numero = Integer.parseInt(codNum.group(2));
+        } else if (soloNum.matches()) {
+            numero = Integer.parseInt(soloNum.group(1));
+        } else {
+            block = direccion;
         }
 
-        return new MemoryTag(tag.trim(), block, code, numero, bit, first, last, family);
+        String familia = tipo;
+
+        return new MemoryTag(original, block, code, numero, bit,
+                seleccion[0], seleccion[1], cantidad, familia);
     }
 
-    /** El tag tal como lo escribió el usuario, para los mensajes. */
+    private static String[] separarTipo(String texto) {
+        String cuerpo = texto;
+        for (int i = 0; i < cuerpo.length(); i++) {
+            if (cuerpo.charAt(i) != ':' || i + 1 >= cuerpo.length()) {
+                continue;
+            }
+            String tras = cuerpo.substring(i + 1).trim();
+            if (TIPO.matcher(tras).matches()) {
+                return new String[]{cuerpo.substring(0, i), tras};
+            }
+        }
+        return new String[]{cuerpo, null};
+    }
+
     public String raw() {
         return raw;
     }
 
-    /** Bloque o memoria del tag, o cadena vacía si no lleva. */
     public String block() {
         return block;
     }
 
-    /** Código de área reconocido: DBX, DBB, DBW, MW, M... o vacío. */
     public String code() {
         return code;
     }
 
-    /** Número del tag, o 0 si no se reconoce la parte que lo acompaña. */
     public int baseByte() {
         return baseByte;
     }
 
-    /** Bit del byte, o -1 si el tag no lo trae. */
     public int bit() {
         return bit;
     }
 
-    /** Primer byte del rango, relativo a {@link #baseByte()}; 0 si no hay rango. */
     public int firstByte() {
         return firstByte;
     }
 
-    /** Último byte del rango, relativo a {@link #baseByte()}; -1 si no hay rango. */
     public int lastByte() {
         return lastByte;
     }
 
-    /** Familia declarada detrás de los dos puntos; null si el tag no la lleva. */
+    /** Tipo declarado en el tag, o null si no lo lleva. */
     public String family() {
         return family;
     }
 
-    /** true si el tag trae rango explícito. */
     public boolean hasRange() {
         return lastByte >= 0;
     }
 
-    /** false si el rango va al revés, que es un error de tecleo evidente. */
     public boolean rangoValido() {
         return lastByte < 0 || lastByte >= firstByte;
     }
 
-    /** true si se reconocieron el código de área o el número del tag. */
     public boolean tieneDireccion() {
-        return !code.isEmpty() || baseByte > 0;
+        return !code.isEmpty() || baseByte >= 0;
     }
 
-    /**
-     * Ancho en bits que impone el código de área; 0 si el código no se reconoce.
-     *
-     * <p>Un bit suelto sobre una marca, entrada o salida es un bit, no el byte
-     * entero: {@code %M0.0} ocupa un bit mientras que {@code %MW20} ocupa dos
-     * bytes.</p>
-     */
     public int codeBits() {
-        String c = code.toUpperCase();
-        if (bit >= 0 && !c.startsWith("DB")) {
+        if (bit >= 0) {
             return 1;
         }
-        return switch (c) {
-            case "X", "DBX" -> 1;
-            case "B", "C", "DBB", "MB", "VB", "IB", "QB", "EB" -> 8;
-            case "W", "DBW", "MW", "IW", "QW", "EW" -> 16;
-            case "D", "DBD", "MD", "ID", "QD", "ED" -> 32;
-            case "L", "DBLD" -> 64;
-            default -> 0;
-        };
+        if (code.isEmpty()) {
+            return 0;
+        }
+        String c = code.toUpperCase();
+        if (c.endsWith("LD")) {
+            return 64;
+        }
+        if (c.endsWith("X")) {
+            return 1;
+        }
+        if (c.endsWith("B")) {
+            return 8;
+        }
+        if (c.endsWith("W")) {
+            return 16;
+        }
+        if (c.endsWith("D")) {
+            return 32;
+        }
+        if (c.endsWith("L")) {
+            return 64;
+        }
+        return 0;
     }
 
-    /**
-     * Bytes que abarca el área. Con rango, lo que dura el rango; sin rango, lo que
-     * ocupa el código de área. Devuelve 0 cuando no hay forma de saberlo, y en ese
-     * caso la capacidad no se acota.
-     */
     public int byteCapacity() {
         if (!rangoValido()) {
             return 0;
@@ -241,58 +244,44 @@ public final class MemoryTag {
         if (lastByte >= 0) {
             return lastByte - firstByte + 1;
         }
+        if (cantidad > 0) {
+            return cantidad;
+        }
         return codeBits() / 8;
     }
 
-    /** Primer byte del área dentro del bloque, para comparar con otras áreas. */
     public int absoluteFirst() {
-        return baseByte + firstByte;
+        return Math.max(0, baseByte) + Math.max(0, firstByte);
     }
 
-    /** Último byte del área dentro del bloque. */
     public int absoluteLast() {
-        return baseByte + Math.max(lastByte, firstByte);
+        return Math.max(0, baseByte) + Math.max(0, lastByte);
     }
 
-    /**
-     * La dirección del tag tal y como se escribe, sin rango ni tipo.
-     *
-     * <p>Sirve para explicarle al usuario por qué dos áreas se pisan, no para
-     * decidirlo. Dos áreas con la misma dirección y rangos distintos conviven sin
-     * problema: {@code %DB22.DBB4[10..16]} y {@code %DB22.DBB4[17..22]} arrancan en
-     * el mismo byte y no se tocan. Lo único que marca un error es el solapamiento,
-     * que ve {@link #solapaCon}.</p>
-     *
-     * @return la dirección, o el tag tal cual si no se reconoce ninguna
-     */
     public String direccion() {
         if (!tieneDireccion()) {
             return raw;
         }
-        // El bloque sólo se pone si lo hay: %MW66 es la marca de bits, no un DB.
         String d = block.isEmpty()
                 ? code.toUpperCase() + baseByte
                 : block.toUpperCase() + "." + code.toUpperCase() + baseByte;
         return bit >= 0 ? d + "." + bit : d;
     }
 
-    /**
-     * true si las dos áreas tocan los mismos bytes del mismo bloque.
-     *
-     * <p>Sólo se comparan áreas del mismo bloque y del mismo código de área, y sólo
-     * si las dos tienen dirección reconocible. Dos áreas con códigos distintos
-     * pueden pisarse en el PLC, pero distinguirlas exigiría conocer la disposición
-     * del bloque y aquí no se supone ninguna: es preferible dejar pasar una
-     * coincidencia que bloquear un área legítima.</p>
-     */
     public boolean solapaCon(MemoryTag otro) {
         if (otro == null || !tieneDireccion() || !otro.tieneDireccion()) {
             return false;
         }
-        if (!block.equalsIgnoreCase(otro.block) || !code.equalsIgnoreCase(otro.code)) {
+        if (!block.equalsIgnoreCase(otro.block)) {
             return false;
         }
-        return absoluteFirst() <= otro.absoluteLast()
-                && otro.absoluteFirst() <= absoluteLast();
+        if (bit >= 0 && otro.bit >= 0) {
+            return baseByte == otro.baseByte && bit == otro.bit;
+        }
+        if (hasRange() && otro.hasRange()) {
+            return absoluteFirst() <= otro.absoluteLast()
+                    && absoluteLast() >= otro.absoluteFirst();
+        }
+        return code.equalsIgnoreCase(otro.code) && baseByte == otro.baseByte;
     }
 }

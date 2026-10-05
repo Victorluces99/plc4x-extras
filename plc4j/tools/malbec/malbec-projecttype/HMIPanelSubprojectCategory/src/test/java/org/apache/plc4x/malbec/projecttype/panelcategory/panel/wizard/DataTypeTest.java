@@ -143,6 +143,101 @@ class DataTypeTest {
     }
 
     @Test
+    void seCubreTodaLaTablaDeTiposDePlc4x() {
+        // Un caso por cada familia de la tabla de tipos del driver S7. Las que no
+        // aparecen aquí son las de tamaño variable o dependiente de la plataforma,
+        // que no permiten calcular un offset.
+        assertEquals(List.of(DataType.BOOLEAN), DataType.candidatos("BOOL", 1));
+        assertEquals(List.of(DataType.BYTE, DataType.UBYTE), DataType.candidatos("BYTE", 8));
+        assertEquals(List.of(DataType.WORD), DataType.candidatos("WORD", 16));
+        assertEquals(List.of(DataType.INT, DataType.UINT), DataType.candidatos("DWORD", 32));
+        assertEquals(List.of(DataType.LONG, DataType.ULONG), DataType.candidatos("LWORD", 64));
+
+        assertEquals(List.of(DataType.BYTE, DataType.UBYTE), DataType.candidatos("SINT", 8));
+        assertEquals(List.of(DataType.BYTE, DataType.UBYTE), DataType.candidatos("USINT", 8));
+        assertEquals(List.of(DataType.SHORT, DataType.USHORT), DataType.candidatos("INT", 16));
+        assertEquals(List.of(DataType.SHORT, DataType.USHORT), DataType.candidatos("UINT", 16));
+        assertEquals(List.of(DataType.INT, DataType.UINT), DataType.candidatos("DINT", 32));
+        assertEquals(List.of(DataType.INT, DataType.UINT), DataType.candidatos("UDINT", 32));
+        assertEquals(List.of(DataType.LONG, DataType.ULONG), DataType.candidatos("LINT", 64));
+        assertEquals(List.of(DataType.LONG, DataType.ULONG), DataType.candidatos("ULINT", 64));
+
+        assertEquals(List.of(DataType.FLOAT, DataType.DOUBLE), DataType.candidatos("REAL", 32));
+        assertEquals(List.of(DataType.DOUBLE), DataType.candidatos("LREAL", 64));
+
+        assertEquals(List.of(DataType.BYTE, DataType.UBYTE), DataType.candidatos("CHAR", 8));
+        assertEquals(List.of(DataType.WORD), DataType.candidatos("WCHAR", 16));
+    }
+
+    @Test
+    void losTiposDeLongitudVariableNoOfrecenNada() {
+        // STRING, WSTRING y los temporales ocupan un tamaño que depende del contenido
+        // o de la plataforma, así que no hay forma de saber dónde va la siguiente
+        // variable. Se dejan en el catálogo como tipos sin peso y no se ofrecen.
+        for (String temporal : new String[]{"STRING", "WSTRING", "S5TIME", "TIME",
+                "LTIME", "DATE", "TIME_OF_DAY", "DATE_AND_TIME"}) {
+            assertTrue(DataType.candidatos(temporal, 64).isEmpty(),
+                    temporal + " no debería ofrecer tipos porque no se puede medir");
+        }
+    }
+
+    @Test
+    void rawByteArrayEsUnAliasDeByte() {
+        // El driver acepta %DB1.DBB0[0..15]:RAW_BYTE_ARRAY y lo decodifica como BYTE.
+        assertEquals(DataType.candidatos("BYTE", 8), DataType.candidatos("RAW_BYTE_ARRAY", 8));
+        MemoryTag t = MemoryTag.parse("%DB1.DBB0[0..15]:RAW_BYTE_ARRAY");
+        assertEquals("RAW_BYTE_ARRAY", t.family());
+        assertEquals(16, t.byteCapacity());
+        assertFalse(DataType.candidatos(t.family(), t.codeBits()).isEmpty(),
+                "y el área tiene que poder usarse con ese alias");
+    }
+
+    @Test
+    void losNombresDeTipoDePlc4xSabenSuPropioTamano() {
+        // El tipo de un tag Siemens dice por sí mismo cuántos bits ocupa, así que no
+        // depende del código de área. INT son 16 bits, DINT 32 y LINT 64, igual que
+        // en el driver de PLC4X. bitsArea a 0 es el caso del tag con la forma corta,
+        // %DB1:0:DINT, que no trae código de área.
+        assertEquals(List.of(DataType.SHORT, DataType.USHORT),
+                DataType.candidatos("INT", 0));
+        assertEquals(List.of(DataType.SHORT, DataType.USHORT),
+                DataType.candidatos("UINT", 32), "el nombre manda sobre el código de área");
+        assertEquals(List.of(DataType.INT, DataType.UINT),
+                DataType.candidatos("DINT", 0));
+        assertEquals(List.of(DataType.INT, DataType.UINT),
+                DataType.candidatos("DWORD", 0));
+        assertEquals(List.of(DataType.LONG, DataType.ULONG),
+                DataType.candidatos("LINT", 0));
+        assertEquals(List.of(DataType.LONG, DataType.ULONG),
+                DataType.candidatos("LWORD", 0));
+    }
+
+    @Test
+    void unLrealDePlc4xEsUnDoubleYNoUnFloat() {
+        // LREAL son ocho bytes, así que ofrecer un float dejaría que se llene el
+        // área con datos más pequeños de los que el PLC va a leer.
+        assertEquals(List.of(DataType.DOUBLE), DataType.candidatos("LREAL", 64));
+        assertEquals(List.of(DataType.DOUBLE), DataType.candidatos("LREAL", 0));
+    }
+
+    @Test
+    void unTagDeSiemensConTipoDePlc4xEncuentraSusTipos() {
+        // El recorrido completo: el tag declara DINT en el formato de PLC4X y el
+        // área tiene que ofrecer los tipos enteros de cuatro bytes.
+        MemoryTag tag = MemoryTag.parse("%DB1.DBD0:DINT");
+        assertEquals("DINT", tag.family());
+        assertEquals(32, tag.codeBits());
+        assertEquals(List.of(DataType.INT, DataType.UINT),
+                DataType.candidatos(tag.family(), tag.codeBits()));
+
+        MemoryTag largo = MemoryTag.parse("%DB1.DBLD0:LREAL");
+        assertEquals("LREAL", largo.family());
+        assertEquals(64, largo.codeBits());
+        assertEquals(List.of(DataType.DOUBLE),
+                DataType.candidatos(largo.family(), largo.codeBits()));
+    }
+
+    @Test
     void stringYLosTiposS5S7NoTienenPesoNiSePuedenElegir() {
         List<DataType> sinPeso = List.of(DataType.STRING, DataType.S5TIME, DataType.S7DATE,
                 DataType.S7TIME, DataType.S7TOD, DataType.S7DAT, DataType.S7COUNTER,

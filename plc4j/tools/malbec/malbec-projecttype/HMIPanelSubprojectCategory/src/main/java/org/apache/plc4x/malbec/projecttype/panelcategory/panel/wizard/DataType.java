@@ -151,6 +151,7 @@ public enum DataType {
         }
         return switch (familia.toUpperCase()) {
             case "BYTE" -> bitsArea == 8 ? List.of(BYTE, UBYTE) : List.of();
+            case "UBYTE" -> List.of(BYTE, UBYTE);
             case "WORD" -> bitsArea == 16 ? List.of(WORD) : List.of();
             case "INTEGER" -> switch (bitsArea) {
                 case 16 -> List.of(SHORT, USHORT);
@@ -160,6 +161,32 @@ public enum DataType {
             };
             case "REAL" -> esReal(bitsArea) ? List.of(FLOAT, DOUBLE) : List.of();
             case "BOOL" -> bitsArea == 1 || bitsArea == 8 ? List.of(BOOLEAN) : List.of();
+
+            // Nombres de tipo de PLC4X, que es como llega el tipo en un tag
+            // Siemens. Cada uno dice por sí mismo su tamaño, así que no dependen del
+            // código de área: INT son 16 bits, DINT 32 y LINT 64, igual que en el
+            // driver. Sin estas ramas un tag como %DB1.DBD0:DINT se quedaba sin
+            // ningún tipo que ofrecer, porque DINT no era ninguna familia conocida.
+            //
+            // La tabla del driver es la referencia. En ella los enteros de ocho bits
+            // son SINT y USINT, y BYTE es un array de ocho booleanos; aquí los tres
+            // casos ofrecen los mismos tipos de un byte porque el espacio que
+            // reservan es idéntico y lo único que cambia es cómo se interpreta el
+            // contenido. RAW_BYTE_ARRAY es un alias de BYTE, según el driver.
+            case "INT", "UINT" -> List.of(SHORT, USHORT);
+            case "DINT", "UDINT", "DWORD" -> List.of(INT, UINT);
+            case "LINT", "ULINT", "LWORD" -> List.of(LONG, ULONG);
+            case "SINT", "USINT" -> List.of(BYTE, UBYTE);
+            case "CHAR" -> List.of(BYTE, UBYTE);
+            case "WCHAR" -> bitsArea == 16 ? List.of(WORD) : List.of(BYTE, UBYTE);
+            case "RAW_BYTE_ARRAY" -> List.of(BYTE, UBYTE);
+            case "USHORT" -> List.of(SHORT, USHORT);
+            case "ULONG" -> List.of(LONG, ULONG);
+            case "LREAL" -> List.of(DOUBLE);
+
+            // STRING, WSTRING y los temporales no llegan aquí: su tamaño depende de
+            // los caracteres o de la plataforma, así que no hay forma de calcular un
+            // offset con ellos. Los deja el catálogo como tipos sin peso.
             default -> List.of();
         };
     }

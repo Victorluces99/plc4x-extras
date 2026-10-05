@@ -46,43 +46,19 @@ import javax.swing.table.TableColumnModel;
 
 public final class WizardUi {
 
-    /** Campo de nombre: corto, es un identificador. */
     public static final int MAX_NOMBRE = 20;
-    /** Campo de descripción: cabe una frase con la fila ancha de la tabla. */
     public static final int MAX_DESCRIPCION = 60;
-
-    /** Marca de que la tabla ya tiene puesto su listener de reparto de ancho. */
     private static final String CLIENTE_REPARTIDO = "wizardUi.repartoAncho";
 
     private WizardUi() {
     }
 
-    /**
-     * Campo de texto con un número máximo de caracteres.
-     *
-     * <p>El tope va en el documento y no al guardar, que es lo único que impide que
-     * la tecla entre. Lo que sobra se recorta al vuelo en lugar de rechazarse: al
-     * teclear se ven los dígitos que caben y al pegar un texto largo se rellena
-     * hasta el tope, en vez de que el campo se quede igual sin explicación.</p>
-     *
-     * @param columnas ancho en columnas, como en el constructor de {@link JTextField}
-     * @param maximo caracteres admitidos
-     * @return el campo, ya acotado
-     */
     public static JTextField textoLimitado(int columnas, int maximo) {
         JTextField campo = new JTextField(columnas);
         campo.setDocument(new DocumentoLimitado(maximo));
         return campo;
     }
 
-    /**
-     * Documento que no deja pasar de {@code maximo} caracteres.
-     *
-     * <p>Lo que no cabe se recorta dentro de {@code insertString}: si el texto a
-     * insertar no cabe entero, se inserta sólo la parte que queda. Eso hace que el
-     * campo se rellene hasta el tope en lugar de quedarse con lo que tenía antes,
-     * que es lo que pasa si el carácter sobrante se rechaza sin más.</p>
-     */
     private static final class DocumentoLimitado extends PlainDocument {
 
         private final int maximo;
@@ -111,45 +87,17 @@ public final class WizardUi {
         scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
     }
 
-    /**
-     * Fija las columnas: no se reordenan y una no se ensancha a costa de las
-     * demás.
-     */
     public static void configColumns(JTable table) {
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         table.getTableHeader().setReorderingAllowed(false);
     }
 
-    /**
-     * Reparte el ancho que sobra en el visor entre las columnas, para que la tabla
-     * llegue al borde derecho y no quede la franja gris al lado.
-     *
-     * <p>Hace falta porque las columnas están en {@code AUTO_RESIZE_OFF}, que es lo
-     * que permite ensanchar una sin que se encogan las de al lado, pero también
-     * significa que ninguna crece para tapar el hueco. Son dos cosas que se estorban
-     * y aquí se resuelve repartiendo el sobrante a mano en vez de cambiar el modo de
-     * redimensionado.</p>
-     *
-     * <p>El reparto es proporcional al ancho que tiene cada columna, así que una
-     * columna que el usuario haya agrandado a mano conserva su proporción y no
-     * vuelve al ancho que le puso el ajuste automático.</p>
-     *
-     * <p>Si las columnas ya suman más que el visor no se toca ninguna: en ese caso
-     * hay barra horizontal y el hueco no llega a verse.</p>
-     *
-     * <p>Se vuelve a repartir cada vez que cambia el visor, porque mientras la tabla
-     * no se ha mostrado el ancho disponible es cero y el reparto se quedaría sin
-     * hacer.</p>
-     */
     public static void rellenarAnchoVisible(JTable tabla) {
         repartirAnchoVisible(tabla);
         Container padre = tabla.getParent();
         if (!(padre instanceof JViewport viewport)) {
             return;
         }
-        // El listener se pone una sola vez. Esta función se llama en cada refresco,
-        // y sin la marca cada uno añadiría su propio listener y el reparto se
-        // ejecutaría tantas veces como refrescos haya habido.
         if (Boolean.TRUE.equals(tabla.getClientProperty(CLIENTE_REPARTIDO))) {
             return;
         }
@@ -185,25 +133,11 @@ public final class WizardUi {
             return;
         }
         for (int i = 0; i < n; i++) {
-            // Hay que fijar los dos: con AUTO_RESIZE_OFF el ancho lo manda el
-            // preferido, así que tocar sólo el ancho se deshace en el siguiente
-            // ajuste por contenido.
             columnas.getColumn(i).setPreferredWidth(repartidos[i]);
             columnas.getColumn(i).setWidth(repartidos[i]);
         }
     }
 
-    /**
-     * Anchos nuevos tras repartir lo que sobra del visor.
-     *
-     * <p>Devuelve null cuando no hay nada que repartir: que no haya columna, que el
-     * visor no tenga ancho medido todavía, o que las columnas ya llenen el visor, en
-     * cuyo caso hay barra horizontal y tocar los anchos solo haría parpadear.</p>
-     *
-     * @param anchos ancho actual de cada columna
-     * @param disponible ancho del visor
-     * @return los anchos repartidos, o null si no hay hueco que llenar
-     */
     static int[] repartirProporcional(int[] anchos, int disponible) {
         if (anchos == null || anchos.length == 0 || disponible <= 0) {
             return null;
@@ -223,8 +157,6 @@ public final class WizardUi {
             repartido += extra;
             resultado[i] = anchos[i] + extra;
         }
-        // El redondeo de cada división deja algún píxel sin repartir; se le dan a la
-        // columna más ancha, que es la que peor lo lleva si se queda corta.
         int masAncha = 0;
         for (int i = 1; i < resultado.length; i++) {
             if (resultado[i] > resultado[masAncha]) {
@@ -270,7 +202,6 @@ public final class WizardUi {
         return panel;
     }
 
-    // Fila de botones de agregar / modificar / eliminar / cancelar. 
     public static JPanel buttonRow(JButton... buttons) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         for (JButton b : buttons) {
@@ -287,14 +218,12 @@ public final class WizardUi {
         target.add(new JLabel(text), g);
     }
 
-    //Título de paso en negrita, usado en los tres paneles. 
     public static JLabel stepTitle(String text) {
         JLabel title = new JLabel(text);
         title.setFont(title.getFont().deriveFont(java.awt.Font.BOLD, 14f));
         return title;
     }
 
-    // Título de formulario en negrita 
     public static JLabel formTitle(String text) {
         JLabel title = new JLabel(text);
         title.setFont(title.getFont().deriveFont(java.awt.Font.BOLD, 12f));

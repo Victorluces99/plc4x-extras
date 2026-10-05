@@ -21,6 +21,7 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Rectangle;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
 import javax.swing.BorderFactory;
@@ -89,6 +90,7 @@ public final class CreateDeviceDialog extends JDialog {
         // cortados sin forma de llegar a ellos.
         JScrollPane scroll = new JScrollPane(panel);
         scroll.setBorder(BorderFactory.createEmptyBorder());
+        // Con el scroll, un alto mayor que la pantalla no deja campos sin alcanzar.
         scroll.setMinimumSize(new Dimension(420, 260));
 
         JPanel content = new JPanel(new BorderLayout(0, 8));
@@ -110,11 +112,16 @@ public final class CreateDeviceDialog extends JDialog {
         btnOk.addActionListener(e -> guardar());
         btnCancel.addActionListener(e -> dispose());
 
-        // Sin ancho fijo en píxeles: pack() respeta el ancho natural de los campos. El
-        // tamaño queda congelado con setResizable(false), que es lo que impide
-        // estirarlo o encogerlo, de modo que el mínimo ya no hace falta.
+        // El tamaño sale de pack(), que ahora sí respeta el ancho de los campos, y se
+        // recorta a la pantalla porque una ventana fija no se puede agrandar luego.
         setResizable(false);
         pack();
+        Rectangle pantalla = getGraphicsConfiguration() != null
+                ? getGraphicsConfiguration().getBounds()
+                : new Rectangle(0, 0, 1024, 768);
+        Dimension pref = getPreferredSize();
+        setSize(Math.min(pref.width, pantalla.width - 80),
+                Math.min(pref.height, pantalla.height - 80));
         setLocationRelativeTo(owner);
     }
 

@@ -225,4 +225,15 @@ class CreateDevicePanelTest {
         assertTrue(url.contains("controller-type=S7_300"),
                 "la URL debería quedar con los defaults del modelo nuevo: " + url);
     }
+
+    @Test
+    void elFormularioEsAnchoSuficienteParaPoderLeerse() {
+        // La ventana se empaqueta con pack() y no se puede redimensionar, así que si
+        // el formulario sale estrecho no hay forma de estirarlo: la etiqueta se
+        // queda ilegible y no hay dónde ampliar. Los campos necesitan ancho propio.
+        int ancho = panelCompleto().getPreferredSize().width;
+        assertTrue(ancho >= 700,
+                "el formulario mide " + ancho + " px de ancho y la ventana se empaqueta"
+                        + " a ese tamaño; los campos se están quedando con su mínimo");
+    }
 }

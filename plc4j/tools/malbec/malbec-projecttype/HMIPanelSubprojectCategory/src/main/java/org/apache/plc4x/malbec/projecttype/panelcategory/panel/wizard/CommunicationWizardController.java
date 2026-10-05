@@ -361,31 +361,19 @@ public class CommunicationWizardController {
         return todos;
     }
 
-    /**
-     * Offset siguiente del área, relativo a su byte base. La dirección real es
-     * {@code baseByte + offset}.
-     *
-     * <p>Devuelve el primer hueco libre y no el que seguiría la cuenta. La cuenta
-     * no vale: al borrar una variable del medio, las que quedan después conservan
-     * su offset y la siguiente caería justo encima de una de ellas. Recorriendo lo
-     * ocupado el hueco se rellena sin mover nada, que es lo que hace falta para que
-     * borrar no descuadre la memoria.</p>
-     *
-     * <p>Los booleanos se direccionan {@code byte.bit} y el resto con el byte
-     * pelado.</p>
-     *
-     * @return el offset, o null si el área no tiene tag válido, el tipo no tiene
-     *         tamaño fijo o ya no queda hueco
-     */
     public String nextOffset(String areaUuid, DataType type) {
         MemoryTag tag = tagOf(areaUuid);
         if (tag == null || type == null || !type.habilitado() || tag.byteCapacity() <= 0) {
             return null;
         }
         Set<Integer> ocupados = bitsOcupados(areaUuid);
-        int desde = tag.firstByte() * 8;
+        
+        // Si firstByte es negativo (sin rango explícito), empezamos desde el byte 0
+        int byteInicio = Math.max(0, tag.firstByte());
+        int desde = byteInicio * 8;
         int hasta = desde + tag.byteCapacity() * 8;
         int ancho = type.slotBits();
+        
         for (int bits = desde; bits + ancho <= hasta; bits += ancho) {
             if (libre(bits, ancho, ocupados)) {
                 return type.bitAddressed()
@@ -396,15 +384,6 @@ public class CommunicationWizardController {
         return null;
     }
 
-    /**
-     * true si los {@code ancho} bits que empiezan en {@code desde} están libres.
-     *
-     * <p>No basta con mirar el primero. En un área de diez bytes con int, los
-     * offsets 0, 4 y 8 están detrás de tres variables; el hueco que queda son los
-     * bytes 9 a 11, que ni existen. Devolver el byte 9 daría por buena una variable
-     * que se saldría del área, y el error sólo aparecería al leer del PLC. Por eso
-     * se comprueba la ranura entera y que quepa dentro del área.</p>
-     */
     private static boolean libre(int desde, int ancho, Set<Integer> ocupados) {
         for (int bit = desde; bit < desde + ancho; bit++) {
             if (ocupados.contains(bit)) {
@@ -414,16 +393,6 @@ public class CommunicationWizardController {
         return true;
     }
 
-    /**
-     * Bits que ocupa cada variable del área, puesta su extensión completa.
-     *
-     * <p>Se marcan todos los bits de cada variable, no sólo el del offset. Un int
-     * en el byte 0 ocupa los bytes 0 a 3, y si sólo se marcara el 0 una variable
-     * que empezara en el byte 2 se solaparía con ella sin que nada lo notara.</p>
-     *
-     * <p>Si el tipo no se reconoce, se marca el offset y un byte entero, que es lo
-     * mínimo que se puede asumir y lo bastante para no solapar dos variables.</p>
-     */
     private Set<Integer> bitsOcupados(String areaUuid) {
         Set<Integer> ocupados = new HashSet<>();
         for (CommConfigData.PvConfig pv : state.pvsOfArea(areaUuid)) {
@@ -443,7 +412,7 @@ public class CommunicationWizardController {
     /**
      * Offset de una variable contado en bits desde el inicio del rango.
      *
-     * @return los bits, o -1 si el offset guardado no se entiende
+     * retorna los bits o -1 si el offset guardado no se entiende
      */
     private static int bitsDeOffset(String offset) {
         if (offset == null || offset.isEmpty()) {

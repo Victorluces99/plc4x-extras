@@ -569,13 +569,46 @@ class AreaCapacityTest {
 
     @Test
     void unTipoDePlantaDesconocidoNoSeDescarta() {
-        // Un tipo que no aparece en el catÃ¡logo no debe dejar el Ã¡rea sin variables:
-        // es preferible mostrar de mÃ¡s que dejar al usuario sin nada que aÃ±adir.
+        // Un tipo que no aparece en el catálogo no debe dejar el área sin variables:
+        // es preferible mostrar de más que dejar al usuario sin nada que añadir.
         CommunicationWizardController c = controllerCon("%DB231.DBD0[0..99]:INTEGER");
         addPv(c, "a", "0", "int");
         assertEquals(DataType.INT, c.lockedType(AREA));
-        assertTrue(c.areaAdmiteTipo(AREA, "UDINT", DataType.INT));
-        assertTrue(c.areaAdmiteTipo(AREA, "LREAL", DataType.INT));
+        assertTrue(c.areaAdmiteTipo(AREA, "UDINT", DataType.INT),
+                "UDINT sí es una familia y es de los mismos cuatro bytes");
+        assertTrue(c.areaAdmiteTipo(AREA, "INVENTADO", DataType.INT),
+                "un nombre que no se conoce no debe descartar la variable");
         assertTrue(c.areaAdmiteTipo(AREA, "", DataType.INT));
+    }
+
+    @Test
+    void unTipoConocidoDeOtraFamiliaAhoraSeRechaza() {
+        // Al principio LREAL no era una familia conocida, así que se colaba en un área
+        // de enteros: findIgnoreCase devolvía null y el nombre desconocida pasaba
+        // sin filtro. Ahora que LREAL sí se reconoce, se ve que es un double y no
+        // cabe en un área que ya está fijada a INT.
+        CommunicationWizardController c = controllerCon("%DB231.DBD0[0..99]:INTEGER");
+        addPv(c, "a", "0", "int");
+        assertFalse(c.areaAdmiteTipo(AREA, "LREAL", DataType.INT),
+                "un double no entra en un área de enteros");
+    }
+
+    @Test
+    void unAreaDeLrealAdmiteSusPropiasVariables() {
+        // La otra mitad: el nombre de PLC4X tiene que servir para lo suyo, no sólo
+        // para rechazar. LREAL son ocho bytes, así que el área queda en DOUBLE.
+        CommunicationWizardController c = controllerCon("%DB231.DBLD0[0..7]:LREAL");
+        assertEquals(List.of(DataType.DOUBLE), c.typesAllowed(AREA));
+        assertTrue(c.areaAdmiteTipo(AREA, "LREAL", DataType.DOUBLE));
+        assertFalse(c.areaAdmiteTipo(AREA, "LREAL", DataType.FLOAT),
+                "y un float no cabe en un área de ocho bytes");
+    }
+
+    @Test
+    void unAreaDeDintQuedaFijadaEnLosEnterosDeCuatroBytes() {
+        // DINT en la notación de PLC4X son 32 bits: el área ofrece INT y UINT, no
+        // los enteros de dos ni de ocho.
+        CommunicationWizardController c = controllerCon("%DB231.DBD0[0..7]:DINT");
+        assertEquals(List.of(DataType.INT, DataType.UINT), c.typesAllowed(AREA));
     }
 }

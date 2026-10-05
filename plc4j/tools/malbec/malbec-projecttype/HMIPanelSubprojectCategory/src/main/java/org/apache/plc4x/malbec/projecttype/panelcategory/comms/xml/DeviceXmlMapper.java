@@ -137,12 +137,12 @@ public final class DeviceXmlMapper {
                 source.toFirstChild();
                 source.copyXml(cursor);
             } finally {
-                source.dispose();
+                source.close();
             }
         } catch (Exception e) {
             throw new IllegalStateException("No se pudo serializar el contenido dev/comms", e);
         } finally {
-            cursor.dispose();
+            cursor.close();
         }
     }
 
@@ -253,7 +253,7 @@ public final class DeviceXmlMapper {
                 } while (cursor.toNextSibling());
             }
         } finally {
-            cursor.dispose();
+            cursor.close();
         }
         return result;
     }
@@ -270,7 +270,7 @@ public final class DeviceXmlMapper {
                 } while (cursor.toNextSibling());
             }
         } finally {
-            cursor.dispose();
+            cursor.close();
         }
         return null;
     }
@@ -281,7 +281,7 @@ public final class DeviceXmlMapper {
             String value = cursor.getAttributeText(new QName(name));
             return value == null ? "" : value;
         } finally {
-            cursor.dispose();
+            cursor.close();
         }
     }
 
@@ -298,7 +298,7 @@ public final class DeviceXmlMapper {
             }
             return "";
         } finally {
-            cursor.dispose();
+            cursor.close();
         }
     }
 

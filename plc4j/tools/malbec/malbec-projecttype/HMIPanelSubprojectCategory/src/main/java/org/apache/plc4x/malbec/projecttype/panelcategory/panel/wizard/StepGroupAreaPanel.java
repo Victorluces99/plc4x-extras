@@ -40,61 +40,40 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 
-/**
- * Paso 2 de 3: grupos de escaneo y áreas de memoria.
- *
- * <p>La tabla de áreas no es editable ({@link NonEditableTableModel}): la única
- * forma de cambiar algo es el formulario, que valida. El grupo de escaneo es
- * requisito previo para crear un área y no se modifica una vez creado el
- * área, así que ambos campos quedan bloqueados mientras se edita.</p>
- */
 public class StepGroupAreaPanel extends JPanel {
 
     private static final String SIN_GRUPO = "SIN GRUPO";
-
     private final CommunicationWizardController controller;
-
     private final NonEditableTableModel groupModel = new NonEditableTableModel(new String[]{
         "Nombre", "Descripción", "Scantime (ms)", "Enable", "UUID"});
     private final JTable tbGroups = new JTable(groupModel);
-
     private final NonEditableTableModel itemModel = new NonEditableTableModel(new String[]{
         "Nombre", "Descripción", "Tag", "Tipo", "Libre", "Grupo", "Enable", "UUID"});
     private final JTable tbItems = new JTable(itemModel);
-
     private final JTextField txtGroupName =
             WizardUi.textoLimitado(14, WizardUi.MAX_NOMBRE);
     private final JTextField txtGroupDescription =
             WizardUi.textoLimitado(14, WizardUi.MAX_DESCRIPCION);
     private final JComboBox<String> cbGroupScantime = new JComboBox<>();
     private final JCheckBox chkGroupEnable = new JCheckBox("Enable", true);
-
     private final JTextField txtItemName =
             WizardUi.textoLimitado(14, WizardUi.MAX_NOMBRE);
     private final JTextField txtItemDescription =
             WizardUi.textoLimitado(14, WizardUi.MAX_DESCRIPCION);
-    // El tag no lleva límite: es una dirección, y recortarla daría una dirección
-    // distinta, que es peor que un campo un poco largo.
     private final JTextField txtItemTag = new JTextField(14);
     private final JComboBox<CommConfigData.GroupConfig> cbItemGroup = new JComboBox<>();
     private final JCheckBox chkItemEnable = new JCheckBox("Enable", true);
-
     private final JButton btnAddGroup = new JButton("Añadir");
     private final JButton btnUpdateGroup = new JButton("Modificar");
     private final JButton btnDeleteGroup = new JButton("Eliminar");
     private final JButton btnCancelGroup = new JButton("Cancelar");
     private final JLabel lblGroupFormTitle = WizardUi.formTitle("Nuevo grupo de escaneo");
-
     private final JButton btnAddItem = new JButton("Añadir");
     private final JButton btnUpdateItem = new JButton("Modificar");
     private final JButton btnDeleteItem = new JButton("Eliminar");
     private final JButton btnCancelItem = new JButton("Cancelar");
     private final JLabel lblItemFormTitle =
             WizardUi.formTitle("Nueva área de memoria (del dispositivo seleccionado)");
-
-    /** Uuid del grupo en modo modificación, o null si se está agregando uno. */
-    private String editGroupUuid;
-    /** Uuid del área en modo modificación, o null si se está agregando una. */
     private String editItemUuid;
 
     private boolean groupColumnsSized;
@@ -256,9 +235,6 @@ public class StepGroupAreaPanel extends JPanel {
         add(areaSplit, BorderLayout.CENTER);
     }
 
-    // Visibles para los tests: las tablas son espejo del estado y su comportamiento
-    // de columnas es parte de lo que hay que comprobar.
-
     JTable getGroupTable() {
         return tbGroups;
     }
@@ -266,8 +242,6 @@ public class StepGroupAreaPanel extends JPanel {
     JTable getItemTable() {
         return tbItems;
     }
-
-    // Sólo para pruebas: para comprobar el tope de caracteres de cada campo.
 
     JTextField getGroupName() {
         return txtGroupName;
@@ -289,7 +263,6 @@ public class StepGroupAreaPanel extends JPanel {
         return txtItemTag;
     }
 
-    /** Repuebla tablas y reevalúa el estado de los formularios. */
     public void refresh() {
         rebuildTables();
         refreshGroupCombo();
@@ -329,17 +302,10 @@ public class StepGroupAreaPanel extends JPanel {
             WizardUi.sizeColumnsToContent(tbItems, 90, 260);
             itemColumnsSized = true;
         }
-        // El reparto va en cada refresco y no sólo al medir: el ajuste por contenido
-        // se lleva por delante el ancho de las columnas, y el visor puede cambiar de
-        // tamaño después de la primera vez.
         WizardUi.rellenarAnchoVisible(tbGroups);
         WizardUi.rellenarAnchoVisible(tbItems);
     }
 
-    /**
-     * Tipo al que está fijada el área. El guion significa que todavía admite varios:
-     * el tag no declara familia y el área aún no tiene variables.
-     */
     private String tipoDelArea(CommConfigData.ItemConfig item) {
         DataType type = controller.lockedType(item.getUuid());
         if (type == null) {
@@ -348,7 +314,6 @@ public class StepGroupAreaPanel extends JPanel {
         return type.bitAddressed() ? type.label() + " (1 bit)" : type.label();
     }
 
-    /** Bytes que abarca el área, o un aviso de que no se pueden calcular. */
     private String capacidadDe(CommConfigData.ItemConfig item) {
         MemoryTag tag = MemoryTag.parse(item.getTag());
         if (tag == null) {
@@ -358,12 +323,6 @@ public class StepGroupAreaPanel extends JPanel {
         return bytes > 0 ? bytes + " bytes" : "sin límite";
     }
 
-    /**
-     * El grupo de escaneo es un requisito previo: sin al menos un grupo no se
-     * puede crear ninguna área de memoria, así que el formulario queda bloqueado.
-     * Al modificar un área existente el nombre y el grupo van bloqueados: el
-     * nombre es la identidad del área y el grupo no se cambia desde la UI.
-     */
     private void refreshItemFormState() {
         boolean hayGrupo = !controller.getState().getGroups().isEmpty();
         boolean editando = editItemUuid != null;
@@ -378,10 +337,6 @@ public class StepGroupAreaPanel extends JPanel {
         chkItemEnable.setEnabled(hayGrupo);
     }
 
-    /**
-     * Estado del formulario de grupos: el nombre queda bloqueado al modificar
-     * porque es la identidad del grupo.
-     */
     private void refreshGroupFormState() {
         boolean editando = editGroupUuid != null;
         btnAddGroup.setEnabled(!editando);
@@ -394,7 +349,6 @@ public class StepGroupAreaPanel extends JPanel {
         chkGroupEnable.setEnabled(true);
     }
 
-    /** Repuebla el combo de grupos conservando la selección. */
     private void refreshGroupCombo() {
         CommConfigData.GroupConfig sel = (CommConfigData.GroupConfig) cbItemGroup.getSelectedItem();
         cbItemGroup.removeAllItems();
@@ -436,10 +390,6 @@ public class StepGroupAreaPanel extends JPanel {
         refresh();
     }
 
-    /**
-     * Carga el grupo de la fila seleccionada en el formulario, con el nombre
-     * bloqueado: el nombre y el uuid son la identidad del grupo y no se modifican.
-     */
     private void onGroupRowSelected() {
         int row = tbGroups.getSelectedRow();
         if (row < 0 || row >= controller.getState().getGroups().size()) {
@@ -483,10 +433,6 @@ public class StepGroupAreaPanel extends JPanel {
         refresh();
     }
 
-    /**
-     * Un grupo con áreas asociadas no se puede eliminar: como el grupo es
-     * obligatorio para cada área, borrarlo dejaría áreas sin grupo.
-     */
     private void deleteGroup() {
         CommConfigData.GroupConfig group = controller.getState().groupByUuid(editGroupUuid);
         if (group == null) {
@@ -509,24 +455,6 @@ public class StepGroupAreaPanel extends JPanel {
     }
 
     // --- áreas ---------------------------------------------------------------
-
-    /**
-     * Comprueba el tag del área. Sólo se para lo que es un error evidente: que esté
-     * vacío, que el rango vaya al revés o que pise a otra área.
-     *
-     * <p>El formato en sí no se juzga. El tag depende del driver y del PLC, así que
-     * se acepta tanto {@code %DB231.DBB0[0..1848]:BOOL} como
-     * {@code DB1.DBX0.0}, {@code MW2}, {@code Control_Panel.Start_Button} o
-     * {@code 40001}. Un tag del que no se reconoce nada se guarda tal cual.</p>
-     *
-     * <p>El tag tampoco puede estar repetido. El solapamiento de bytes sólo
-     * detecta el conflicto cuando el tag se puede desdoblar en bloque y código, de
-     * modo que dos áreas con el mismo tag simbólico se colarían; por eso el tag
-     * repetido se comprueba aparte, antes.</p>
-     *
-     * @param uuidEnEdicion área que se está modificando, que no choca consigo misma
-     * @return el mensaje para el usuario, o null si el tag sirve
-     */
     private String problemaDelTag(String tag, String uuidEnEdicion) {
         if (tag.isEmpty()) {
             return "Indique el tag del área. Por ejemplo: "
@@ -593,12 +521,7 @@ public class StepGroupAreaPanel extends JPanel {
         limpiarFormularioItem();
         refresh();
     }
-
-    /**
-     * Carga el área de la fila seleccionada en el formulario. El nombre y el
-     * grupo quedan bloqueados: el nombre es la identidad del área y el grupo de
-     * escaneo no se cambia desde la UI.
-     */
+    
     private void onItemRowSelected() {
         int row = tbItems.getSelectedRow();
         if (row < 0 || row >= controller.getState().getItems().size()) {
@@ -651,11 +574,6 @@ public class StepGroupAreaPanel extends JPanel {
         refresh();
     }
 
-    /**
-     * Elimina el área. Si tiene variables configuradas también las elimina, para
-     * no dejar variables apuntando a un área que ya no existe; de eso se avisa
-     * antes de confirmar.
-     */
     private void deleteItem() {
         CommConfigData.ItemConfig item = controller.getState().itemByUuid(editItemUuid);
         if (item == null) {
@@ -683,11 +601,6 @@ public class StepGroupAreaPanel extends JPanel {
         refresh();
     }
 
-    /**
-     * Avisa una vez por apertura si hay áreas sin grupo de escaneo, dato incompleto
-     * que solo puede venir de configuraciones anteriores a la persistencia del
-     * grupo en el XML.
-     */
     private void warnMissingGroups() {
         if (controller.getState().isMissingGroupsWarned()) {
             return;
@@ -705,12 +618,10 @@ public class StepGroupAreaPanel extends JPanel {
                 "Áreas sin grupo de escaneo", JOptionPane.WARNING_MESSAGE);
     }
 
-    /** El paso 3 sólo ofrece áreas configuradas. */
     public boolean hasItems() {
         return !controller.getState().getItems().isEmpty();
     }
 
-    /** El diálogo lo invoca cuando se cambia de dispositivo. */
     public void onDeviceChanged() {
         salirDeEdicionGrupo();
         salirDeEdicionItem();

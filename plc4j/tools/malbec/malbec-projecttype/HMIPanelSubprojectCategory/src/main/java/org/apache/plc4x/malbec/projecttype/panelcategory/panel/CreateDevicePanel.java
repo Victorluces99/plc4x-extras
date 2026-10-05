@@ -20,6 +20,7 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -92,6 +93,12 @@ import org.w3c.dom.NodeList;
 public final class CreateDevicePanel extends JPanel {
 
     private static final String SELECCIONE = "-- Seleccione --";
+
+    /** Ancho de los campos del formulario, en píxeles. */
+    private static final int ANCHO_CAMPO = 280;
+    /** Para los campos que van en pareja con otro, que no caben dos de ANCHO_CAMPO. */
+    private static final int ANCHO_CAMPO_CORTO = 130;
+
     private final transient Project project;
     // --- Marca y modelo ---
     private final JComboBox<String> cbMarca
@@ -137,7 +144,8 @@ public final class CreateDevicePanel extends JPanel {
         this.modeloAlAbrir = edit == null ? null : edit.getModel();
         setLayout(new BorderLayout(0, 8));
         setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-        initData();
+initData();
+        darAnchoALosCampos();
         buildUi();
         loadS88Nodes();
         if (editando) {
@@ -147,7 +155,23 @@ public final class CreateDevicePanel extends JPanel {
         }
     }
 
-    // --- Utilidades de layout propias ----------------------
+    // --- Utilidades de layout propios----------------------
+    /** Un JTextField sin nada mide lo mínimo, y así el formulario se empaqueta pequeño. */
+    private static void ancho(JComponent campo, int px) {
+        campo.setPreferredSize(new Dimension(px, campo.getPreferredSize().height));
+    }
+
+    private void darAnchoALosCampos() {
+        for (JComponent campo : List.of(txtProtocol, txtDeviceName, txtDeviceKey,
+                txtDescription, txtUUID, txtS88UUID, txtHost, txtParamValue,
+                txtUrlPreview, cbMarca, cbModelo, cbS88Node, cbParameter)) {
+            ancho(campo, ANCHO_CAMPO);
+        }
+        for (JComponent campo : List.of(txtPort, cbTransport)) {
+            ancho(campo, ANCHO_CAMPO_CORTO);
+        }
+    }
+
     private static GridBagConstraints formConstraints() {
         GridBagConstraints g = new GridBagConstraints();
         g.insets = new Insets(3, 8, 3, 8);

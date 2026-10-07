@@ -23,21 +23,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Builder de conexiones Modbus orientado a las variantes y transportes que
- * soporta.
- * <ul>
- *   <li>Modbus TCP ({@code modbus-tcp}): transports tcp, tls, tls-psk, udp (default tcp).</li>
- *   <li>Modbus RTU ({@code modbus-rtu}): transports serial, tcp, tls, tls-psk, udp (default serial).</li>
- *   <li>Modbus ASCII ({@code modbus-ascii}): transports serial, tcp, tls, tls-psk, udp (default serial).</li>
- * </ul>
- * El catálogo de opciones depende del transporte activo (opciones comunes +
- * opciones {@code serial.*}, {@code tcp.*}, {@code udp.*}, {@code tls.*} o {@code tls-psk.*};
- * los transportes TLS y TLS-PSK heredan además las opciones {@code tcp.*}).
- */
+
 public class ModbusPanelBuilder implements DeviceDynamicPanelBuilder {
 
-    /** Variantes Modbus y sus transportes admitidos según el driver PLC4X. */
     public enum ModbusVariant {
         TCP("modbus-tcp", "tcp", new String[]{"tcp", "tls", "tls-psk", "udp"}),
         RTU("modbus-rtu", "serial", new String[]{"serial", "tcp", "tls", "tls-psk", "udp"}),
@@ -75,7 +63,6 @@ public class ModbusPanelBuilder implements DeviceDynamicPanelBuilder {
         }
     }
 
-    /** Opciones aplicables a cualquier variante y transporte. */
     private static final LinkedHashMap<String, String> COMMON_OPTIONS = new LinkedHashMap<>();
     static {
         COMMON_OPTIONS.put("default-unit-identifier", "1");
@@ -86,7 +73,6 @@ public class ModbusPanelBuilder implements DeviceDynamicPanelBuilder {
         COMMON_OPTIONS.put("max-registers-per-request", "125");
     }
 
-    /** Opciones específicas de cada transporte. */
     private static final Map<String, LinkedHashMap<String, String>> TRANSPORT_OPTIONS = new LinkedHashMap<>();
     static {
         LinkedHashMap<String, String> serial = new LinkedHashMap<>();
@@ -114,9 +100,7 @@ public class ModbusPanelBuilder implements DeviceDynamicPanelBuilder {
         tcp.put("tcp.local-address", "");
         tcp.put("tcp.local-port", "0");
         TRANSPORT_OPTIONS.put("tcp", tcp);
-
-        // TLS y TLS-PSK extienden la config TCP: heredan las opciones tcp.*
-        // y agregan las propias (según org.apache.plc4x.java.transport.tls.config).
+        
         LinkedHashMap<String, String> tls = new LinkedHashMap<>(tcp);
         tls.put("tls.verify", "true");
         tls.put("tls.ignore-common-name", "false");

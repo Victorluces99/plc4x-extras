@@ -27,14 +27,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Reparación de UUID al cargar {@code comunicacion.xml}.
- *
- * <p>Un {@code uuid} ausente se lee como cadena vacía, y un dispositivo con el
- * UUID vacío nunca encuentra su lugar en {@code upsertDevice}: modificarlo lo
- * agregaba como uno nuevo en lugar de reemplazarlo. La reparación deja el
- * archivo con una identidad válida en la primera carga.
- */
 class HMICommunicationModelTest {
 
     private DeviceConfigData device(String uuid, String nombre) {

@@ -34,20 +34,7 @@ private final String s88Node;
     private final String deviceKey;
     private final String specificParameters;
 
-//    public DeviceConfigData(String brand, String model, String protocol, String deviceName, 
-//                            String description, String uuid, boolean enabled, 
-//                            String s88Node, String s88Uuid, String specificParameters) {
-//        this.brand = brand;
-//        this.model = model;
-//        this.protocol = protocol;
-//        this.deviceName = deviceName;
-//        this.description = description;
-//        this.uuid = uuid;
-//        this.enabled = enabled;
-//        this.s88Node = s88Node;
-//        this.s88Uuid = s88Uuid;
-//        this.specificParameters = specificParameters;
-//    }
+
     public DeviceConfigData(Properties pDevice) {
         this.brand = pDevice.getProperty("brand");
         this.model = pDevice.getProperty("model");

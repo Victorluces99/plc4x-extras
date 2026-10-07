@@ -34,11 +34,6 @@ import org.openide.filesystems.FileEvent;
 import org.openide.filesystems.FileObject;
 import org.openide.util.ChangeSupport;
 
-/**
- * NetBeans-aware wrapper for {@link CommunicationsConfig}. Manages the
- * {@code comunicacion.xml} lifecycle on the project directory:
- * reload on external changes, auto-materialization of the template and save.
- */
 public final class HMICommunicationModel {
 
     public static final String CONFIG_FILE = "comunicacion.xml";
@@ -128,22 +123,6 @@ public final class HMICommunicationModel {
         return repararUuidsAusentes(config);
     }
 
-    /**
-     * Asigna un UUID a los dispositivos que llegaron sin él.
-     *
-     * <p>El UUID es la identidad del dispositivo: {@code CommunicationsConfig}
-     * matchea por él, así que uno vacío nunca encuentra su lugar y cada
-     * modificación lo agrega como un dispositivo nuevo en vez de reemplazarlo.
-     * La alta lo genera siempre, pero el atributo puede faltar si el
-     * {@code comunicacion.xml} es más viejo que él o si alguien editó el
-     * archivo a mano, y en ese caso la identidad rota entraba en silencio.
-     *
-     * <p>Se repara al cargar y no en el alta porque el alta ya valida, y porque
-     * el archivo puede haber entrado por cualquier otro lado. Queda registrado
-     * en consola para que el cambio de identidad sea visible y no un misterio.
-     *
-     * @return {@code true} si se tuvo que completar algún UUID
-     */
     static boolean repararUuidsAusentes(CommunicationsConfig config) {
         boolean reparado = false;
         for (int i = 0; i < config.getDevices().size(); i++) {
@@ -168,8 +147,6 @@ public final class HMICommunicationModel {
             p.put("s88Uuid", device.getS88Uuid() == null ? "" : device.getS88Uuid());
             p.put("specificParameters",
                     device.getSpecificParameters() == null ? "" : device.getSpecificParameters());
-            // getDevices() devuelve una vista no modificable, así que el
-            // reemplazo va por la lista real que mantiene la configuración.
             config.replaceDevice(i, new DeviceConfigData(p));
         }
         return reparado;
@@ -203,11 +180,6 @@ public final class HMICommunicationModel {
         return config.removeDevice(uuid);
     }
 
-    /*
-       Guarda la configuración en comunicacion.xml y la vuelca a la base
-       de datos {@code boot.db} del proyecto.
-       return true si el XML se guardó y la base de datos quedó actualizada
-     */
     public boolean save() {
         try {
             FileObject projectDir = project.getProjectDirectory();

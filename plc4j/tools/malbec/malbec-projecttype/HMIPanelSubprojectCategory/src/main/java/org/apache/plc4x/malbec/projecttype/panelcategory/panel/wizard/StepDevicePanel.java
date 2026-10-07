@@ -28,21 +28,11 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
 
-/**
- * Paso 1 de 3: elección del dispositivo.
- *
- * <p>El panel no lee el modelo ni guarda nada; pide al controlador la lista de
- * dispositivos y le avisa cuál quedó seleccionado. El diálogo se entera del
- * cambio mediante {@link #setOnDeviceChanged} para poder refrescar los pasos
- * siguientes, que en el asistente monolithico era una sola cascada de llamadas.</p>
- */
 public class StepDevicePanel extends JPanel {
 
     private final CommunicationWizardController controller;
     private final JComboBox<DeviceConfigData> cbDevice = new JComboBox<>();
     private final JLabel lblDeviceInfo = new JLabel(" ");
-
-    /** Evita que poblar el combo dispare la carga repetidas veces. */
     private boolean populating;
     private Runnable onDeviceChanged;
 
@@ -93,7 +83,6 @@ public class StepDevicePanel extends JPanel {
         add(inner, BorderLayout.CENTER);
     }
 
-    /** Vuelve a poblar el combo conservando el dispositivo ya elegido. */
     public void refresh() {
         refreshDevices();
     }
@@ -137,7 +126,6 @@ public class StepDevicePanel extends JPanel {
         }
     }
 
-    /** El diálogo lo usa para preseleccionar un dispositivo concreto. */
     public void selectDeviceByUuid(String uuid) {
         if (uuid == null) {
             return;

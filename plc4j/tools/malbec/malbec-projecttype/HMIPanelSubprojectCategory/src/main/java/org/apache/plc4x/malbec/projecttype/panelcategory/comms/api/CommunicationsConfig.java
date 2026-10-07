@@ -49,17 +49,6 @@ public final class CommunicationsConfig {
         devices.add(device);
     }
 
-    /**
-     * Agrega o reemplaza un dispositivo por su UUID.
-     *
-     * <p>El UUID es la identidad: sin él no hay forma de saber cuál de los
-     * dispositivos guardados se está modificando. El alta lo valida y la carga
-     * del modelo lo completa, así que un UUID vacío acá significa que algo se
-     * rompió aguas arriba. No se compensa inventando una clave de reserva porque
-     * dos altas con la misma clave dejarían de ser dos dispositivos: se avisa
-     * en consola y se agrega igual, que es lo que pasaba antes y lo que dejó
-     * duplicados sin que nadie lo notara.
-     */
     public void upsertDevice(DeviceConfigData device) {
         if (device.getUuid() == null || device.getUuid().isBlank()) {
             System.err.println("upsertDevice: el dispositivo '" + device.getDeviceName()
@@ -77,15 +66,6 @@ public final class CommunicationsConfig {
         devices.add(device);
     }
 
-    /**
-     * Reemplaza el dispositivo de la posición dada.
-     *
-     * <p>Existe para la reparación de UUID de la carga, que no puede usar
-     * {@link #addDevice} ni {@link #upsertDevice} porque el dispositivo a
-     * corregir no tiene UUID con el que matchear.
-     *
-     * @throws IndexOutOfBoundsException si la posición no existe
-     */
     public void replaceDevice(int index, DeviceConfigData device) {
         devices.set(index, device);
     }

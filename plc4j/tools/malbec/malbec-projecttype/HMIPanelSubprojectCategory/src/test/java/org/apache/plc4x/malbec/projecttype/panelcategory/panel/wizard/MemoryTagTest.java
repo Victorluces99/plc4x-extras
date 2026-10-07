@@ -26,30 +26,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-/**
- * El tag se interpreta con la gramática del driver S7 de PLC4X, que es la
- * notación de TIA Portal: {@code %{Área}{dirección}[{selección}]:{TIPO}}.
- *
- * <p>Hay tres cosas que se prueban aparte y que se suelen confundir al leer el
- * código:
- *
- * <ul>
- *   <li><strong>La selección va antes de los dos puntos</strong> y la cantidad
- *       después. No es lo mismo {@code %DB1.DBB0[10]:BYTE}, que es un elemento, que
- *       {@code %DB1.DBB0:BYTE[10]}, que son diez.</li>
- *   <li><strong>El tipo va tras los dos puntos</strong>, y es la familia del área.</li>
- *   <li><strong>Ningún tag se rechaza</strong> por su formato. Cuando el driver es
- *       el que va a validar la dirección contra el PLC real, rechazarla aquí sólo
- *       impediría crear áreas que sí funcionan.</li>
- * </ul>
- */
 class MemoryTagTest {
-
-    // --- la gramática de PLC4X ------------------------------------------------
 
     @Test
     void laFormaGeneralConRangoYTipo() {
-        // %DB231.DBB0[0..1848]:BYTE, tal como se copia de TIA Portal.
         MemoryTag t = MemoryTag.parse("%DB231.DBB0[0..1848]:BYTE");
         assertEquals("DB231", t.block());
         assertEquals("DBB", t.code());
@@ -63,8 +43,6 @@ class MemoryTagTest {
 
     @Test
     void laCantidadVaDespuesDelTipo() {
-        // La otra forma de acotar el área: :BYTE[1849] son mil ochocientas
-        // cuarenta y nueve bytes, y el corchete va detrás del tipo.
         MemoryTag t = MemoryTag.parse("%DB231.DBB0:BYTE[1849]");
         assertEquals("DB231", t.block());
         assertEquals("DBB", t.code());
@@ -75,8 +53,6 @@ class MemoryTagTest {
 
     @Test
     void unIndiceSueltoAntesDelTipoEsUnSoloElemento() {
-        // %DB1.DBB0[10]:BYTE es el byte 10 y nada más. No son diez bytes: por eso
-        // el orden importa, porque :BYTE[10] serían diez.
         MemoryTag t = MemoryTag.parse("%DB1.DBB0[10]:BYTE");
         assertEquals(10, t.firstByte());
         assertEquals(10, t.lastByte());
@@ -85,7 +61,6 @@ class MemoryTagTest {
 
     @Test
     void laFormaCortaDeBloqueSeAcepta() {
-        // DB1:0:INT omite el .DB y el código corto, y el driver la trata igual.
         MemoryTag t = MemoryTag.parse("%DB1:0:INT");
         assertEquals("DB1", t.block());
         assertEquals(0, t.baseByte());
@@ -95,7 +70,6 @@ class MemoryTagTest {
 
     @Test
     void lasDireccionesDeBitLlevanElOffsetAlFinal() {
-        // Sólo se usa con BOOL, y el offset va de 0 a 7.
         MemoryTag m = MemoryTag.parse("%M0.0:BOOL");
         assertEquals("M", m.code());
         assertEquals(0, m.baseByte());
@@ -121,7 +95,6 @@ class MemoryTagTest {
 
     @Test
     void elPorcentajeYElTipoSonOpcionales() {
-        // El driver los acepta y sin ellos, si es un MW, el tamaño sale del código.
         MemoryTag con = MemoryTag.parse("%MW20:INT");
         MemoryTag sin = MemoryTag.parse("MW20");
         assertEquals("MW", con.code());
@@ -134,7 +107,6 @@ class MemoryTagTest {
 
     @Test
     void unCodigoDeAreaPeladoDaSuTamano() {
-        // Sin tipo ni rango, el tamaño sale del código de área.
         assertEquals(1, MemoryTag.parse("%MB20").byteCapacity());
         assertEquals(2, MemoryTag.parse("%MW20").byteCapacity());
         assertEquals(4, MemoryTag.parse("%MD20").byteCapacity());
@@ -151,18 +123,14 @@ class MemoryTagTest {
 
     @Test
     void laLongitudDeclaradaDeUnStringSeAcepta() {
-        // :STRING(20) acota a veinte caracteres, que es la extensión del driver.
         MemoryTag t = MemoryTag.parse("%DB1.DBB0:STRING(20)");
         assertEquals("STRING", t.family());
         assertEquals(20, t.byteCapacity());
     }
 
-    // --- códigos de área ------------------------------------------------------
 
     @Test
     void elCodigoDeAreaDaElTamano() {
-        // El tamaño sale de la última letra del código corto de PLC4X. El orden
-        // importa: DBLD termina en D y es una doble palabra larga, 64 bits, no 32.
         assertEquals(1, MemoryTag.parse("%DB21.DBX7[0..3]").codeBits());
         assertEquals(8, MemoryTag.parse("%DB21.DBB7[0..3]").codeBits());
         assertEquals(16, MemoryTag.parse("%DB21.DBW7[0..3]").codeBits());
@@ -181,11 +149,8 @@ class MemoryTagTest {
                 "el rango sigue mandando aunque el código no se conozca");
     }
 
-    // --- rango y bytes -------------------------------------------------------
-
     @Test
     void elRangoEsRelativoAlByteBaseDelTag() {
-        // %DB21.DBB4[0..9] son los bytes 4 a 13 del DB21: diez bytes, no del 0 al 9.
         MemoryTag t = MemoryTag.parse("%DB21.DBB4[0..9]:BYTE");
         assertEquals(4, t.absoluteFirst());
         assertEquals(13, t.absoluteLast());
@@ -218,15 +183,54 @@ class MemoryTagTest {
     }
 
     @Test
-    void sinRangoNiCantidadNoSeAcotaLaCapacidad() {
-        assertEquals(0, MemoryTag.parse("%DB1:0:INT").byteCapacity(),
-                "la forma corta sin selección no dice cuántos bytes son");
+    void unBloqueSinDireccionNoEsUnaDireccion() {
+        // %DB1[] y %DB1[0..9] se quedan en "DB1" al quitar el corchete, y DB no es
+        // un código de área: es un prefijo de bloque. Un bloque necesita número Y
+        // dirección, del tipo %DB1.DBB0 o %DB1:0.
+        assertFalse(MemoryTag.parse("%DB1[]").tieneDireccion(),
+                "un bloque sin dirección no se puede leer del PLC");
+        assertFalse(MemoryTag.parse("%DB1[0..9]").tieneDireccion(),
+                "el rango no sustituye a la dirección que falta");
+        assertFalse(MemoryTag.parse("%DBI3").tieneDireccion(),
+                "DBI tampoco vale como código de área");
+    }
+
+    @Test
+    void losCodigosDeAreaDelDriverSeAceptan() {
+        // M, I, Q, E con y sin ancho, y los contadores y temporizadores.
+        assertEquals("MW", MemoryTag.parse("%MW20").code());
+        assertEquals("MD", MemoryTag.parse("%MD100").code());
+        assertEquals("IB", MemoryTag.parse("%IB0.0").code());
+        assertEquals("C", MemoryTag.parse("%C5").code());
+        assertEquals("T", MemoryTag.parse("%T5").code());
+        assertTrue(MemoryTag.parse("%MW20").tieneDireccion());
+    }
+
+    @Test
+    void unaBasuraConLetrasYNumerosNoEsUnaDireccion() {
+        // CODIGO_Y_NUMERO antes aceptaba cualquier letra seguida de dígitos, así que
+        // "basura1" se tomaba por un código de área.
+        assertFalse(MemoryTag.parse("basura1").tieneDireccion());
+        assertFalse(MemoryTag.parse("LD0").tieneDireccion());
+        assertFalse(MemoryTag.parse("contador7").tieneDireccion());
+    }
+
+    @Test
+    void sinRangoElTamanoSaleDelTipoDeclarado() {
+        // La forma corta %DB1:10:INT no trae código de área, así que el tamaño sólo
+        // se puede sacar del propio tipo. Antes esto daba 0 y bloqueaba el área.
+        assertEquals(2, MemoryTag.parse("%DB1:10:INT").byteCapacity());
+        assertEquals(2, MemoryTag.parse("%DB1:10:UINT").byteCapacity());
+        assertEquals(4, MemoryTag.parse("%DB1:10:DINT").byteCapacity());
+        assertEquals(4, MemoryTag.parse("%DB1:10:REAL").byteCapacity());
+        assertEquals(8, MemoryTag.parse("%DB1:10:LINT").byteCapacity());
+        assertEquals(8, MemoryTag.parse("%DB1:10:LREAL").byteCapacity());
+        assertEquals(1, MemoryTag.parse("%DB1:10:SINT").byteCapacity());
     }
 
     @Test
     void elEspacioAlrededorYEnMedioSeIgnora() {
         assertEquals(1849, MemoryTag.parse("  %DB231.DBB0[0..1848]:BYTE  ").byteCapacity());
-        // "%DB20. DBB4" con un espacio de más se escribía a menudo.
         MemoryTag conEspacio = MemoryTag.parse("%DB20. DBB4[0..16]:REAL");
         assertEquals("DB20", conEspacio.block());
         assertEquals("DBB", conEspacio.code());
@@ -235,11 +239,8 @@ class MemoryTagTest {
         assertEquals(17, conEspacio.byteCapacity());
     }
 
-    // --- los ejemplos del documento del driver --------------------------------
-
     @Test
     void losEjemplosDelDriverSeInterpretanComoSeDice() {
-        // %DB1.DBX0.0:BOOL, el bit suelto del bloque 1, byte 0, bit 0.
         MemoryTag bit = MemoryTag.parse("%DB1.DBX0.0:BOOL");
         assertEquals("DB1", bit.block());
         assertEquals("DBX", bit.code());
@@ -247,38 +248,31 @@ class MemoryTagTest {
         assertEquals(0, bit.bit());
         assertEquals("BOOL", bit.family());
 
-        // %DB10.DBW20:INT, un entero de 16 bits en el bloque 10, byte 20.
         MemoryTag entero = MemoryTag.parse("%DB10.DBW20:INT");
         assertEquals("DB10", entero.block());
         assertEquals("DBW", entero.code());
         assertEquals(20, entero.baseByte());
         assertEquals(2, entero.byteCapacity());
 
-        // %I0.0:BOOL, el bit suelto del byte 0 de entradas.
         assertEquals("I", MemoryTag.parse("%I0.0:BOOL").code());
         assertEquals(0, MemoryTag.parse("%I0.0:BOOL").bit());
 
-        // %MD100:DINT, un entero de 32 bits en el byte 100 de marcas.
         MemoryTag marca = MemoryTag.parse("%MD100:DINT");
         assertEquals("MD", marca.code());
         assertEquals(100, marca.baseByte());
         assertEquals("DINT", marca.family());
 
-        // %DB1.DBB0[0..9]:BYTE, diez bytes desde el bloque 1, byte 0.
         assertEquals(10, MemoryTag.parse("%DB1.DBB0[0..9]:BYTE").byteCapacity());
-
-        // %DB5:10:INT, con la forma corta del bloque.
+        
         MemoryTag corto = MemoryTag.parse("%DB5:10:INT");
         assertEquals("DB5", corto.block());
         assertEquals(10, corto.baseByte());
         assertEquals("INT", corto.family());
 
-        // %DB1.DBB0[0..15]:RAW_BYTE_ARRAY, dieciséis bytes en crudo, alias de BYTE.
         MemoryTag crudo = MemoryTag.parse("%DB1.DBB0[0..15]:RAW_BYTE_ARRAY");
         assertEquals(16, crudo.byteCapacity());
         assertEquals("RAW_BYTE_ARRAY", crudo.family());
 
-        // %DB1.DB0:STRING(80) y %DB1.DB0:STRING, sin código corto en medio.
         assertEquals("DB1", MemoryTag.parse("%DB1.DB0:STRING(80)").block());
         assertEquals("", MemoryTag.parse("%DB1.DB0:STRING(80)").code());
         assertEquals(80, MemoryTag.parse("%DB1.DB0:STRING(80)").byteCapacity());
@@ -287,8 +281,6 @@ class MemoryTagTest {
 
     @Test
     void lasDireccionesEspecialesNoSonDireccionesDeMemoria() {
-        // ALM y QUERY:ALARM_S no son direcciones: son servicios del driver. No tienen
-        // que rechazarse, pero tampoco pueden compararse como si ocuparan bytes.
         MemoryTag alarma = MemoryTag.parse("ALM");
         assertFalse(alarma.tieneDireccion());
         assertFalse(DataType.candidatos(alarma.family(), alarma.codeBits()).size() > 0,
@@ -298,8 +290,6 @@ class MemoryTagTest {
         assertFalse(consulta.tieneDireccion());
         assertTrue(DataType.candidatos(consulta.family(), consulta.codeBits()).isEmpty());
     }
-
-    // --- lo que no es una dirección -------------------------------------------
 
     @Test
     void unaDireccionDeModbusSeAceptaTalCual() {
@@ -327,8 +317,6 @@ class MemoryTagTest {
 
     @Test
     void unTagSimbolicoConNumeroAlFinalNoSeConfundeConUnBit() {
-        // El 1 de .Motor1 es parte del nombre: si se tomara como bit, la dirección se
-        // quedaría sin número y el tag perdería el sentido.
         MemoryTag t = MemoryTag.parse("Data_Block_1.Motor1");
         assertEquals(-1, t.bit(), "el 1 final es parte del nombre, no un bit");
         assertEquals("", t.code(), "no es un bloque con código, es un nombre");
@@ -337,8 +325,6 @@ class MemoryTagTest {
 
     @Test
     void unTagSimbolicoNoSeParteEnDosPorUnosPuntos() {
-        // Puede ocurrir que lo que hay tras los dos puntos parezca un tipo. Peor es
-        // que el área se quede sin tipos que ofrecer que inventar uno.
         MemoryTag t = MemoryTag.parse("Struct.Field:Subfield");
         assertEquals(0, DataType.candidatos(t.family(), t.codeBits()).size(),
                 "una familia inventada no debe ofrecer tipos");
@@ -354,11 +340,11 @@ class MemoryTagTest {
     @Test
     void cualquierTagRaroSeAceptaYNoRevienta() {
         String[] raros = {
-            "DB21.DBB0[0..9",              // falta el corchete de cierre
-            "%DB21.DBB0[0..9]:BYTE:B",      // sobra una familia
-            "%DB21.DBB0[0,9]",              // el rango va con dos puntos
-            "%DB21.DBB0[",                  // corchete sin cerrar
-            "%DB21.DBB0:STRING(",           // longitud sin cerrar
+            "DB21.DBB0[0..9",              
+            "%DB21.DBB0[0..9]:BYTE:B",      
+            "%DB21.DBB0[0,9]",              
+            "%DB21.DBB0[",                 
+            "%DB21.DBB0:STRING(",           
             "basura",
             "%%",
             "%",
@@ -369,13 +355,9 @@ class MemoryTagTest {
             assertNotNull(MemoryTag.parse(tag), "el tag '" + tag + "' no debería rechazarse");
         }
     }
-
-    // --- mensajes e identidad ------------------------------------------------
-
+    
     @Test
     void elTagOriginalSeConservaParaLosMensajes() {
-        // Se quitan los espacios para entender el tag, pero el texto tal como lo
-        // escribió el usuario es lo que se le enseña en los avisos.
         assertEquals("%DB20. DBB4[0..16]:REAL",
                 MemoryTag.parse("%DB20. DBB4[0..16]:REAL").raw());
         assertEquals("  %DB21.DBB4[0..9]:BYTE  ",
@@ -384,9 +366,6 @@ class MemoryTagTest {
 
     @Test
     void laDireccionEsLaParteSinSeleccionNiTipo() {
-        // La dirección dice en qué sitio del PLC se parte. Dos áreas con la misma
-        // dirección y rangos distintos conviven: lo único que marca un error es que
-        // sus rangos se toquen.
         assertEquals("DB21.DBB4", MemoryTag.parse("%DB21.DBB4[0..9]:INTEGER").direccion());
         assertEquals("DB21.DBB4", MemoryTag.parse("%DB21.DBB4[0..10]").direccion());
         assertEquals("DB21.DBB4", MemoryTag.parse("%DB21.DBB4:INT").direccion());
@@ -407,9 +386,6 @@ class MemoryTagTest {
 
     @Test
     void dosRangosSeguidosEnLaMismaDireccionNoSePisan() {
-        // El caso que dice el usuario: %DB22.DBB4[10..16] y %DB22.DBB4[17..22].
-        // Los bytes absolutos son 14..20 y 21..26, así que la segunda empieza justo
-        // donde acaba la primera.
         MemoryTag primera = MemoryTag.parse("%DB22.DBB4[10..16]:REAL");
         MemoryTag segunda = MemoryTag.parse("%DB22.DBB4[17..22]:REAL");
         assertEquals(14, primera.absoluteFirst());
@@ -421,8 +397,6 @@ class MemoryTagTest {
         assertEquals(primera.direccion(), segunda.direccion(),
                 "misma dirección de arranque, y aun así no se pisan");
     }
-
-    // --- solapamiento --------------------------------------------------------
 
     @Test
     void dosAreasDelMismoBloqueSeDetectan() {
@@ -442,9 +416,6 @@ class MemoryTagTest {
 
     @Test
     void conRangoSeComparanLosBytesAunqueElCodigoSeaDistinto() {
-        // Con los dos rangos declarados lo que manda son los bytes, no el código: en
-        // un DB de verdad DBB0 y DBW0 ocupan la misma memoria, y fingir lo contrario
-        // dejaría pasar dos áreas que el PLC leería superpuestas.
         MemoryTag a = MemoryTag.parse("%DB231.DBB0[0..1848]:BYTE");
         assertTrue(a.solapaCon(MemoryTag.parse("%DB231.DBW0[0..100]:WORD")),
                 "los dos ocupan los mismos bytes del mismo bloque");
@@ -452,8 +423,6 @@ class MemoryTagTest {
 
     @Test
     void cadaBitEsUnSitioDistinto() {
-        // %M0.0 y %M0.1 comparten byte, pero no son el mismo sitio: si se comparara
-        // sólo el byte base se avisaría de un conflicto que no existe.
         MemoryTag bit0 = MemoryTag.parse("%M0.0:BOOL");
         assertTrue(bit0.solapaCon(MemoryTag.parse("%M0.0:BOOL")), "el mismo bit sí se repite");
         assertFalse(bit0.solapaCon(MemoryTag.parse("%M0.1:BOOL")), "otro bit es otro sitio");

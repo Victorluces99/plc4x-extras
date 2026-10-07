@@ -18,15 +18,6 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.panel.wizard;
 
-/*
-  Variable de proceso leída del plant-model.xml: nombre, tipo y
-  la ruta de pertenencia dentro del área S88 (jerarquía). La clave de
-  bloqueo es la ruta + nombre, para desambiguar variables homónimas.
- 
-   Los tres datos que vienen del XML son inmutables, used es
-   estado de la vista (si esa variable ya fue asignada a otra
-   configuración) y por eso sí se puede marcar.
- */
 public class PlantVariable {
 
     private final String path;

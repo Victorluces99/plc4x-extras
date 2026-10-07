@@ -52,7 +52,7 @@ import javax.swing.text.DefaultFormatter;
 import javax.swing.table.TableColumn;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 import org.openide.util.Exceptions;
-
+//TODO: en un futuro permitir crear variables propias. No contar solo con las que vienen de planta.
 public class StepPvPanel extends JPanel {
 
     private final CommunicationWizardController controller;
@@ -849,12 +849,7 @@ public class StepPvPanel extends JPanel {
         int libres = controller.areaFreeSlots(area.getUuid(), type);
         int bytesLibres = controller.areaFreeBytes(area.getUuid());
         if (bytesLibres < 0) {
-            JOptionPane.showMessageDialog(this,
-                    "No se puede calcular el offset para el tipo '" + type.label()
-                    + "': del tag del área '" + area.getName() + "' no se sabe"
-                    + " el tamaño.\n\n"
-                    + "Añada un rango al tag, del tipo %DB21.DBB0[0..9], para que"
-                    + " se pueda calcular dónde va cada variable.",
+            JOptionPane.showMessageDialog(this, motivoDeOffsetDesconocido(area),
                     "Offset no calculable", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -1014,6 +1009,22 @@ public class StepPvPanel extends JPanel {
 
     private boolean validarAntesDeEscribir() {
         return beforeSave == null || Boolean.TRUE.equals(beforeSave.get());
+    }
+
+    String motivoDeOffsetDesconocido(CommConfigData.ItemConfig area) {
+        MemoryTag tag = MemoryTag.parse(area.getTag());
+        if (tag == null || !tag.tieneDireccion()) {
+            return "El tag del área '" + area.getName() + "' es '" + area.getTag()
+                    + "', y eso no es una dirección válida.\n\n"
+                    + "Sin dirección no se sabe qué bytes ocupa el área, así que no se"
+                    + " puede calcular dónde va cada variable.\n\n"
+                    + "Corrija el tag en el paso anterior, del tipo"
+                    + " %DB22.DBB4[0..9]:REAL.";
+        }
+        return "No se sabe el tamaño del área '" + area.getName() + "': su tag es '"
+                + area.getTag() + "' y no dice cuántos bytes ocupa.\n\n"
+                + "Añada un rango, del tipo %DB21.DBB0[0..9], o un tipo tras los dos"
+                + " puntos, del tipo :INT.";
     }
 
     private void refrescarYPersistir(String what) {

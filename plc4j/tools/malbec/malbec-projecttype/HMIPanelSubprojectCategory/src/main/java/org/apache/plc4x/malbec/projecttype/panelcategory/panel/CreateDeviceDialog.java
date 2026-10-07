@@ -35,24 +35,6 @@ import javax.swing.KeyStroke;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
 import org.netbeans.api.project.Project;
 
-/**
- * Ventana modal de alta y modificación de dispositivo de comunicación.
- *
- * <p>
- * El formulario vive en {@link CreateDevicePanel} para poder probarlo sin
- * construir un {@code JDialog}, que exige un entorno gráfico. Esta clase sólo
- * aporta modality, teclado y el guardado contra el modelo.
- *
- * <p>
- * Alta y modificación comparten ventana: la única diferencia es si el
- * formulario recibe un {@code DeviceConfigData} para precargar. Guardar no
- * necesita un camino distinto porque {@code upsertDevice} reemplaza por UUID y
- * en edición el UUID es el original.
- *
- * <p>
- * Cada invocación crea una instancia nueva, así que el formulario arranca
- * siempre limpio y dos altas consecutivas no se pisan entre sí.
- */
 public final class CreateDeviceDialog extends JDialog {
 
     private final transient Project project;
@@ -65,10 +47,6 @@ public final class CreateDeviceDialog extends JDialog {
         return new CreateDeviceDialog(owner, project, null);
     }
 
-    /**
-     * Abre la ventana sobre un dispositivo existente, con el formulario
-     * precargado y la marca y el nodo S88 bloqueados.
-     */
     public static CreateDeviceDialog forEdit(Window owner, Project project, DeviceConfigData device) {
         return new CreateDeviceDialog(owner, project, device);
     }
@@ -84,13 +62,8 @@ public final class CreateDeviceDialog extends JDialog {
         JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         botones.add(btnCancel);
         botones.add(btnOk);
-
-        // El scroll va alrededor del formulario para que, si el alto natural del
-        // formulario no cabe en la pantalla, aparezca barra en vez de quedar campos
-        // cortados sin forma de llegar a ellos.
         JScrollPane scroll = new JScrollPane(panel);
         scroll.setBorder(BorderFactory.createEmptyBorder());
-        // Con el scroll, un alto mayor que la pantalla no deja campos sin alcanzar.
         scroll.setMinimumSize(new Dimension(420, 260));
 
         JPanel content = new JPanel(new BorderLayout(0, 8));
@@ -98,22 +71,17 @@ public final class CreateDeviceDialog extends JDialog {
         content.add(botones, BorderLayout.SOUTH);
         setContentPane(content);
 
-        // El binding va en el root pane y no en el content pane: si se
-        // registrara antes de setContentPane, quedaría sobre el panel por
-        // defecto que este llamada reemplaza, y ESC dejaría de funcionar.
+
         getRootPane().registerKeyboardAction(e -> dispose(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
         getRootPane().setDefaultButton(btnOk);
 
-        // La X cierra sin guardar, igual que Cancelar.
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
         btnOk.addActionListener(e -> guardar());
         btnCancel.addActionListener(e -> dispose());
 
-        // El tamaño sale de pack(), que ahora sí respeta el ancho de los campos, y se
-        // recorta a la pantalla porque una ventana fija no se puede agrandar luego.
         setResizable(false);
         pack();
         Rectangle pantalla = getGraphicsConfiguration() != null
@@ -125,18 +93,6 @@ public final class CreateDeviceDialog extends JDialog {
         setLocationRelativeTo(owner);
     }
 
-    /**
-     * Valida, persiste y cierra.
-     *
-     * <p>
-     * El modelo se busca desde acá y no desde el panel: el formulario sólo arma
-     * datos y el guardado es responsabilidad de quien abrió la ventana.
-     *
-     * <p>
-     * No distingue entre alta y modificación: {@code upsertDevice} reemplaza el
-     * dispositivo cuyo UUID coincide y agrega si no hay ninguno, y en edición
-     * el UUID es siempre el original.
-     */
     private void guardar() {
         DeviceConfigData data = panel.getDeviceConfigData();
         if (data == null) {
@@ -167,9 +123,6 @@ public final class CreateDeviceDialog extends JDialog {
         dispose();
     }
 
-    /*
-     * Confirma que el dispositivo quedó guardado.
-     */
     private void avisarGuardado(DeviceConfigData data) {
         String nombre = data.getDeviceName();
         if (nombre == null || nombre.isBlank()) {

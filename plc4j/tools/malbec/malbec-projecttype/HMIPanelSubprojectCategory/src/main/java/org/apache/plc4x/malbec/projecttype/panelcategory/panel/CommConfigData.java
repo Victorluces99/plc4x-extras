@@ -51,7 +51,7 @@ public class CommConfigData {
         return pvs;
     }
 
-    // --- MODELO GRUPO ---
+    // --- MODEL GROUP ---
     public static class GroupConfig {
 
         private String uuid;
@@ -95,7 +95,7 @@ public class CommConfigData {
         }
     }
 
-    // --- MODELO ITEM ---
+    // --- MODEL ITEM ---
     public static class ItemConfig {
 
         private String uuid;
@@ -150,7 +150,7 @@ public class CommConfigData {
         }
     }
 
-    // --- MODELO PV ---
+    // --- MODEL PV ---
     public static class PvConfig {
 
         private String uuid;

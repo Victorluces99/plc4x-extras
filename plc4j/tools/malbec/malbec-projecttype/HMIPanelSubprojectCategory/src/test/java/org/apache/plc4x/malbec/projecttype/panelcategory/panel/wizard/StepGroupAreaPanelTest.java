@@ -20,42 +20,19 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.panel.wizard;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.swing.JTable;
+import javax.swing.border.Border;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import org.junit.jupiter.api.Test;
 
-/**
- * Las tablas de grupos y de áreas son sólo el espejo del estado: el usuario no las
- * edita, elige la fila y rellena el formulario de al lado. Y sus columnas están
- * fijas en dos sentidos que conviene distinguir.
- *
- * <p>Lo primero es que las columnas no se puedan reordenar arrastrando la cabecera.
- * El sitio de las columnas no lo decide el usuario, lo decide el orden en que se
- * guardan, porque hay código que las lee por posición.
- *
- * <p>Lo segundo es lo contrario: sí se pueden ensanchar, y ensanchar una no debe
- * mover el resto. Con el autoajuste por defecto
- * ({@code AUTO_RESIZE_SUBSEQUENT_COLUMNS}) el ancho se reparte entre las columnas
- * siguientes, así que al ensanchar "Tag" se encogen "Tipo", "Libre", "Grupo",
- * "Enable" y "UUID" y el efecto que se ve es que las columnas se mueven. Con
- * {@code AUTO_RESIZE_OFF} el tirador sólo cambia la columna que se está arrastrando.
- *
- * <p>El bloqueo del reordenado no choca con el ensanchado: en la cabecera son dos
- * banderas distintas ({@code reorderingAllowed} y {@code resizingAllowed}), y
- * desactivar la primera deja la segunda como estaba.
- */
 class StepGroupAreaPanelTest {
 
-    /**
-     * Los datos entran por el controlador y no a las listas, por un motivo concreto:
-     * el índice inverso área → grupo lo mantiene {@code addItem} (poniendo el par en
-     * {@code itemsGroup}) y no se deduce de las listas. Meterlos a mano dejaría el
-     * índice vacío, la columna "Grupo" mostraría SIN GRUPO y el test comprobaría una
-     * Mentira en lugar del comportamiento real.
-     */
     private StepGroupAreaPanel panelConUnGrupoYUnArea() {
         CommunicationWizardController controller =
                 new CommunicationWizardController(null, new CommunicationWizardState());
@@ -69,10 +46,6 @@ class StepGroupAreaPanelTest {
 
     @Test
     void lasColumnasNoSePuedenReordenar() {
-        // El valor por defecto de la cabecera es reorderingAllowed = true, así que
-        // sin tocar nada el usuario mueve las columnas a donde le parezca. Se
-        // comprueba una columna por lo menos de cada tabla: el cambio se hizo con
-        // un helper sobre la tabla entera.
         StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
         assertFalse(panel.getGroupTable().getTableHeader().getReorderingAllowed(),
                 "las columnas de grupos se pueden mover");
@@ -91,8 +64,6 @@ class StepGroupAreaPanelTest {
 
     @Test
     void todasLasColumnasSePuedenRedimensionar() {
-        // El bloqueo del reordenado no puede arrastrar al redimensionado, que es lo
-        // que el usuario sí necesita para leer un tag largo o un UUID entero.
         StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
         assertRedimensionables(panel.getGroupTable(), "grupos");
         assertRedimensionables(panel.getItemTable(), "áreas");
@@ -111,9 +82,6 @@ class StepGroupAreaPanelTest {
 
     @Test
     void unaColumnaSePuedeEnsancharAToSinTecho() {
-        // El ajuste automático de anchos limita el ancho a 260 px, pero eso es sólo
-        // el preferred de partida: la mano del usuario no encuentra un tope porque
-        // sizeColumnsToContent no fija maxWidth.
         StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
         TableColumnModel columnas = panel.getItemTable().getColumnModel();
         TableColumn descripcion = columnas.getColumn(1);
@@ -146,8 +114,6 @@ class StepGroupAreaPanelTest {
 
     @Test
     void lasCeldasNoSeEditanDirectamente() {
-        // Editar aquí no guardaría nada: el modelo de la tabla se reconstruye desde
-        // el estado en cada refresh. Es edición falsa y hay que impedirla.
         StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
         JTable grupos = panel.getGroupTable();
         assertFalse(grupos.getModel().isCellEditable(0, 0));
@@ -161,14 +127,6 @@ class StepGroupAreaPanelTest {
 
     @Test
     void elUsuarioNoPuedePonerseAEscribirEnLasCeldas() {
-        // Lo que cierra el teclado y el doble clic es que no llegue a arrancar un
-        // editor, y editCellAt es exactamente eso: devuelve false cuando la celda no
-        // es editable, antes de crear ningún componente.
-        //
-        // Ojo con lo que no sirve aquí: JTable.setValueAt no consulta nada y pasa
-        // directo al modelo, así que escribir a mano en la tabla sí la cambia. Eso no
-        // es un agujero para el usuario, que nunca ejecuta ese camino, sino una
-        // llamada de código. La UI está cubierta por isCellEditable.
         StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
 
         JTable grupos = panel.getGroupTable();
@@ -187,8 +145,37 @@ class StepGroupAreaPanelTest {
     }
 
     @Test
+    void elTagMalEscritoSeMarcaEnRojo() {
+        StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
+        panel.getItemTag().setText("%DB1.DBB0[.0.9]:BYTE");
+        assertNotEquals(bordeDe(panel), panel.getItemTag().getBorder(),
+                "un rango mal escrito tiene que marcar el campo");
+    }
+
+    @Test
+    void unTagBienEscritoNoSeMarca() {
+        StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
+        panel.getItemTag().setText("%DB1.DBB0[0..9]:BYTE");
+        assertEquals(bordeDe(panel), panel.getItemTag().getBorder(),
+                "un tag correcto no puede quedar marcado");
+    }
+
+    @Test
+    void elAvisoDesapareceAlCorregir() {
+        StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
+        panel.getItemTag().setText("%DB1.DBB0[.0.9]:BYTE");
+        assertNotEquals(bordeDe(panel), panel.getItemTag().getBorder());
+        panel.getItemTag().setText("%DB1.DBB0[0..9]:BYTE");
+        assertEquals(bordeDe(panel), panel.getItemTag().getBorder(),
+                "el aviso tiene que irse al corregir el tag");
+    }
+
+    private static Border bordeDe(StepGroupAreaPanel panel) {
+        return panel.getGroupName().getBorder();
+    }
+
+    @Test
     void lasTablasMuestranLoDelEstado() {
-        // Sin esto los tests de columnas pasarían también con las tablas vacías.
         StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
         JTable grupos = panel.getGroupTable();
         assertEquals(1, grupos.getRowCount());
@@ -205,8 +192,6 @@ class StepGroupAreaPanelTest {
         assertEquals("Rápido", areas.getValueAt(0, 5),
                 "el área muestra el nombre del grupo al que pertenece");
     }
-
-    // --- topes de caracteres ---------------------------------------------------
 
     @Test
     void losNombresSeCortanEnVeinte() {
@@ -232,8 +217,6 @@ class StepGroupAreaPanelTest {
 
     @Test
     void justoAlTopeSeEscribeEntero() {
-        // El recorte sólo tiene que notar cuando se pasa: un texto que ya cabe se
-        // tiene que quedar como estaba, sin comerse ni un carácter.
         StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
         panel.getGroupName().setText("g".repeat(20));
         assertEquals(20, panel.getGroupName().getText().length());
@@ -243,8 +226,6 @@ class StepGroupAreaPanelTest {
 
     @Test
     void elTagNoSeCortaPorqueEsUnaDireccion() {
-        // Recortar una dirección daría otra dirección distinta, que es peor que un
-        // campo largo. El tag es la referencia de memoria y tiene que entrar entero.
         StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
         String tag = "%DB22.DBB4[10..16]:REAL";
         panel.getItemTag().setText(tag);

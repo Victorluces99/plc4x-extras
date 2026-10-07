@@ -23,19 +23,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.List;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 import org.junit.jupiter.api.Test;
 
-/**
- * Capacidad, huecos y solapamiento de las Ã¡reas de memoria.
- *
- * <p>El caso que mÃ¡s importa es {@code unHuecoSeRellenaSinMoverNada}: con la cuenta
- * de variables, borrar una del medio hace que la siguiente caiga encima de otra que
- * sigue viva, y eso no se ve hasta que el PLC lee el valor de la variable
- * equivocada.</p>
- */
 class AreaCapacityTest {
 
     private static final String AREA = "area-1";
@@ -62,7 +53,6 @@ class AreaCapacityTest {
                 "", "", "", "", "", "", "", "", "md5_pv_hash", "Area/" + uuid));
     }
 
-    // --- capacidad -----------------------------------------------------------
 
     @Test
     void unAreaDeBytesAdmiteUnBytePorCasilla() {
@@ -128,8 +118,6 @@ class AreaCapacityTest {
         assertFalse(c.typeAllowed(AREA, DataType.S7AI));
     }
 
-    // --- huecos --------------------------------------------------------------
-
     @Test
     void unHuecoSeRellenaSinMoverNada() {
         CommunicationWizardController c = controllerCon("%DB21.DBB0[0..3]:BYTE");
@@ -183,10 +171,6 @@ class AreaCapacityTest {
 
     @Test
     void unIntNoSeColocaEnElByteSueltoQueQuedaAlFinal() {
-        // Diez bytes con tres ints: 0, 4 y 8. Quedan los bytes 9 y 10, pero ninguno
-        // de los dos puntos de inicio admite un int entero. Devolver el 9 darÃ­a por
-        // buena una variable que se saldrÃ­a del Ã¡rea y sÃ³lo se verÃ­a al leer del PLC,
-        // asÃ­ que se prefiere decir que estÃ¡ llena.
         CommunicationWizardController c = controllerCon("%DB21.DBB0[0..9]:INT");
         assertEquals(10, c.areaCapacityBytes(AREA));
         addPv(c, "a", "0", "int");
@@ -203,8 +187,6 @@ class AreaCapacityTest {
 
     @Test
     void unaVariableSeDetectaAunqueOtraLePiseElCuerpo() {
-        // Un int en el byte 0 ocupa del 0 al 3. Si sÃ³lo se marcara el byte 0, una
-        // variable de byte en el 2 se solaparÃ­a sin que nada se enterara.
         CommunicationWizardController c = controllerCon("%DB21.DBB0[0..7]:INT");
         addPv(c, "a", "0", "int");
         assertEquals("4", c.nextOffset(AREA, DataType.BYTE),
@@ -216,8 +198,6 @@ class AreaCapacityTest {
 
     @Test
     void unByteSeColocaEnLoQueDejaUnInt() {
-        // Al revÃ©s que el anterior: el int del 0 al 3 deja libres del 4 al 7, y ahÃ­
-        // caben bytes aunque el Ã¡rea sea de ints.
         CommunicationWizardController c = controllerCon("%DB21.DBB0[0..7]:INT");
         addPv(c, "a", "0", "int");
         assertEquals("4", c.nextOffset(AREA, DataType.BYTE));
@@ -241,8 +221,6 @@ class AreaCapacityTest {
         assertEquals(-1, c.areaFreeBytes(AREA));
     }
 
-    // --- homogenousidad -----------------------------------------------------
-
     @Test
     void unTagQueDeclaraTipoFijaElArea() {
         assertEquals(DataType.BOOLEAN,
@@ -252,8 +230,6 @@ class AreaCapacityTest {
 
     @Test
     void unAreaVaciaOfreceLosTiposPosiblesYAlElegirUnoSoloQuedaEse() {
-        // El ciclo que pide el usuario: vacÃ­a, se ven las opciones; en cuanto se
-        // guarda una variable, esa es la Ãºnica que se puede seguir usando.
         CommunicationWizardController c = controllerCon("%DB21.DBLD0[0..7]:REAL");
         assertEquals(List.of(DataType.FLOAT, DataType.DOUBLE), c.typesAllowed(AREA),
                 "vacÃ­a, el usuario elige entre los reales que caben");
@@ -281,8 +257,6 @@ class AreaCapacityTest {
 
     @Test
     void unAreaSinTipoFijoSegueAdmintiendoTodasLasFamilias() {
-        // Sin variables y sin familia en el tag no hay nada que decidir todavÃ­a, asÃ­
-        // que no se descarta ninguna variable de planta.
         CommunicationWizardController c = controllerCon("%DB21.DBD0[0..99]");
         assertNull(c.lockedType(AREA));
         assertTrue(c.areaAdmiteTipo(AREA, "REAL", null));
@@ -293,8 +267,6 @@ class AreaCapacityTest {
 
     @Test
     void elTagMandaSiLaPrimeraVariableNoEncajaConEl() {
-        // Datos importados a mano pueden traer un tipo que el tag no admite. En ese
-        // caso gana el tag, que es lo que de verdad describe la memoria del PLC.
         CommunicationWizardController c = controllerCon("%DB21.DBW0[0..99]:WORD");
         addPv(c, "a", "0", "double");
         assertEquals(List.of(DataType.WORD), c.typesAllowed(AREA));
@@ -312,10 +284,6 @@ class AreaCapacityTest {
 
     @Test
     void unAreaRealNoQuedaFijadaAUnSoloTipo() {
-        // REAL admite float y double, asÃ­ que el Ã¡rea no se fija sola: de eso se
-        // encarga el desplegable. Fijarla en float dejarÃ­a sin poder usar los
-        // double en un Ã¡rea de ocho bytes, y fijarla en double dejarÃ­a sin float a
-        // las de cuatro.
         CommunicationWizardController doble = controllerCon("%DB21.DBLD0[0..7]:REAL");
         assertNull(doble.lockedType(AREA));
         assertEquals(List.of(DataType.FLOAT, DataType.DOUBLE),
@@ -386,13 +354,8 @@ class AreaCapacityTest {
                 "los que sÃ­ se pueden elegir van delante");
     }
 
-    // --- filtro de variables de planta ---------------------------------------
-
     @Test
     void unAreaDeIntSigueListandoLasVariablesIntegerDeLaPlanta() {
-        // La comparaciÃ³n tiene que ir por familia: en la planta INTEGER puede ser
-        // int, long o short segÃºn el cÃ³digo de Ã¡rea, y comparar los nombres dejarÃ­a
-        // el Ã¡rea sin ninguna variable que ofrecer.
         CommunicationWizardController c = controllerCon("%DB231.DBD0[0..99]:INTEGER");
         addPv(c, "a", "0", "int");
         DataType fijado = c.lockedType(AREA);
@@ -414,13 +377,8 @@ class AreaCapacityTest {
         assertTrue(c.areaAdmiteTipo(AREA, "BYTE", null));
     }
 
-    // --- tag repetido -------------------------------------------------------
-
     @Test
     void dosRangosDistintosEnLaMismaDireccionSonValidos() {
-        // El caso que dice el usuario: %DB22.DBB4[10..16] y %DB22.DBB4[17..22]
-        // arrancan en el mismo byte pero no se tocan, así que son dos áreas
-        // legítimas. Lo que no puede repetirse es el espacio, no la dirección.
         CommunicationWizardController c = controllerCon(
                 area("a1", "Primera", "%DB22.DBB4[10..16]:REAL"));
         assertNull(c.areaQueChoca("%DB22.DBB4[17..22]:REAL", null),
@@ -431,8 +389,6 @@ class AreaCapacityTest {
 
     @Test
     void elEspacioQueSeReparteEsElDelRango() {
-        // La dirección dice de dónde se parte y el rango hasta dónde. Cambiar sólo
-        // el rango amplía o reduce el espacio sin mover el sitio.
         CommunicationWizardController c = controllerCon(
                 area("a1", "Corta", "%DB22.DBB4[0..3]:BYTE"));
         assertEquals(4, c.areaCapacityBytes("a1"));
@@ -444,9 +400,6 @@ class AreaCapacityTest {
 
     @Test
     void unEspacioDeMasEnElTagNoDejaColarUnSolapamiento() {
-        // "%DB20. DBB4[0..16]" con un espacio de más. Mientras el espacio estuvo, el
-        // tag no se reconocía como bloque y ni el solapamiento ni la comparación de
-        // texto lo detectaban.
         CommunicationWizardController c = controllerCon(
                 area("a1", "Reales", "%DB20. DBB4[0..16]:REAL"));
         assertNotNull(c.areaQueChoca("%DB20.DBB4[0..10]:REAL", null),
@@ -458,8 +411,6 @@ class AreaCapacityTest {
 
     @Test
     void laComprobacionDeTagRepetidoNoSeAplicaConDireccion() {
-        // Si el tag tiene dirección, decide el solapamiento. Sin ella el
-        // solapamiento es ciego y hay que quedarse con la comparación de texto.
         CommunicationWizardController c = controllerCon(
                 area("a1", "Bytes", "%DB21.DBB4[0..9]:BYTE"));
         assertNull(c.areaConMismoTag("%DB21.DBB4[0..9]:BYTE", null),
@@ -469,9 +420,6 @@ class AreaCapacityTest {
 
     @Test
     void dosAreasConElMismoTagSimbólicoSeDetectan() {
-        // El solapamiento no puede verlas: no hay bloque ni código que comparar. Si
-        // no se comparara el texto, dos áreas apuntando al mismo símbolo pasarían
-        // el filtro sin quejarse.
         CommunicationWizardController c = controllerCon(
                 area("a1", "Boton", "Control_Panel.Start_Button"));
         assertNull(c.areaQueChoca("Control_Panel.Start_Button", null),
@@ -500,8 +448,6 @@ class AreaCapacityTest {
         assertNull(c.areaConMismoTag("Control_Panel.Start_Button", "a1"),
                 "guardar un área sin tocarla no es un conflicto consigo misma");
     }
-
-    // --- solapamiento --------------------------------------------------------
 
     @Test
     void seDetectaElAreaQueSePisa() {
@@ -547,8 +493,6 @@ class AreaCapacityTest {
 
     @Test
     void unAreaConTagSimbolicoSeAceptaYNoSeAcota() {
-        // Con tags optimizados el tag es un nombre, no una direcciÃ³n. El Ã¡rea se
-        // guarda igual y lo que no se puede calcular simplemente no se calcula.
         CommunicationWizardController c = controllerCon("Control_Panel.Start_Button");
         assertNotNull(c.areaTag(AREA));
         assertEquals(-1, c.areaCapacityBytes(AREA), "no se puede acotar un tag simbÃ³lico");
@@ -568,9 +512,20 @@ class AreaCapacityTest {
     }
 
     @Test
+    void dosAreasQueSePisanConUnEspacioEnElTagDebenAvisar() {
+        // Las dos áreas que el usuario tiene guardadas: comparten los bytes 4 a 13
+        // del DB21 y la segunda lleva un espacio en el tag ("%DB21. DBB4"). El
+        // espacio se quita para entender el tag, así que el solapamiento tiene que
+        // seguir viéndose.
+        CommunicationWizardController c = controllerCon(
+                area("a1", "area4", "%DB21. DBB4[0..9]:INTEGER"));
+        CommConfigData.ItemConfig choca = c.areaQueChoca("%DB21. DBB4[0..12]:REAL", null);
+        assertNotNull(choca, "las dos áreas comparten los bytes 4 a 13 del DB21");
+        assertEquals("area4", choca.getName());
+    }
+
+    @Test
     void unTipoDePlantaDesconocidoNoSeDescarta() {
-        // Un tipo que no aparece en el catálogo no debe dejar el área sin variables:
-        // es preferible mostrar de más que dejar al usuario sin nada que añadir.
         CommunicationWizardController c = controllerCon("%DB231.DBD0[0..99]:INTEGER");
         addPv(c, "a", "0", "int");
         assertEquals(DataType.INT, c.lockedType(AREA));
@@ -583,10 +538,6 @@ class AreaCapacityTest {
 
     @Test
     void unTipoConocidoDeOtraFamiliaAhoraSeRechaza() {
-        // Al principio LREAL no era una familia conocida, así que se colaba en un área
-        // de enteros: findIgnoreCase devolvía null y el nombre desconocida pasaba
-        // sin filtro. Ahora que LREAL sí se reconoce, se ve que es un double y no
-        // cabe en un área que ya está fijada a INT.
         CommunicationWizardController c = controllerCon("%DB231.DBD0[0..99]:INTEGER");
         addPv(c, "a", "0", "int");
         assertFalse(c.areaAdmiteTipo(AREA, "LREAL", DataType.INT),
@@ -595,8 +546,6 @@ class AreaCapacityTest {
 
     @Test
     void unAreaDeLrealAdmiteSusPropiasVariables() {
-        // La otra mitad: el nombre de PLC4X tiene que servir para lo suyo, no sólo
-        // para rechazar. LREAL son ocho bytes, así que el área queda en DOUBLE.
         CommunicationWizardController c = controllerCon("%DB231.DBLD0[0..7]:LREAL");
         assertEquals(List.of(DataType.DOUBLE), c.typesAllowed(AREA));
         assertTrue(c.areaAdmiteTipo(AREA, "LREAL", DataType.DOUBLE));
@@ -606,8 +555,6 @@ class AreaCapacityTest {
 
     @Test
     void unAreaDeDintQuedaFijadaEnLosEnterosDeCuatroBytes() {
-        // DINT en la notación de PLC4X son 32 bits: el área ofrece INT y UINT, no
-        // los enteros de dos ni de ocho.
         CommunicationWizardController c = controllerCon("%DB231.DBD0[0..7]:DINT");
         assertEquals(List.of(DataType.INT, DataType.UINT), c.typesAllowed(AREA));
     }

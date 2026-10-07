@@ -40,34 +40,21 @@ public interface DeviceDynamicPanelBuilder {
 
     LinkedHashMap<String, String> getParameterDefaults();
 
-    /**
-     * Catálogo de parámetros válidos para un transporte concreto. El método
-     * por defecto delega en {@link #getParameterDefaults()}.
-     */
     default LinkedHashMap<String, String> getParameterDefaults(String transport) {
         return getParameterDefaults();
     }
 
-    /**
-     * Etiqueta del campo "host". Los transportes serie utilizan la ruta del
-     * dispositivo (p. ej. {@code /dev/ttyUSB0} o {@code COM3}) en lugar de una IP.
-     */
+
     default String getHostLabel() {
         return "Host/IP:";
     }
 
-    /**
-     * Indica si el campo de puerto aplica al transporte activo. No aplica, por
-     * ejemplo, en transportes serie.
-     */
+
     default boolean isPortApplicable() {
         return true;
     }
 
-    /**
-     * Elimina de los parámetros ya añadidos los que no estén en el catálogo
-     * {@code validKeys}. Sin efecto por defecto.
-     */
+
     default void retainParameters(Set<String> validKeys) {
     }
 
@@ -77,17 +64,7 @@ public interface DeviceDynamicPanelBuilder {
 
     void clearParameters();
 
-    /**
-     * Parámetros realmente cargados, en orden, a diferencia de
-     * {@link #getParameterDefaults()} que devuelve el catálogo con los valores
-     * de fábrica.
-     *
-     * <p>Sin esto el formulario no puede distinguir "este parámetro vale 0" de
-     * "este parámetro no está en la conexión", y al precargar un dispositivo
-     * existente mostraría los defaults en lugar de lo que está en el XML.
-     *
-     * @return copia defensiva: el llamador no debe mutar el builder por acá
-     */
+
     LinkedHashMap<String, String> getParameters();
 
     String getSpecificParametersAsString();

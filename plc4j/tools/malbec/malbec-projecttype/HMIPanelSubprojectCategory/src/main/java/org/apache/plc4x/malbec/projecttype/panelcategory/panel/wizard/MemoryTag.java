@@ -20,8 +20,7 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.panel.wizard;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-                   
+                
 public final class MemoryTag {
     private static final Pattern RANGO = Pattern.compile("\\[\\s*(\\d+)\\s*\\.\\.\\s*(\\d+)\\s*]");
     private static final Pattern CORCHETE = Pattern.compile("\\[\\s*(\\d*)\\s*]");
@@ -29,7 +28,7 @@ public final class MemoryTag {
     private static final Pattern DB_CON_CODIGO =
             Pattern.compile("^([A-Za-z]+)(\\d+)\\.DB([A-Za-z]*)(\\d+)$");
     private static final Pattern DB_CORTO = Pattern.compile("^([A-Za-z]+)(\\d+):(\\d+)$");
-    private static final Pattern CODIGO_Y_NUMERO = Pattern.compile("^([A-Za-z]+)(\\d+)$");
+    private static final Pattern CODIGO_Y_NUMERO = Pattern.compile("^((?:[MIQE]|[MIQE][BWDL]|C|T))(\\d+)$");
     private static final Pattern SOLO_NUMERO = Pattern.compile("^(\\d+)$");
     private static final Pattern TIPO =
             Pattern.compile("^[A-Za-z_][A-Za-z0-9_]*(\\s*\\(\\s*\\d+\\s*\\))?(\\s*\\[\\s*\\d*\\s*])?$");
@@ -191,7 +190,6 @@ public final class MemoryTag {
         return lastByte;
     }
 
-    /** Tipo declarado en el tag, o null si no lo lleva. */
     public String family() {
         return family;
     }
@@ -247,7 +245,8 @@ public final class MemoryTag {
         if (cantidad > 0) {
             return cantidad;
         }
-        return codeBits() / 8;
+        int porCodigo = codeBits() / 8;
+        return porCodigo > 0 ? porCodigo : DataType.bitsDeTipo(family) / 8;
     }
 
     public int absoluteFirst() {

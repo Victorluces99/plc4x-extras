@@ -25,32 +25,16 @@ import java.util.Map;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
 
-/**
- * Estado editable del asistente: la configuración de comunicación del
- * dispositivo seleccionado, tal como se está modificando en memoria.
- *
- * <p>Es sólo un contenedor de datos y de los lookups que derivan de ellos. No
- * valida ni guarda: de eso se ocupa {@link CommunicationWizardController}. Las
- * listas se exponen vivas a propósito, porque el usuario las modifica de forma
- * incremental; la copia defensiva ocurre recién al guardar, en el
- * controlador.</p>
- */
 public class CommunicationWizardState {
 
     private DeviceConfigData selectedDevice;
     private final List<CommConfigData.GroupConfig> groups = new ArrayList<>();
     private final List<CommConfigData.ItemConfig> items = new ArrayList<>();
     private final List<CommConfigData.PvConfig> pvs = new ArrayList<>();
-
-    /** Índice inverso área → grupo, para no recorrer items en cada fila. */
     private final Map<String, String> itemsGroup = new HashMap<>();
-
     private boolean cambiosSinGuardar = false;
-
-    /** Evita repetir el aviso de áreas sin grupo al cambiar de dispositivo. */
     private boolean missingGroupsWarned = false;
-
-    /** Carga la configuración del dispositivo elegido, o la vacía si no hay. */
+    
     public void reset(CommConfigData comms) {
         groups.clear();
         items.clear();
@@ -113,14 +97,6 @@ public class CommunicationWizardState {
         return null;
     }
 
-    /**
-     * Nombre del grupo de escaneo de un área, o cadena vacía.
-     *
-     * <p>La cadena vacía cubre dos situaciones distintas: un área guardada antes
-     * de que existiera la persistencia del grupo (dato ausente) y un área cuyo
-     * grupo fue eliminado (huérfana). Ambas se reportan como incompletas, pero
-     * nunca se completan con un grupo inventado.</p>
-     */
     public String groupNameOf(String itemUuid) {
         String groupUuid = itemsGroup.get(itemUuid);
         if (groupUuid == null) {
@@ -134,7 +110,6 @@ public class CommunicationWizardState {
         return "";
     }
 
-    /** Áreas sin grupo de escaneo: dato incompleto, nunca asumido. */
     public List<CommConfigData.ItemConfig> areasSinGrupo() {
         List<CommConfigData.ItemConfig> sinGrupo = new ArrayList<>();
         for (CommConfigData.ItemConfig i : items) {

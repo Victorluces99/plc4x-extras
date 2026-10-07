@@ -22,18 +22,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/**
- * El peso de cada tipo es lo que decide dónde cae la siguiente variable, así que
- * estos tests son la red de seguridad del cálculo de offsets.
- *
- * <p>El caso que se guarda aparte es {@code long} y {@code ulong}: valían 4 bytes
- * en el código anterior y la mitad de lo que ocupan. Un error ahí no se ve
- * mirando la interfaz, se ve meses después cuando el PLC lee por donde no es.</p>
- */
+
 class DataTypeTest {
 
     @Test
@@ -105,10 +97,6 @@ class DataTypeTest {
 
     @Test
     void realOfreceFloatYDoubleSiElAreaEsAncha() {
-        // Los dos son números reales, así que van los dos en el desplegable. Que el
-        // double no quepa en un área de cuatro bytes lo dice la capacidad, no la
-        // lista de tipos: si no, un área de ocho bytes escondería el float y una de
-        // cuatro no ofrecería ningún real.
         assertEquals(List.of(DataType.FLOAT, DataType.DOUBLE),
                 DataType.candidatos("REAL", 32));
         assertEquals(List.of(DataType.FLOAT, DataType.DOUBLE),
@@ -144,9 +132,6 @@ class DataTypeTest {
 
     @Test
     void seCubreTodaLaTablaDeTiposDePlc4x() {
-        // Un caso por cada familia de la tabla de tipos del driver S7. Las que no
-        // aparecen aquí son las de tamaño variable o dependiente de la plataforma,
-        // que no permiten calcular un offset.
         assertEquals(List.of(DataType.BOOLEAN), DataType.candidatos("BOOL", 1));
         assertEquals(List.of(DataType.BYTE, DataType.UBYTE), DataType.candidatos("BYTE", 8));
         assertEquals(List.of(DataType.WORD), DataType.candidatos("WORD", 16));
@@ -171,9 +156,6 @@ class DataTypeTest {
 
     @Test
     void losTiposDeLongitudVariableNoOfrecenNada() {
-        // STRING, WSTRING y los temporales ocupan un tamaño que depende del contenido
-        // o de la plataforma, así que no hay forma de saber dónde va la siguiente
-        // variable. Se dejan en el catálogo como tipos sin peso y no se ofrecen.
         for (String temporal : new String[]{"STRING", "WSTRING", "S5TIME", "TIME",
                 "LTIME", "DATE", "TIME_OF_DAY", "DATE_AND_TIME"}) {
             assertTrue(DataType.candidatos(temporal, 64).isEmpty(),
@@ -183,7 +165,6 @@ class DataTypeTest {
 
     @Test
     void rawByteArrayEsUnAliasDeByte() {
-        // El driver acepta %DB1.DBB0[0..15]:RAW_BYTE_ARRAY y lo decodifica como BYTE.
         assertEquals(DataType.candidatos("BYTE", 8), DataType.candidatos("RAW_BYTE_ARRAY", 8));
         MemoryTag t = MemoryTag.parse("%DB1.DBB0[0..15]:RAW_BYTE_ARRAY");
         assertEquals("RAW_BYTE_ARRAY", t.family());
@@ -194,10 +175,6 @@ class DataTypeTest {
 
     @Test
     void losNombresDeTipoDePlc4xSabenSuPropioTamano() {
-        // El tipo de un tag Siemens dice por sí mismo cuántos bits ocupa, así que no
-        // depende del código de área. INT son 16 bits, DINT 32 y LINT 64, igual que
-        // en el driver de PLC4X. bitsArea a 0 es el caso del tag con la forma corta,
-        // %DB1:0:DINT, que no trae código de área.
         assertEquals(List.of(DataType.SHORT, DataType.USHORT),
                 DataType.candidatos("INT", 0));
         assertEquals(List.of(DataType.SHORT, DataType.USHORT),
@@ -214,16 +191,12 @@ class DataTypeTest {
 
     @Test
     void unLrealDePlc4xEsUnDoubleYNoUnFloat() {
-        // LREAL son ocho bytes, así que ofrecer un float dejaría que se llene el
-        // área con datos más pequeños de los que el PLC va a leer.
         assertEquals(List.of(DataType.DOUBLE), DataType.candidatos("LREAL", 64));
         assertEquals(List.of(DataType.DOUBLE), DataType.candidatos("LREAL", 0));
     }
 
     @Test
     void unTagDeSiemensConTipoDePlc4xEncuentraSusTipos() {
-        // El recorrido completo: el tag declara DINT en el formato de PLC4X y el
-        // área tiene que ofrecer los tipos enteros de cuatro bytes.
         MemoryTag tag = MemoryTag.parse("%DB1.DBD0:DINT");
         assertEquals("DINT", tag.family());
         assertEquals(32, tag.codeBits());

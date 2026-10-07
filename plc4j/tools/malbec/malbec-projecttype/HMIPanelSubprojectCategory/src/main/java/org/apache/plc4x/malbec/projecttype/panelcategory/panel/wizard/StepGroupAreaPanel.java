@@ -19,9 +19,15 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.panel.wizard;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
+import java.awt.GraphicsEnvironment;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -38,11 +44,18 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.Popup;
+import javax.swing.PopupFactory;
+import javax.swing.border.Border;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 
 public class StepGroupAreaPanel extends JPanel {
 
     private static final String SIN_GRUPO = "SIN GRUPO";
+
+    private static final PopupFactory FACTORIA_AVISOS = new PopupFactory();
     private final CommunicationWizardController controller;
     private final NonEditableTableModel groupModel = new NonEditableTableModel(new String[]{
         "Nombre", "Descripción", "Scantime (ms)", "Enable", "UUID"});
@@ -75,10 +88,13 @@ public class StepGroupAreaPanel extends JPanel {
     private final JLabel lblItemFormTitle =
             WizardUi.formTitle("Nueva área de memoria (del dispositivo seleccionado)");
     private String editItemUuid;
-
+    private String editGroupUuid;
     private boolean groupColumnsSized;
     private boolean itemColumnsSized;
     private boolean rebuildingTables;
+    private Border bordeOriginalTag;
+    private Popup popupTag;
+    private boolean ratonSobreTag;
 
     public StepGroupAreaPanel(CommunicationWizardController controller) {
         this.controller = controller;
@@ -95,6 +111,38 @@ public class StepGroupAreaPanel extends JPanel {
 
         WizardUi.fixComboWidth(cbItemGroup, 300);
         WizardUi.fixComboWidth(cbGroupScantime, 110);
+
+        bordeOriginalTag = txtItemTag.getBorder();
+        txtItemTag.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                ratonSobreTag = true;
+                avisarTag();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                ratonSobreTag = false;
+                ocultarAvisoTag();
+            }
+        });
+        txtItemTag.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                avisarTag();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                avisarTag();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                avisarTag();
+            }
+        });
+
         tbGroups.setIntercellSpacing(new Dimension(6, 2));
         tbItems.setIntercellSpacing(new Dimension(6, 2));
         WizardUi.configColumns(tbItems);
@@ -262,6 +310,57 @@ public class StepGroupAreaPanel extends JPanel {
     JTextField getItemTag() {
         return txtItemTag;
     }
+
+    private void avisarTag() {
+        ocultarAvisoTag();
+        List<String> errores = TagDiagnostico.errores(txtItemTag.getText());
+        List<String> avisos = TagDiagnostico.avisos(txtItemTag.getText());
+        List<String> todo = new ArrayList<>(errores);
+        todo.addAll(avisos);
+        txtItemTag.setBorder(errores.isEmpty()
+                ? bordeOriginalTag
+                : BorderFactory.createLineBorder(new Color(180, 0, 0), 2));
+        if (!todo.isEmpty() && ratonSobreTag && txtItemTag.isShowing()) {
+            mostrarAvisoTag(todo);
+        }
+    }
+
+    private void mostrarAvisoTag(List<String> mensajes) {
+        Point enPantalla = txtItemTag.getLocationOnScreen();
+        int anchoCampo = txtItemTag.getWidth();
+        int altoCampo = txtItemTag.getHeight();
+        int ancho = Math.max(240, Math.min(320, anchoCampo - 20));
+
+        JLabel etiqueta = new JLabel("<html><body style='width:" + (ancho - 16) + "px'>"
+                + String.join("<br><br>", mensajes) + "</body></html>");
+        etiqueta.setFont(txtItemTag.getFont());
+
+        JPanel caja = new JPanel(new BorderLayout());
+        caja.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(180, 0, 0)),
+                BorderFactory.createEmptyBorder(6, 8, 6, 8)));
+        caja.setBackground(new Color(255, 250, 235));
+        caja.add(etiqueta, BorderLayout.CENTER);
+
+        Rectangle pantalla = GraphicsEnvironment
+                .getLocalGraphicsEnvironment().getMaximumWindowBounds();
+        int alto = caja.getPreferredSize().height;
+        int y = enPantalla.y + altoCampo + 2;
+        if (y + alto + 8 > pantalla.y + pantalla.height) {
+            y = enPantalla.y - alto;
+        }
+        popupTag = FACTORIA_AVISOS.getPopup(txtItemTag, caja, enPantalla.x, y);
+        popupTag.show();
+    }
+
+    private void ocultarAvisoTag() {
+        if (popupTag != null) {
+            popupTag.hide();
+            popupTag = null;
+        }
+    }
+
+    
 
     public void refresh() {
         rebuildTables();
@@ -454,7 +553,7 @@ public class StepGroupAreaPanel extends JPanel {
         refresh();
     }
 
-    // --- áreas ---------------------------------------------------------------
+    // --- items ---------------------------------------------------------------
     private String problemaDelTag(String tag, String uuidEnEdicion) {
         if (tag.isEmpty()) {
             return "Indique el tag del área. Por ejemplo: "
@@ -474,9 +573,9 @@ public class StepGroupAreaPanel extends JPanel {
         if (mismoTag != null) {
             return "El tag '" + tag + "' ya lo usa el área '" + mismoTag.getName() + "'.\n\n"
                     + "Es un tag sin dirección, así que no se puede comprobar si se"
-                    + " pisan comparando bytes: se toma que son el mismo sitio.\n\n"
-                    + "Si de verdad son sitios distintos, dótalos de una dirección con"
-                    + " rango, del tipo %DB22.DBB4[10..16], y el panel lo comprobará.";
+                    + " pisan comparando bytes: se toma que son la misma area.\n\n"
+                    + "Si de verdad son areas distintas, dótalos de una dirección con"
+                    + " rango, del tipo %DB22.DBB0[0..10], y el panel lo comprobará.";
         }
         CommConfigData.ItemConfig choca = controller.areaQueChoca(tag, uuidEnEdicion);
         if (choca != null) {

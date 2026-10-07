@@ -34,17 +34,6 @@ import javax.swing.text.Document;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
 import org.junit.jupiter.api.Test;
 
-/**
- * La tabla de variables es el espejo de los veinte atributos de un PvRecord y
- * tiene que cumplir dos cosas: mostrar los veinte campos y dejar que el usuario
- * agrande y achique columnas a voluntad.
- *
- * <p>El segundo punto es el que se rompe de forma silenciosa. Si se fija el
- * preferred size de la tabla, el {@code JScrollPane} toma ese valor como ancho
- * del viewport, cree que todo cabe, no muestra barra horizontal y recorta las
- * columnas que quedan afuera. Como el borde derecho de esas columnas también
- * queda fuera de la ventana, el usuario no puede ni verlas ni arrastrarlas.
- */
 class StepPvPanelTest {
 
     private static final CommConfigData.PvConfig PV = new CommConfigData.PvConfig(
@@ -62,18 +51,13 @@ class StepPvPanelTest {
         panel.refresh();
         return panel;
     }
-
-    /** Panel limpio, para mirar el formulario sin nada cargado. */
+    
     private StepPvPanel panelVacio() {
         return new StepPvPanel(
                 new CommunicationWizardController(null, new CommunicationWizardState()),
                 new PlantModelReader(null));
     }
 
-    /**
-     * Variable con los valores que se le pasan, para probar qué hace el formulario
-     * con lo que viene guardado, incluidos los que no encajan.
-     */
     private static CommConfigData.PvConfig pvCon(String scanTime, String limiteBajo,
             String limiteAlto, String minStep) {
         return new CommConfigData.PvConfig(
@@ -136,7 +120,6 @@ class StepPvPanelTest {
 
     @Test
     void lasColumnasNoSePuedenReodenar() {
-        // La tabla tiene veinte columnas y su orden lo fija el código que las lee.
         JTable tabla = panelConUnaVariable().getPvTable();
         assertFalse(tabla.getTableHeader().getReorderingAllowed(),
                 "las columnas se pueden mover de sitio");
@@ -148,8 +131,6 @@ class StepPvPanelTest {
         assertFalse(tabla.getModel().isCellEditable(0, 0));
         assertFalse(tabla.getModel().isCellEditable(0, 11));
     }
-
-    // --- ScanTime como desplegable --------------------------------------------
 
     @Test
     void elScanTimeOfreceLasMismasOfertasQueElGrupo() {
@@ -175,9 +156,6 @@ class StepPvPanelTest {
 
     @Test
     void unScanTimeFueraDeLasOfertasSeQuedaSinSeleccionar() {
-        // Antes esto se perdía al guardar: el desplegable no tenía ese valor, no
-        // seleccionaba nada y se escribía el que hubiera. Ahora no se elige por el
-        // usuario, y como es obligatorio no se puede guardar hasta que lo elija.
         StepPvPanel panel = panelVacio();
         panel.cargarEnFormulario(pvCon("2500", "1", "5", "1"));
         assertNull(panel.getScanTimeCombo().getSelectedItem(),
@@ -185,8 +163,6 @@ class StepPvPanelTest {
         assertFalse(panel.getAjustesAlCargar().isEmpty(),
                 "y no se avisa de que el valor guardado no tiene sitio en el desplegable");
     }
-
-    // --- los cinco campos numéricos -------------------------------------------
 
     @Test
     void losCamposNumericosTienenElRangoPedido() {
@@ -202,8 +178,6 @@ class StepPvPanelTest {
 
     @Test
     void losCamposNumericosSePuedenEscribirYNoSoloPulsarLasFlechas() {
-        // Con el editor por defecto el usuario teclea la cifra y no la teclea 3999
-        // veces con la flecha, que era el problema de buscar la cantidad a pulso.
         StepPvPanel panel = panelVacio();
         JSpinner spinner = panel.getDisplayLimitHigh();
         assertTrue(spinner.getEditor() instanceof JSpinner.NumberEditor,
@@ -225,8 +199,6 @@ class StepPvPanelTest {
 
     @Test
     void unDecimalSeQuedaConSuParteEntera() {
-        // 12.5 se guarda como 12, no se redondea a 13. Lo que sale del truncado se
-        // recorta al rango: -273.15 da -273 y no cabe, y 0.9 da 0 y tampoco.
         StepPvPanel panel = panelVacio();
         panel.cargarEnFormulario(pvCon("100", "12.5", "-273.15", "0.9"));
         assertEquals(12, valorDe(panel.getDisplayLimitLow()), "trunca, no redondea");
@@ -250,8 +222,6 @@ class StepPvPanelTest {
 
     @Test
     void unValorQueNoEsNumeroSeSustituyePorElMinimo() {
-        // pvCon deja el control límite bajo en "2" fijo, así que ese no se toca:
-        // se comprueban los tres que sí llegan desde los parámetros.
         StepPvPanel panel = panelVacio();
         panel.cargarEnFormulario(pvCon("100", "abc", "", null));
         assertEquals(1, valorDe(panel.getDisplayLimitLow()));
@@ -263,8 +233,6 @@ class StepPvPanelTest {
 
 @Test
     void losCamposNumericosEmpiecenEnElMinimo() {
-        // Antes eran obligatorios y había que escribirlos. Ahora un spinner siempre
-        // tiene valor, así que se guardan sin que el usuario toque nada.
         StepPvPanel panel = panelVacio();
         assertEquals(1, valorDe(panel.getDisplayLimitLow()));
         assertEquals(1, valorDe(panel.getDisplayLimitHigh()));
@@ -275,8 +243,6 @@ class StepPvPanelTest {
 
     @Test
     void losCamposNumericosNoAdmitenLetras() throws Exception {
-        // Una tecla no entra por setText sino por el documento del editor, así que
-        // la reproducción tiene que ir por ahí para saber qué hace de verdad.
         JSpinner spinner = panelVacio().getDisplayLimitHigh();
         JSpinner.NumberEditor editor = (JSpinner.NumberEditor) spinner.getEditor();
         JTextField campo = editor.getTextField();
@@ -288,8 +254,6 @@ class StepPvPanelTest {
         assertEquals("12", campo.getText(),
                 "el editor dejó pasar algo que no es un dígito");
     }
-
-    // --- topes de caracteres ---------------------------------------------------
 
     @Test
     void escribirMasDeSesentaEnUnaDescripcionSeRecorta() {
@@ -304,8 +268,6 @@ class StepPvPanelTest {
 
     @Test
     void elFormatoYLasUnidadesNoSeCortan() {
-        // No son descripciones: un patrón de formato cortado a media palabra no
-        // sirve de nada.
         StepPvPanel panel = panelVacio();
         panel.getDisplayFormat().setText("f".repeat(80));
         assertEquals(80, panel.getDisplayFormat().getText().length());

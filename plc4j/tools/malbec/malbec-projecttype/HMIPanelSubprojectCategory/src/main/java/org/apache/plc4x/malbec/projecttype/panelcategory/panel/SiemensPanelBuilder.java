@@ -22,18 +22,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Builder de conexiones Siemens S7. El esquema de la cadena es s7://...
- * cotp es la única capa de transporte y no se muestra por defecto (puede
- * declararse si el usuario lo desea). El catálogo de opciones (nivel driver +
- * opciones code cotp.*)
- */
 public class SiemensPanelBuilder implements DeviceDynamicPanelBuilder {
 
-    /** Opciones de configuración del driver S7 (sin prefijo). */
     private static final LinkedHashMap<String, String> DRIVER_OPTIONS = new LinkedHashMap<>();
-
-    /** Opciones de configuración del transporte cotp. */
     private static final LinkedHashMap<String, String> COTP_OPTIONS = new LinkedHashMap<>();
 
     static {

@@ -20,26 +20,12 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 
 import java.util.LinkedHashMap;
 
-/**
- * Inverso de DeviceDynamicPanelBuilder/assembleUrl.
- *
- * Descompone el formato que los builders producen y que hoy vive
- * únicamente como string dentro del XML:
- */
+
 final class UrlDisassembler {
 
     private UrlDisassembler() {
     }
 
-    /**
-     * @param protocol  antes del {@code :} de transporte, o el nombre completo
-     *                  si la URL no declara transporte
-     * @param transport entre el {@code :} y el {@code ://}; vacío si no hay
-     * @param host      sin puerto, tal cual se escribió en la URL
-     * @param port      vacío si la URL no lo declara
-     * @param params    en el orden en que aparecen, que es el orden en que
-     *                  {@code assembleUrl} los escribe
-     */
     public record Partes(String protocol, String transport, String host, String port,
                  LinkedHashMap<String, String> params) {
     }

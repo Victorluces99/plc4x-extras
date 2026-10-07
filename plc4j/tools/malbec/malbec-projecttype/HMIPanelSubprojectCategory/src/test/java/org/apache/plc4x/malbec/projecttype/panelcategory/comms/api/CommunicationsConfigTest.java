@@ -25,14 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * El UUID es la identidad del dispositivo: {@code upsertDevice} matchea por él y
- * sin él no hay forma de saber cuál se está modificando.
- *
- * <p>Estas pruebas fijan ese contrato porque el síntoma del problema es
- * silencioso: con UUID vacío, modificar un dispositivo lo agregaba como uno
- * nuevo y el original quedaba intacto, sin ningún error en pantalla.
- */
 class CommunicationsConfigTest {
 
     private DeviceConfigData device(String uuid, String nombre) {

@@ -39,13 +39,6 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
 import org.netbeans.api.project.Project;
 import org.openide.windows.WindowManager;
 
-/**
-    Asistente de configuración de comunicación, en tres pasos: dispositivo, grupo
-    de escaneo y área de memoria, y variables de proceso.
-    Cerrar siempre pasa por intentarCerrar(), tanto por botón como por
-    la X o la tecla ESC, para que un guardado parcial nunca se pierda en
-    silencio.
- */
 public class CommunicationWizardDialog extends JDialog {
 
     private static final long serialVersionUID = 1L;
@@ -53,8 +46,7 @@ public class CommunicationWizardDialog extends JDialog {
     private static final String STEP_DEVICE = "device";
     private static final String STEP_AREA = "area";
     private static final String STEP_PV = "pv";
-
-//    private final Project project;
+    
     private final HMICommunicationModel model;
     private final CommunicationWizardState state = new CommunicationWizardState();
     private final CommunicationWizardController controller;
@@ -71,13 +63,11 @@ public class CommunicationWizardDialog extends JDialog {
 
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel cardPanel = new JPanel(cardLayout);
-
     private String currentStep = STEP_DEVICE;
 
     public CommunicationWizardDialog(Project project, String deviceUuid) {
         super(WindowManager.getDefault().getMainWindow(), "Nueva Comunicación",
                 ModalityType.APPLICATION_MODAL);
-//        this.project = project;
         this.model = project != null ? project.getLookup().lookup(HMICommunicationModel.class) : null;
         this.controller = new CommunicationWizardController(project, state);
         this.devicePanel = new StepDevicePanel(controller);
@@ -109,10 +99,6 @@ public class CommunicationWizardDialog extends JDialog {
         int maxW = Math.min(1000, Math.max(760, screen.width - 120));
         int maxH = Math.min(740, Math.max(600, screen.height - 140));
         setSize(Math.min(pref.width, maxW), Math.min(pref.height, maxH));
-        // Tamaño fijo: los tres pasos se ven siempre igual, con las tablas al mismo
-        // ancho y sin que la ventana se pueda estirar ni encoger. Como el ancho ya no
-        // cambia, el reparto de las columnas es el que se hizo al construirlas y no
-        // hay que ir recalculándolo.
         setResizable(false);
         setLocationRelativeTo(null);
     }
@@ -151,16 +137,11 @@ public class CommunicationWizardDialog extends JDialog {
         setContentPane(content);
     }
 
-    /** Conecta los tres paneles entre sí y con la barra de navegación. */
     private void wireSteps() {
         devicePanel.setOnDeviceChanged(this::onDeviceChanged);
         pvPanel.setSaveHooks(this::confirmNoMissingGroups, this::showSavedMessage);
     }
 
-    /**
-     * Un cambio de dispositivo invalida grupos, áreas y variables: los tres
-     * paneles se refrescan en cascada, igual que en el asistente original.
-     */
     private void onDeviceChanged() {
         areaPanel.onDeviceChanged();
         pvPanel.refreshData();
@@ -186,33 +167,17 @@ public class CommunicationWizardDialog extends JDialog {
         updateNavButtons();
     }
 
-    /**
-     * Barra única: cada botón se habilita sólo en los pasos donde tenía acción.
-     *
-     * <p>«Guardar» pertenece al paso 2. En el paso 3 el alta, la modificación y
-     * la baja de variables salen de los botones del propio formulario, porque
-     * cada una persiste por separado; un «Guardar» global no tendría a qué
-     * operación aplicarse.</p>
-     */
     private void updateNavButtons() {
         boolean area = STEP_AREA.equals(currentStep);
         boolean pv = STEP_PV.equals(currentStep);
         btnBack.setEnabled(area || pv);
         btnNext.setEnabled(!area && !pv);
-        // Sin áreas configuradas no hay nada que mostrar en el paso de variables.
         btnNext2.setEnabled(area && !state.getItems().isEmpty());
         btnSave.setEnabled(area);
         btnSaveAndClose.setEnabled(pv);
-        // Un único botón de salida para los tres pasos: la X y la tecla ESC pasan
-        // por el mismo intentoCerrar(), así que la confirmación de cambios sin
-        // guardar no se puede esquivar.
         btnCancel.setEnabled(true);
     }
 
-    /**
-     * «Guardar» del paso 2: persiste grupos y áreas. Las variables del paso 3 se
-     * guardan solas al agregarlas, modificarlas o eliminarlas.
-     */
     private void guardar() {
         if (state.getSelectedDevice() == null || model == null) {
             return;
@@ -236,13 +201,6 @@ public class CommunicationWizardDialog extends JDialog {
         dispose();
     }
 
-    /**
-     * Toda área de memoria debe pertenecer a un grupo de escaneo: el grupo es un
-     * requisito previo a la creación del área. Si alguna quedara sin grupo no se
-     * guarda nada, porque en la base de datos no se admiten áreas sin grupo.
-     *
-     * @return true si se puede seguir guardando
-     */
     private boolean confirmNoMissingGroups() {
         List<String> nombres = controller.areasSinGrupoNames();
         if (nombres.isEmpty()) {
@@ -258,10 +216,6 @@ public class CommunicationWizardDialog extends JDialog {
         return false;
     }
 
-    /**
-     * @return true si la configuración quedó guardada en el XML y volcada a la
-     *         base de datos {@code boot.db}
-     */
     private boolean showSavedMessage(String what) {
         boolean databaseUpdated = controller.saveAll();
         if (databaseUpdated) {
@@ -276,11 +230,6 @@ public class CommunicationWizardDialog extends JDialog {
         return databaseUpdated;
     }
 
-    /**
-     * Cierre del asistente, tanto por botón como por la X de la ventana o la
-     * tecla ESC. Si hay cambios sin guardar pregunta al usuario antes de salir,
-     * porque cerrar descartaría todo lo agregado o modificado.
-     */
     private void intentarCerrar() {
         if (state.isCambiosSinGuardar()) {
             int opcion = JOptionPane.showConfirmDialog(this,

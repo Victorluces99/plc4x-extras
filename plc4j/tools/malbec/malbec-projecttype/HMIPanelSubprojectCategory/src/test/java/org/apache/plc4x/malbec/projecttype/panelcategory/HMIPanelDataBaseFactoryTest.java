@@ -35,10 +35,6 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Verifica el contrato PvId: PvRecords.PvId guarda el uuid del Item (área) y
- * es la única relación PV -&gt; item -&gt; {group, device} a través de la tabla Items.
- */
 class HMIPanelDataBaseFactoryTest {
 
     @TempDir
@@ -92,7 +88,6 @@ class HMIPanelDataBaseFactoryTest {
                 dbFolder.getAbsolutePath(), device(deviceUuid, "PLC_Tres"),
                 comms("g1", itemUuid, "p3")));
 
-        // Mismo uuid, datos distintos: debe sobreescribir, no duplicar.
         CommConfigData modificado = new CommConfigData("PLC_Tres",
                 List.of(new CommConfigData.GroupConfig("g1", "Grupo1", "Grupo 1 editado",
                         "800", true, "md5g")),

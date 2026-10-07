@@ -23,30 +23,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
-/**
- * El formulario arma un {@link DeviceConfigData}, que es inmutable y se construye
- * a partir de un {@link java.util.Properties}. Eso deja el contrato en un único
- * lugar: si se renombra, se agrega o se olvida una clave, el dispositivo se
- * persiste con un campo vacío y no hay error de compilación que lo delate.
- *
- * <p>La segunda mitad de las pruebas cubre el nodo S88. El combo arranca en
- * "-- Seleccione --" y ese texto se estaba escribiendo en el XML como si fuera
- * el nombre de un área real, sin que ninguna validación lo detuviera.
- */
 class CreateDevicePanelTest {
 
-    /**
-     * Formulario con todos los campos obligatorios resueltos.
-     *
-     * <p>El nodo S88 se registra a mano porque sin un proyecto real no hay
-     * {@code plant-model.xml} que leer, y sin nodo la validación nunca deja
-     * llegar al camino que se quiere verificar.
-     */
     private CreateDevicePanel panelCompleto() {
         CreateDevicePanel panel = new CreateDevicePanel(null);
         panel.getCbMarca().setSelectedIndex(1);
@@ -116,14 +98,6 @@ class CreateDevicePanelTest {
         assertTrue(url.contains("102"), "falta el puerto en la url: " + url);
     }
 
-    // --- Modificación ---------------------------------------------------------
-    //
-    // Un mismo formulario sirve para el alta y para la modificación. Lo que se
-    // verifica acá es que abrir un dispositivo existente lo deja editable y, a
-    // la vez, con el UUID intacto: upsertDevice matchea por UUID, así que si se
-    // regenera la modificación se convierte en un dispositivo nuevo.
-
-    /** Dispositivo tal como lo devolvería el constructor de Properties. */
     private DeviceConfigData deviceParaEditar(String uuid, String model, String url) {
         Properties p = new Properties();
         p.put("brand", "Siemens");
@@ -174,14 +148,6 @@ class CreateDevicePanelTest {
                 "los parámetros guardados no llegaron al builder: " + url);
     }
 
-    /**
-     * El nodo guardado tiene que volver al combo aunque no haya
-     * {@code plant-model.xml} que lo traiga.
-     *
-     * <p>Sin esto el dispositivo queda con el formulario precargado pero nunca
-     * supera la validación: el nodo del combo se queda en el placeholder y
-     * Guardar responde siempre "Faltan datos".
-     */
     @Test
     void elNodoGuardadoVuelveAlComboAunqueNoHayaPlantModel() {
         CreateDevicePanel panel = new CreateDevicePanel(null,
@@ -193,14 +159,6 @@ class CreateDevicePanelTest {
                         + panel.camposObligatoriosVacios());
     }
 
-    /**
-     * El transporte de la URL guardada es el que queda al guardar.
-     *
-     * <p>El catálogo de Siemens ofrece "" y "tcp", pero las URLs que produce el
-     * asistente traen {@code s7:cotp://}. Si el transporte desensamblado no se
-     * aplica, el combo conserva el del modelo y al guardar la URL se reescribe
-     * a {@code s7://}, perdiendo el transporte sin avisar.
-     */
     @Test
     void alGuardarSeConservaElTransporteDeLaUrlLeida() {
         String url = "s7:cotp://192.168.0.10:102?cotp.remote-slot=3";
@@ -228,9 +186,6 @@ class CreateDevicePanelTest {
 
     @Test
     void elFormularioEsAnchoSuficienteParaPoderLeerse() {
-        // La ventana se empaqueta con pack() y no se puede redimensionar, así que si
-        // el formulario sale estrecho no hay forma de estirarlo: la etiqueta se
-        // queda ilegible y no hay dónde ampliar. Los campos necesitan ancho propio.
         int ancho = panelCompleto().getPreferredSize().width;
         assertTrue(ancho >= 700,
                 "el formulario mide " + ancho + " px de ancho y la ventana se empaqueta"

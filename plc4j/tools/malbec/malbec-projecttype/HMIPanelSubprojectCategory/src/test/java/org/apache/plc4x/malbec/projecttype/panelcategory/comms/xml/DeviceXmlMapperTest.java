@@ -59,11 +59,6 @@ class DeviceXmlMapperTest {
         pDevice.put("specificParameters", "ipa=10.0.0.1\nrack=0\nslot=1");
 
         DeviceConfigData device = new DeviceConfigData(pDevice);
-//        DeviceConfigData device = new DeviceConfigData(
-//                "Siemens", "S7-1500", "S7", "PLC_Uno",
-//                "Control principal", "uuid-1", true,
-//                "S88.1", "s88-uuid-1",
-//                "ipa=10.0.0.1\nrack=0\nslot=1");
 
         DeviceXmlMapper.writeDevice(device, configurations);
 
@@ -101,10 +96,6 @@ class DeviceXmlMapperTest {
 
         DeviceConfigData device = new DeviceConfigData(pDevice);
 
-//        DeviceConfigData device = new DeviceConfigData(
-//                "Siemens & Co<\"XL\">", "A 'B'", "S7", "PLC & \"A\" <1>",
-//                "line1\nline2 & more <now>", "uuid-1", false,
-//                "", "", "x=1&y=2");
         DeviceXmlMapper.writeDevice(device, configurations);
 
         DeviceConfigData read = DeviceXmlMapper.readDevice(configurations.getConfigurationArray(0));
@@ -134,8 +125,6 @@ class DeviceXmlMapperTest {
 
         DeviceConfigData device = new DeviceConfigData(pDevice);
 
-//        DeviceConfigData device = new DeviceConfigData(
-//                null, null, null, "PLC", null, null, false, null, null, null);
         DeviceXmlMapper.writeDevice(device, configurations);
 
         DeviceConfigData read = DeviceXmlMapper.readDevice(configurations.getConfigurationArray(0));
@@ -169,9 +158,6 @@ class DeviceXmlMapperTest {
 
         DeviceConfigData device = new DeviceConfigData(pDevice);
 
-//        DeviceConfigData device = new DeviceConfigData(
-//                "Siemens", "S7-1500", "S7", "PLC_Uno",
-//                "Control principal", "uuid-1", true, "S88.1", "s88-uuid-1", "");
         Configuration configuration = DeviceXmlMapper.writeDevice(device, configurations);
 
         CommConfigData comms = new CommConfigData("PLC_Uno",
@@ -242,9 +228,6 @@ class DeviceXmlMapperTest {
         pDevice.put("specificParameters", "");
 
         DeviceConfigData device = new DeviceConfigData(pDevice);
-//        DeviceConfigData device = new DeviceConfigData(
-//                "Siemens", "S7-1500", "S7", "PLC_Uno",
-//                "Control principal", "uuid-1", true, "S88.1", "s88-uuid-1", "");
 
         DeviceXmlMapper.writeDevice(device, configurations);
 

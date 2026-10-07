@@ -171,17 +171,6 @@ public final class DeviceXmlMapper {
                 pDevice.put("specificParameters", text(device, "specificParameters"));
                 
                 return new DeviceConfigData(pDevice);
-//                return new DeviceConfigData(
-//                        text(device, "brand"),
-//                        text(device, "model"),
-//                        text(device, "protocol"),
-//                        configuration.getName(),
-//                        text(device, "description"),
-//                        attr(device, "uuid"),
-//                        Boolean.parseBoolean(attr(device, "enabled")),
-//                        text(device, "s88Node"),
-//                        attr(device, "s88Uuid"),
-//                        text(device, "specificParameters"));
             }
         }
         return null;

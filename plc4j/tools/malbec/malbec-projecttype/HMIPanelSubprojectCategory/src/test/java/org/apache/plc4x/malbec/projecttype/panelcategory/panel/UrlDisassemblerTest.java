@@ -25,12 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.LinkedHashMap;
 import org.junit.jupiter.api.Test;
 
-/**
- * El desensamblador existe sólo para editar dispositivos existentes, así que lo
- * que hay que garantizar es que abre exactamente el formato que
- * {@code assembleUrl} escribe. Los tres builders producen variantes distintas
- * del mismo esquema y las tres tienen que volver.
- */
 class UrlDisassemblerTest {
 
     @Test
@@ -45,8 +39,6 @@ class UrlDisassemblerTest {
 
     @Test
     void sinTransporteNiPuerto() {
-        // Formato oficial de Siemens: el transporte cotp es implícito y el
-        // puerto no se escribe si el builder no lo tiene.
         UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7://192.168.0.10");
         assertEquals("s7", partes.protocol());
         assertEquals("", partes.transport());
@@ -68,7 +60,6 @@ class UrlDisassemblerTest {
 
     @Test
     void leeUnPuertoSerieComoHost() {
-        // Modbus serie: el host es el puerto del dispositivo y no hay port.
         UrlDisassembler.Partes partes = UrlDisassembler.disassemble("modbus-rtu://COM3");
         assertEquals("modbus-rtu", partes.protocol());
         assertEquals("COM3", partes.host());
@@ -82,10 +73,6 @@ class UrlDisassemblerTest {
         assertNull(UrlDisassembler.disassemble(null));
     }
 
-    /**
-     * El que de verdad importa: si alguien cambia {@code assembleUrl}, la URL
-     * que se guardó deja de poder editarse y este test se rompe.
-     */
     @Test
     void elViajeDeIdaYVueltaConservaLaUrl() {
         assertViajeIdaYVuelta("s7:cotp://192.168.0.10:102?controller-type=S7_1500&pdu-size=512");

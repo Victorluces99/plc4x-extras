@@ -29,7 +29,7 @@ import javax.swing.ImageIcon;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateCommAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDeviceAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDisplayAction;
-import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans.HMICommunicationModel;
 import org.netbeans.api.annotations.common.StaticResource;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectInformation;

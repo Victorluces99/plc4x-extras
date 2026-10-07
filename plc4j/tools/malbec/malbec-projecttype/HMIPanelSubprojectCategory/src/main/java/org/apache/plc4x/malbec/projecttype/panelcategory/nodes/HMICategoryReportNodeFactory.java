@@ -23,6 +23,7 @@ import java.util.List;
 import javax.swing.Action;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import org.apache.plc4x.malbec.projecttype.panelcategory.HMICategoryDefinition;
 import org.netbeans.api.project.Project;
 import org.netbeans.spi.project.ui.support.NodeFactory;
 import org.netbeans.spi.project.ui.support.NodeFactorySupport;
@@ -47,7 +48,7 @@ public class HMICategoryReportNodeFactory implements NodeFactory {
         FileObject projectDir = project.getProjectDirectory();
 
         // Solo mostrar si la carpeta se llama "Informes"
-        if (!"Informes".equalsIgnoreCase(projectDir.getName())) {
+        if (!HMICategoryDefinition.REPORT.getDisplayName().equalsIgnoreCase(projectDir.getName())) {
             return NodeFactorySupport.fixedNodeList();
         }
 
@@ -171,7 +172,7 @@ public class HMICategoryReportNodeFactory implements NodeFactory {
             super(dataObject, Children.LEAF);
             this.fileObject = fileObject;
 
-            String iconBase = "org/apache/plc4x/malbec/projecttype/hmipanelcategory/FolderBlue.png";
+            String iconBase = HMICategoryDefinition.REPORT.getIconPath();
             if (iconBase != null && !iconBase.isEmpty()) {
                 setIconBaseWithExtension(iconBase);
             }

@@ -31,8 +31,11 @@ import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.table.TableColumnModel;
 import javax.swing.text.Document;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.junit.jupiter.api.Test;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardController;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardState;
+import org.apache.plc4x.malbec.projecttype.panelcategory.stub.NoopCommunicationStore;
 
 class StepPvPanelTest {
 
@@ -46,7 +49,7 @@ class StepPvPanelTest {
         CommunicationWizardState state = new CommunicationWizardState();
         state.getPvs().add(PV);
         StepPvPanel panel = new StepPvPanel(
-                new CommunicationWizardController(null, state),
+                new CommunicationWizardController(new NoopCommunicationStore(), state),
                 new PlantModelReader(null));
         panel.refresh();
         return panel;
@@ -54,7 +57,7 @@ class StepPvPanelTest {
     
     private StepPvPanel panelVacio() {
         return new StepPvPanel(
-                new CommunicationWizardController(null, new CommunicationWizardState()),
+                new CommunicationWizardController(new NoopCommunicationStore(), new CommunicationWizardState()),
                 new PlantModelReader(null));
     }
 

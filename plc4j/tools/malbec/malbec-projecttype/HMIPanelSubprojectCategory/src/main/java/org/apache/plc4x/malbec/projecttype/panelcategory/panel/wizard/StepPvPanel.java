@@ -50,8 +50,11 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.text.DefaultFormatter;
 import javax.swing.table.TableColumn;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
-import org.openide.util.Exceptions;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DataType;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.MemoryTag;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.PlantVariable;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardController;
 //TODO: en un futuro permitir crear variables propias. No contar solo con las que vienen de planta.
 public class StepPvPanel extends JPanel {
 
@@ -457,7 +460,8 @@ public class StepPvPanel extends JPanel {
         try {
             variables = plantModelReader.loadAreaVariables(areaId);
         } catch (Exception ex) {
-            Exceptions.printStackTrace(ex);
+            java.util.logging.Logger.getLogger(StepPvPanel.class.getName())
+                    .log(java.util.logging.Level.WARNING, "No se pudieron cargar las variables de planta", ex);
             return;
         }
         DataType lockedType = controller.lockedType(selectedAreaUuid());

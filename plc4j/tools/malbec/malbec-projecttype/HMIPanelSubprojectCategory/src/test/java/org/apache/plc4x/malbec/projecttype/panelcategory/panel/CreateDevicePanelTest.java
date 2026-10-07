@@ -26,11 +26,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.stub.NoopCommunicationStore;
 
 class CreateDevicePanelTest {
 
     private CreateDevicePanel panelCompleto() {
-        CreateDevicePanel panel = new CreateDevicePanel(null);
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore());
         panel.getCbMarca().setSelectedIndex(1);
         panel.getCbModelo().setSelectedIndex(3);
         panel.registrarNodoS88("MD70", "uuid-md70");
@@ -44,13 +46,13 @@ class CreateDevicePanelTest {
 
     @Test
     void elNodoS88SeleccionadoEsNullConElPlaceholder() {
-        assertNull(new CreateDevicePanel(null).nodoS88Seleccionado(),
+        assertNull(new CreateDevicePanel(null, new NoopCommunicationStore()).nodoS88Seleccionado(),
                 "el placeholder del combo no puede pasar por nodo elegido");
     }
 
     @Test
     void unFormularioVacioPideLosSeisCamposObligatorios() {
-        List<String> faltantes = new CreateDevicePanel(null).camposObligatoriosVacios();
+        List<String> faltantes = new CreateDevicePanel(null, new NoopCommunicationStore()).camposObligatoriosVacios();
         assertEquals(6, faltantes.size(), "faltantes: " + faltantes);
         assertTrue(faltantes.contains("Name"), "faltantes: " + faltantes);
         assertTrue(faltantes.contains("Key"), "faltantes: " + faltantes);
@@ -116,7 +118,7 @@ class CreateDevicePanelTest {
 
     @Test
     void alAbrirUnDispositivoSePrecarganSusDatos() {
-        CreateDevicePanel panel = new CreateDevicePanel(null,
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(),
                 deviceParaEditar("uuid-fijo", "S7-1500", "s7:cotp://192.168.0.10:102"));
         assertEquals("uuid-fijo", panel.getTxtUUID().getText());
         assertEquals("Compresor 1", panel.getTxtDeviceName().getText());
@@ -127,7 +129,7 @@ class CreateDevicePanelTest {
 
     @Test
     void elUuidNoCambiaAlElegirOtroModelo() {
-        CreateDevicePanel panel = new CreateDevicePanel(null,
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(),
                 deviceParaEditar("uuid-fijo", "S7-1500", "s7:cotp://192.168.0.10:102"));
         panel.getCbMarca().setEnabled(true);   // en edición viene bloqueado
         panel.getCbModelo().setSelectedIndex(1);
@@ -137,7 +139,7 @@ class CreateDevicePanelTest {
 
     @Test
     void alEditarSeRecuperanHostPuertoYParametros() {
-        CreateDevicePanel panel = new CreateDevicePanel(null, deviceParaEditar("uuid-1",
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(), deviceParaEditar("uuid-1",
                 "S7-1500", "s7:cotp://192.168.0.10:102?cotp.remote-slot=3&pdu-size=512"));
         assertEquals("192.168.0.10", panel.getTxtHost().getText());
         assertEquals("102", panel.getTxtPort().getText());
@@ -150,7 +152,7 @@ class CreateDevicePanelTest {
 
     @Test
     void elNodoGuardadoVuelveAlComboAunqueNoHayaPlantModel() {
-        CreateDevicePanel panel = new CreateDevicePanel(null,
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(),
                 deviceParaEditar("uuid-1", "S7-1500", "s7:cotp://192.168.0.10:102"));
         assertEquals("MD70", panel.nodoS88Seleccionado(),
                 "el nodo guardado no llegó al combo: el dispositivo quedaría sin poder modificarse");
@@ -162,7 +164,7 @@ class CreateDevicePanelTest {
     @Test
     void alGuardarSeConservaElTransporteDeLaUrlLeida() {
         String url = "s7:cotp://192.168.0.10:102?cotp.remote-slot=3";
-        CreateDevicePanel panel = new CreateDevicePanel(null,
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(),
                 deviceParaEditar("uuid-1", "S7-1500", url));
         assertTrue(panel.urlActual().startsWith("s7:cotp://"),
                 "el transporte guardado no se restauró: " + panel.urlActual());
@@ -170,7 +172,7 @@ class CreateDevicePanelTest {
 
     @Test
     void alCambiarElModeloLaConexionSeRehazeConLosDefaultsDelNuevo() {
-        CreateDevicePanel panel = new CreateDevicePanel(null, deviceParaEditar("uuid-1",
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(), deviceParaEditar("uuid-1",
                 "S7-1500", "s7:cotp://192.168.0.10:102?cotp.remote-slot=3"));
         panel.getCbMarca().setEnabled(true);   // en edición viene bloqueado
         panel.getCbModelo().setSelectedIndex(0);

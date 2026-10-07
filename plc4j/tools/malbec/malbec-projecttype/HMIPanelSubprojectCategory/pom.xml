@@ -37,8 +37,6 @@ under the License.
                     <publicPackages>
                         <publicPackage>org.apache.plc4x.malbec.projecttype.panelcategory</publicPackage>
                         <publicPackage>org.apache.plc4x.malbec.projecttype.panelcategory.nodes</publicPackage>
-                        <publicPackage>org.apache.plc4x.malbec.projecttype.panelcategory.panel</publicPackage>
-                        <publicPackage>org.plcopen.xml.*</publicPackage>
                     </publicPackages>
                 </configuration>
             </plugin>
@@ -51,29 +49,14 @@ under the License.
                     </archive>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.xmlbeans</groupId>
-                <artifactId>xmlbeans</artifactId>
-                <version>${xmlbeans.version}</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <!-- Directorio donde se encuentra el XSD -->
-                    <schemaDirectory>src/main/schema</schemaDirectory>
-                    
-                    <repackage>org.apache.plc4x.malbec.projecttype.hmipanelsubprojectcategory.metadata</repackage>
-                    <noUpa>true</noUpa>
-                    <noPvr>true</noPvr>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
     <dependencies>
+        <dependency>
+            <groupId>org.apache.plc4x.malbec.projecttype</groupId>
+            <artifactId>commsHmi</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.netbeans.api</groupId>
             <artifactId>org-netbeans-api-annotations-common</artifactId>
@@ -231,19 +214,9 @@ under the License.
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.xerial</groupId>
-            <artifactId>sqlite-jdbc</artifactId>
-            <version>3.53.4.0</version>
-        </dependency>
-        <dependency>
             <groupId>org.netbeans.api</groupId>
             <artifactId>org-netbeans-modules-settings</artifactId>
             <version>${netbeans.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.xmlbeans</groupId>
-            <artifactId>xmlbeans</artifactId>
-            <version>${xmlbeans.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

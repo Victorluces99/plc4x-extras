@@ -24,6 +24,7 @@ import java.awt.FlowLayout;
 import java.awt.Rectangle;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
+import java.nio.file.Path;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -32,12 +33,16 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.KeyStroke;
-import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationStore;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans.HMICommunicationModel;
 import org.netbeans.api.project.Project;
+import org.openide.filesystems.FileUtil;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 
 public final class CreateDeviceDialog extends JDialog {
 
-    private final transient Project project;
+    private final transient Path projectDir;
+    private final transient CommunicationStore store;
     private final transient CreateDevicePanel panel;
     private final boolean editando;
     private final JButton btnOk = new JButton("Guardar");
@@ -51,12 +56,20 @@ public final class CreateDeviceDialog extends JDialog {
         return new CreateDeviceDialog(owner, project, device);
     }
 
+    private static Path directorioDe(Project project) {
+        return project != null ? FileUtil.toFile(project.getProjectDirectory()).toPath() : null;
+    }
+    private static CommunicationStore storeDe(Project project) {
+        return project != null ? project.getLookup().lookup(HMICommunicationModel.class) : null;
+    }
+
     private CreateDeviceDialog(Window owner, Project project, DeviceConfigData device) {
         super(owner, device == null
                 ? "Nuevo dispositivo de comunicación"
                 : "Modificar dispositivo", ModalityType.APPLICATION_MODAL);
-        this.project = project;
-        this.panel = new CreateDevicePanel(project, device);
+        this.projectDir = directorioDe(project);
+        this.store = storeDe(project);
+        this.panel = new CreateDevicePanel(projectDir, store, device);
         this.editando = device != null;
 
         JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
@@ -98,21 +111,15 @@ public final class CreateDeviceDialog extends JDialog {
         if (data == null) {
             return;
         }
-        if (project == null) {
-            JOptionPane.showMessageDialog(this,
-                    "No hay un proyecto asociado.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        HMICommunicationModel model = project.getLookup().lookup(HMICommunicationModel.class);
-        if (model == null) {
+        if (store == null) {
             JOptionPane.showMessageDialog(this,
                     "No se encontró el modelo de comunicación del proyecto.",
                     "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        model.upsertDevice(data);
-        if (!model.save()) {
+        store.upsertDevice(data);
+        if (!store.save()) {
             JOptionPane.showMessageDialog(this,
                     "El dispositivo se guardó en comunicacion.xml pero no se pudo\n"
                     + "actualizar la base de datos. Revisá la consola.",

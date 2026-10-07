@@ -32,10 +32,11 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.HMICategoryDefinition;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans.HMICommunicationModel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CreateDeviceDialog;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.netbeans.api.project.Project;
 import org.netbeans.spi.project.ui.support.NodeFactory;
 import org.netbeans.spi.project.ui.support.NodeFactorySupport;
@@ -60,7 +61,7 @@ public class HMICategoryCommunicationNodeFactory implements NodeFactory {
         FileObject projectDir = project.getProjectDirectory();
 
         // Solo mostrar si la carpeta se llama "Comunicacion"
-        if (!"Comunicacion".equalsIgnoreCase(projectDir.getName())) {
+        if (!HMICategoryDefinition.COMUNICATION.getDisplayName().equalsIgnoreCase(projectDir.getName())) {
             return NodeFactorySupport.fixedNodeList();
         }
 
@@ -188,7 +189,7 @@ public class HMICategoryCommunicationNodeFactory implements NodeFactory {
             if (inicial != null) {
                 setLabelsFrom(inicial);
             }
-            setIconBaseWithExtension("org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/comm.png");
+            setIconBaseWithExtension(HMICategoryDefinition.COMUNICATION.getIconPath());
         }
 
         /** Dispositivo vigente, o null si fue borrado. */

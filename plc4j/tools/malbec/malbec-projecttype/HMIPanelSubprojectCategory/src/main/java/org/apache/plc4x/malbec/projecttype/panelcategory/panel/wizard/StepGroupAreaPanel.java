@@ -49,7 +49,11 @@ import javax.swing.PopupFactory;
 import javax.swing.border.Border;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DataType;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.MemoryTag;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.TagDiagnostico;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardController;
 
 public class StepGroupAreaPanel extends JPanel {
 
@@ -89,6 +93,7 @@ public class StepGroupAreaPanel extends JPanel {
             WizardUi.formTitle("Nueva área de memoria (del dispositivo seleccionado)");
     private String editItemUuid;
     private String editGroupUuid;
+    private Runnable onItemsChanged;
     private boolean groupColumnsSized;
     private boolean itemColumnsSized;
     private boolean rebuildingTables;
@@ -580,10 +585,10 @@ public class StepGroupAreaPanel extends JPanel {
         CommConfigData.ItemConfig choca = controller.areaQueChoca(tag, uuidEnEdicion);
         if (choca != null) {
             MemoryTag otro = MemoryTag.parse(choca.getTag());
-            return "El tag '" + tag + "' ocupa los bytes " + t.absoluteFirst()
-                    + " a " + t.absoluteLast() + " y se pisa con el área '" + choca.getName()
-                    + "', que ocupa los bytes " + otro.absoluteFirst()
-                    + " a " + otro.absoluteLast() + ".";
+                return "El tag '" + tag + "' ocupa los bytes " + t.startByteEffective()
+                        + " a " + t.endByteEffective() + " y se pisa con el área '" + choca.getName()
+                        + "', que ocupa los bytes " + otro.startByteEffective()
+                        + " a " + otro.endByteEffective() + ".";
         }
         return null;
     }
@@ -619,6 +624,7 @@ public class StepGroupAreaPanel extends JPanel {
                 chkItemEnable.isSelected(), group.getUuid());
         limpiarFormularioItem();
         refresh();
+        avisarItemsChanged();
     }
     
     private void onItemRowSelected() {
@@ -671,6 +677,7 @@ public class StepGroupAreaPanel extends JPanel {
                 txtItemTag.getText().trim(), chkItemEnable.isSelected());
         salirDeEdicionItem();
         refresh();
+        avisarItemsChanged();
     }
 
     private void deleteItem() {
@@ -698,6 +705,7 @@ public class StepGroupAreaPanel extends JPanel {
         controller.deleteItem(item.getUuid());
         salirDeEdicionItem();
         refresh();
+        avisarItemsChanged();
     }
 
     private void warnMissingGroups() {
@@ -725,5 +733,15 @@ public class StepGroupAreaPanel extends JPanel {
         salirDeEdicionGrupo();
         salirDeEdicionItem();
         refresh();
+    }
+
+    public void setOnItemsChanged(Runnable listener) {
+        onItemsChanged = listener;
+    }
+
+    private void avisarItemsChanged() {
+        if (onItemsChanged != null) {
+            onItemsChanged.run();
+        }
     }
 }

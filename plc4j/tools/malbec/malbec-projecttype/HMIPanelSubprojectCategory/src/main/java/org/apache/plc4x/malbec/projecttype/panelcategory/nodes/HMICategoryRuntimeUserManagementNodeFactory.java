@@ -24,6 +24,7 @@ import javax.swing.Action;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryRuntimeUserManagementAction;
+import org.apache.plc4x.malbec.projecttype.panelcategory.HMICategoryDefinition;
 import org.netbeans.api.project.Project;
 import org.netbeans.spi.project.ui.support.NodeFactory;
 import org.netbeans.spi.project.ui.support.NodeFactorySupport;
@@ -43,13 +44,12 @@ import org.openide.util.Exceptions;
 @NodeFactory.Registration(projectType = "org-apache-plc4x-category", position = 140)
 public class HMICategoryRuntimeUserManagementNodeFactory implements NodeFactory {
 
-    
     @Override
     public NodeList<?> createNodes(Project project) {
         FileObject projectDir = project.getProjectDirectory();
 
-        // Solo mostrar si la carpeta se llama "Informes"
-        if (!"Informes".equalsIgnoreCase(projectDir.getName())) {
+        // Solo mostrar si la carpeta se llama "Administracion de Usuarios runtime"
+        if (!HMICategoryDefinition.ADMIN_USER.getDisplayName().equalsIgnoreCase(projectDir.getName())) {
             return NodeFactorySupport.fixedNodeList();
         }
 
@@ -173,7 +173,7 @@ public class HMICategoryRuntimeUserManagementNodeFactory implements NodeFactory 
             super(dataObject, Children.LEAF);
             this.fileObject = fileObject;
 
-            String iconBase = "org/apache/plc4x/malbec/projecttype/hmipanelcategory/FolderBlue.png";
+            String iconBase = HMICategoryDefinition.ADMIN_USER.getIconPath();
             if (iconBase != null && !iconBase.isEmpty()) {
                 setIconBaseWithExtension(iconBase);
             }

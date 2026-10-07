@@ -22,6 +22,7 @@ import java.awt.event.ActionEvent;
 import javax.swing.AbstractAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.panel.wizard.CommunicationWizardDialog;
 import org.netbeans.api.project.Project;
+import org.openide.windows.WindowManager;
 
 
 public class HMICategoryCreateCommAction extends AbstractAction {
@@ -45,7 +46,8 @@ public class HMICategoryCreateCommAction extends AbstractAction {
             return;
         }
         
-        CommunicationWizardDialog dialog = new CommunicationWizardDialog(project, deviceUuid);
+        CommunicationWizardDialog dialog = new CommunicationWizardDialog(
+                WindowManager.getDefault().getMainWindow(), project, deviceUuid);
         dialog.setVisible(true);
     }
 }

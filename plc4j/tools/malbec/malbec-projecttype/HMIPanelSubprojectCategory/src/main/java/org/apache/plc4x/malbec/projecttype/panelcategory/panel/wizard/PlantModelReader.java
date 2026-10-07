@@ -19,25 +19,26 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.panel.wizard;
 
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import org.netbeans.api.project.Project;
-import org.openide.filesystems.FileObject;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.PlantVariable;
 
 public class PlantModelReader {
 
     private static final String PLANT_MODEL_FILE = "plant-model.xml";
-    private final Project project;
+    private final Path projectDir;
 
-    public PlantModelReader(Project project) {
-        this.project = project;
+    public PlantModelReader(Path projectDir) {
+        this.projectDir = projectDir;
     }
 
     public List<PlantVariable> loadAreaVariables(String areaId) throws Exception {
@@ -46,8 +47,7 @@ public class PlantModelReader {
             return result;
         }
 
-        FileObject plantModel = findPlantModelFile(
-                project != null ? project.getProjectDirectory() : null);
+        Path plantModel = findPlantModelFile(projectDir);
         if (plantModel == null) {
             return result;
         }
@@ -56,10 +56,10 @@ public class PlantModelReader {
         // Protección contra ataques XXE y procesamiento seguro
         factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
         factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-        
+
         DocumentBuilder builder = factory.newDocumentBuilder();
 
-        try (InputStream is = plantModel.getInputStream()) {
+        try (InputStream is = Files.newInputStream(plantModel)) {
             Document doc = builder.parse(is);
             Element root = doc.getDocumentElement();
             if (root == null) {
@@ -116,14 +116,14 @@ public class PlantModelReader {
         }
     }
 
-    private FileObject findPlantModelFile(FileObject projectDir) {
-        FileObject fo = projectDir;
-        while (fo != null) {
-            FileObject xml = fo.getFileObject(PLANT_MODEL_FILE);
-            if (xml != null) {
+    private Path findPlantModelFile(Path projectDir) {
+        Path dir = projectDir;
+        while (dir != null) {
+            Path xml = dir.resolve(PLANT_MODEL_FILE);
+            if (Files.isRegularFile(xml)) {
                 return xml;
             }
-            fo = fo.getParent();
+            dir = dir.getParent();
         }
         return null;
     }

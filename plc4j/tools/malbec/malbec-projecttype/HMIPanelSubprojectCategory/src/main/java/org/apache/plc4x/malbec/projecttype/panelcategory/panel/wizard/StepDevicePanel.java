@@ -26,7 +26,8 @@ import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardController;
 
 public class StepDevicePanel extends JPanel {
 

@@ -25,6 +25,7 @@ import javax.swing.Action;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryTextAndListChartsAction;
+import org.apache.plc4x.malbec.projecttype.panelcategory.HMICategoryDefinition;
 import org.netbeans.api.project.Project;
 import org.netbeans.spi.project.ui.support.NodeFactory;
 import org.netbeans.spi.project.ui.support.NodeFactorySupport;
@@ -48,7 +49,7 @@ public class HMICategoryTextAndListChartsNodeFactory implements NodeFactory {
         FileObject projectDir = project.getProjectDirectory();
 
         // Solo mostrar si la carpeta se llama "Texto y Lista de graficos"
-        if (!"Texto y Lista de graficos".equalsIgnoreCase(projectDir.getName())) {
+        if (!HMICategoryDefinition.TEXT_GRAPHIC.getDisplayName().equalsIgnoreCase(projectDir.getName())) {
             return NodeFactorySupport.fixedNodeList();
         }
 
@@ -172,7 +173,7 @@ public class HMICategoryTextAndListChartsNodeFactory implements NodeFactory {
             super(dataObject, Children.LEAF);
             this.fileObject = fileObject;
 
-            String iconBase = "org/apache/plc4x/malbec/projecttype/hmipanelcategory/FolderBlue.png";
+            String iconBase = HMICategoryDefinition.TEXT_GRAPHIC.getIconPath();
             if (iconBase != null && !iconBase.isEmpty()) {
                 setIconBaseWithExtension(iconBase);
             }

@@ -22,6 +22,7 @@ import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
 import java.awt.Rectangle;
+import java.awt.Window;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -33,11 +34,13 @@ import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.KeyStroke;
-import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.CommConfigData;
-import org.apache.plc4x.malbec.projecttype.panelcategory.panel.DeviceConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans.HMICommunicationModel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.netbeans.api.project.Project;
-import org.openide.windows.WindowManager;
+import org.openide.filesystems.FileUtil;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardController;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardState;
 
 public class CommunicationWizardDialog extends JDialog {
 
@@ -56,7 +59,6 @@ public class CommunicationWizardDialog extends JDialog {
 
     private final JButton btnBack = new JButton("< Atrás");
     private final JButton btnNext = new JButton("Siguiente >");
-    private final JButton btnNext2 = new JButton("Continuar a variable >");
     private final JButton btnSave = new JButton("Guardar");
     private final JButton btnSaveAndClose = new JButton("Guardar y cerrar");
     private final JButton btnCancel = new JButton("Cancelar");
@@ -65,14 +67,14 @@ public class CommunicationWizardDialog extends JDialog {
     private final JPanel cardPanel = new JPanel(cardLayout);
     private String currentStep = STEP_DEVICE;
 
-    public CommunicationWizardDialog(Project project, String deviceUuid) {
-        super(WindowManager.getDefault().getMainWindow(), "Nueva Comunicación",
-                ModalityType.APPLICATION_MODAL);
+    public CommunicationWizardDialog(Window owner, Project project, String deviceUuid) {
+        super(owner, "Nueva Comunicación", ModalityType.APPLICATION_MODAL);
         this.model = project != null ? project.getLookup().lookup(HMICommunicationModel.class) : null;
-        this.controller = new CommunicationWizardController(project, state);
+        this.controller = new CommunicationWizardController(model, state);
         this.devicePanel = new StepDevicePanel(controller);
         this.areaPanel = new StepGroupAreaPanel(controller);
-        this.pvPanel = new StepPvPanel(controller, new PlantModelReader(project));
+        this.pvPanel = new StepPvPanel(controller, new PlantModelReader(
+                project != null ? FileUtil.toFile(project.getProjectDirectory()).toPath() : null));
 
         buildUi();
         wireSteps();
@@ -116,6 +118,10 @@ public class CommunicationWizardDialog extends JDialog {
             }
         });
         btnNext.addActionListener(e -> {
+            if (STEP_AREA.equals(currentStep)) {
+                showStep(STEP_PV);
+                return;
+            }
             if (state.getSelectedDevice() == null) {
                 JOptionPane.showMessageDialog(this,
                         "Seleccione un dispositivo para continuar.",
@@ -124,7 +130,6 @@ public class CommunicationWizardDialog extends JDialog {
             }
             showStep(STEP_AREA);
         });
-        btnNext2.addActionListener(e -> showStep(STEP_PV));
         btnSave.addActionListener(e -> guardar());
         btnSaveAndClose.addActionListener(e -> saveAndClose());
         btnCancel.addActionListener(e -> intentarCerrar());
@@ -132,13 +137,14 @@ public class CommunicationWizardDialog extends JDialog {
         JPanel content = new JPanel(new BorderLayout(10, 10));
         content.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
         content.add(cardPanel, BorderLayout.CENTER);
-        content.add(WizardUi.nav(btnBack, btnNext, btnNext2, btnSave,
+        content.add(WizardUi.nav(btnBack, btnNext, btnSave,
                 btnSaveAndClose, btnCancel), BorderLayout.SOUTH);
         setContentPane(content);
     }
 
     private void wireSteps() {
         devicePanel.setOnDeviceChanged(this::onDeviceChanged);
+        areaPanel.setOnItemsChanged(this::updateNavButtons);
         pvPanel.setSaveHooks(this::confirmNoMissingGroups, this::showSavedMessage);
     }
 
@@ -168,12 +174,12 @@ public class CommunicationWizardDialog extends JDialog {
     }
 
     private void updateNavButtons() {
-        boolean area = STEP_AREA.equals(currentStep);
+        boolean device = STEP_DEVICE.equals(currentStep);
         boolean pv = STEP_PV.equals(currentStep);
-        btnBack.setEnabled(area || pv);
-        btnNext.setEnabled(!area && !pv);
-        btnNext2.setEnabled(area && !state.getItems().isEmpty());
-        btnSave.setEnabled(area);
+        btnBack.setEnabled(!device);
+        btnNext.setText(device ? "Siguiente >" : "Continuar a variable >");
+        btnNext.setEnabled(device || !state.getItems().isEmpty());
+        btnSave.setEnabled(!device && !pv);
         btnSaveAndClose.setEnabled(pv);
         btnCancel.setEnabled(true);
     }

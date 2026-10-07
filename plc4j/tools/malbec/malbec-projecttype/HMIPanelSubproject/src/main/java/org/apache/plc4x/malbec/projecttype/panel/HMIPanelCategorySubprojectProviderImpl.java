@@ -50,12 +50,12 @@ public class HMIPanelCategorySubprojectProviderImpl implements SubprojectProvide
 
     @Override
     public void addChangeListener(ChangeListener cl) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+       
     }
 
     @Override
     public void removeChangeListener(ChangeListener cl) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+
     }
 
     private Set loadProjects(FileObject dir) {
@@ -68,7 +68,7 @@ public class HMIPanelCategorySubprojectProviderImpl implements SubprojectProvide
                     Project subProject = ProjectManager.getDefault().findProject(child);
 
                     if (subProject != null) {
-                        subProjects.add(project);
+                        subProjects.add(subProject);
                     }
                 } catch (Exception e) {
                 }
@@ -84,48 +84,5 @@ public class HMIPanelCategorySubprojectProviderImpl implements SubprojectProvide
             System.out.println(values[i].getDisplayName());
         }
     }
-//    private Set<HMIPanelCategorySubprojectImpl> loadProjects(FileObject dir) {
-//        Set<HMIPanelCategorySubprojectImpl> result = new LinkedHashSet<>();
-//
-//        for (FileObject child : dir.getChildren()) {
-//            // Ignorar si no es una carpeta
-//            if (!child.isFolder()) {
-//                continue;
-//            }
-//
-//            // Buscar si el nombre de la carpeta coincide con algún elemento de tu enum
-//            HMICategoryDefinition match = findCategoryByName(child.getName());
-//
-//            if (match != null) {
-//                try {
-//                    // Intentar obtener el proyecto mediante NetBeans ProjectManager
-//                    Project p = ProjectManager.getDefault().findProject(child);
-//
-//                    if (p instanceof HMIPanelCategorySubprojectImpl) {
-//                        result.add((HMIPanelCategorySubprojectImpl) p);
-//                        System.out.println("Proyecto cargado exitosamente: " + match.getDisplayName());
-//                    } else {
-//                        System.out.println("La carpeta '" + child.getName() + "' existe pero NetBeans no la reconoce como HMIPanelCategorySubprojectImpl.");
-//                    }
-//                } catch (IOException | IllegalArgumentException ex) {
-//                    Exceptions.printStackTrace(ex);
-//                }
-//            }
-//        }
-//        return Collections.unmodifiableSet(result);
-//    }
-//
-//    /**
-//     * Busca coincidencia entre el nombre del directorio en disco y el Enum
-//     */
-//    private HMICategoryDefinition findCategoryByName(String folderName) {
-//        for (HMICategoryDefinition cat : HMICategoryDefinition.values()) {
-//            // Compara ignorando mayúsculas/minúsculas con el DisplayName o con cat.name()
-//            if (cat.getDisplayName().equalsIgnoreCase(folderName) || cat.name().equalsIgnoreCase(folderName)) {
-//                return cat;
-//            }
-//        }
-//        return null;
-//    }
 
 }

@@ -39,8 +39,8 @@ import org.openide.util.Lookup;
 public class HMICategoryCreateDisplayAction extends AbstractAction implements ContextAwareAction {
 
     private final static String FILE_NAME_DISPLAY_EXT = "bob";
-    private final static String DISPLAY_TEMPLATE_PATH = 
-            "com/prueba/hmipanelsubprojectcategory/ftype/DisplayTemplate.bob";
+    public final static String DISPLAY_TEMPLATE_PATH =
+            "org/apache/plc4x/malbec/projecttype/panelcategory/ftype/DisplayTemplate.bob";
     private Project project;
 
     public HMICategoryCreateDisplayAction(Project project) {
@@ -69,18 +69,24 @@ public class HMICategoryCreateDisplayAction extends AbstractAction implements Co
 
         if (cd.isConfirmed()) {
             String fileName = cd.getFileName();
-            try {
+            try (InputStream in = getClass().getClassLoader()
+                    .getResourceAsStream(DISPLAY_TEMPLATE_PATH)) {
+
+                if (in == null) {
+                    throw new IOException("No se encontro la plantilla " + DISPLAY_TEMPLATE_PATH);
+                }
+
                 FileObject newFile = targetFolder.createData(fileName, FILE_NAME_DISPLAY_EXT);
 
-                try (InputStream in = getClass().getClassLoader()
-                        .getResourceAsStream(DISPLAY_TEMPLATE_PATH); OutputStream out = newFile.getOutputStream()) {
-                    if (in != null) {
-                        in.transferTo(out);
-                    }
+                try (OutputStream out = newFile.getOutputStream()) {
+                    in.transferTo(out);
                 }
 
             } catch (IOException ex) {
                 Exceptions.printStackTrace(ex);
+                JOptionPane.showMessageDialog(null,
+                        "No se pudo crear la pantalla: " + ex.getMessage(),
+                        "Crear pantalla", JOptionPane.ERROR_MESSAGE);
             }
         }
     }

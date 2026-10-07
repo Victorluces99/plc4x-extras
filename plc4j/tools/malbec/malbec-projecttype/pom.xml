@@ -44,6 +44,7 @@
         <module>pics</module>
         <module>htc</module>
         <module>ConfigPhoebus</module>
+        <module>commsHmi</module>
         <module>HMIPanelSubproject</module>
         <module>HMIPanelSubprojectCategory</module>
     </modules>

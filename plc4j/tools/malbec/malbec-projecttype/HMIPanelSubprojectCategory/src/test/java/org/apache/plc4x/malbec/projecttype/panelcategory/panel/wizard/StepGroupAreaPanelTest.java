@@ -30,12 +30,15 @@ import javax.swing.border.Border;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import org.junit.jupiter.api.Test;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardController;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardState;
+import org.apache.plc4x.malbec.projecttype.panelcategory.stub.NoopCommunicationStore;
 
 class StepGroupAreaPanelTest {
 
     private StepGroupAreaPanel panelConUnGrupoYUnArea() {
         CommunicationWizardController controller =
-                new CommunicationWizardController(null, new CommunicationWizardState());
+                new CommunicationWizardController(new NoopCommunicationStore(), new CommunicationWizardState());
         controller.addGroup("uuid-grupo", "Rápido", "variables rápidas", "100", true);
         controller.addItem("uuid-area", "Area", "descripción del área",
                 "%DB22.DBB4[10..16]:REAL", true, "uuid-grupo");

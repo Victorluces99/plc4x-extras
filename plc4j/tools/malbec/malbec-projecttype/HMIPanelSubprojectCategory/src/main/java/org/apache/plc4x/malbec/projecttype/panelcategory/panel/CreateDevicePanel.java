@@ -22,6 +22,7 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.nio.file.Path;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -52,22 +53,28 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import org.apache.plc4x.malbec.projecttype.panelcategory.comms.xml.HMICommunicationModel;
-import org.netbeans.api.project.Project;
-import org.openide.filesystems.FileObject;
-import org.openide.filesystems.FileUtil;
-import org.openide.util.Exceptions;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationStore;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceModel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceDynamicPanelBuilder;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.SiemensPanelBuilder;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.ModbusPanelBuilder;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.AllenBradleyPanelBuilder;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.UrlDisassembler;
 
 public final class CreateDevicePanel extends JPanel {
 
     private static final String SELECCIONE = "-- Seleccione --";
     private static final int ANCHO_CAMPO = 280;
     private static final int ANCHO_CAMPO_CORTO = 130;
-    private final transient Project project;
+    private static final java.util.logging.Logger LOGGER =
+            java.util.logging.Logger.getLogger(CreateDevicePanel.class.getName());
+    private final Path projectDir;
+    private final CommunicationStore store;
     private final JComboBox<String> cbMarca
             = new JComboBox<>(new String[]{SELECCIONE, "Siemens", "Allen Bradley", "Modbus"});
     private final JComboBox<DeviceModel> cbModelo = new JComboBox<>();
@@ -95,12 +102,13 @@ public final class CreateDevicePanel extends JPanel {
     private final String modeloAlAbrir;
     private final boolean editando;
 
-    public CreateDevicePanel(Project project) {
-        this(project, null);
+    public CreateDevicePanel(Path projectDir, CommunicationStore store) {
+        this(projectDir, store, null);
     }
 
-    public CreateDevicePanel(Project project, DeviceConfigData edit) {
-        this.project = project;
+    public CreateDevicePanel(Path projectDir, CommunicationStore store, DeviceConfigData edit) {
+        this.projectDir = projectDir;
+        this.store = store;
         this.editing = edit;
         this.editando = edit != null;
         this.modeloAlAbrir = edit == null ? null : edit.getModel();
@@ -433,10 +441,8 @@ public final class CreateDevicePanel extends JPanel {
         txtS88UUID.setText("");
 
         usedS88Nodes.clear();
-        HMICommunicationModel model = project != null
-                ? project.getLookup().lookup(HMICommunicationModel.class) : null;
-        if (model != null) {
-            for (DeviceConfigData device : model.getDevices()) {
+        if (store != null) {
+            for (DeviceConfigData device : store.getDevices()) {
                 String s88Node = device.getS88Node();
                 if (s88Node != null && !s88Node.isEmpty()) {
                     if (Objects.equals(device.getUuid(),
@@ -448,15 +454,14 @@ public final class CreateDevicePanel extends JPanel {
             }
         }
 
-        FileObject plantModel = findPlantModelFile(
-                project != null ? project.getProjectDirectory() : null);
+        Path plantModel = findPlantModelFile(projectDir);
         if (plantModel == null) {
             return;
         }
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
-            Document doc = builder.parse(FileUtil.toFile(plantModel));
+            Document doc = builder.parse(plantModel.toFile());
             Element root = doc.getDocumentElement();
             NodeList nodes = root.getChildNodes();
             for (int i = 0; i < nodes.getLength(); i++) {
@@ -477,18 +482,18 @@ public final class CreateDevicePanel extends JPanel {
             }
             cbS88Node.setEnabled(true);
         } catch (Exception ex) {
-            Exceptions.printStackTrace(ex);
+            LOGGER.log(java.util.logging.Level.WARNING, "No se pudo leer plant-model.xml", ex);
         }
     }
 
-    private FileObject findPlantModelFile(FileObject projectDir) {
-        FileObject fo = projectDir;
-        while (fo != null) {
-            FileObject xml = fo.getFileObject("plant-model.xml");
-            if (xml != null) {
+    private Path findPlantModelFile(Path projectDir) {
+        Path dir = projectDir;
+        while (dir != null) {
+            Path xml = dir.resolve("plant-model.xml");
+            if (java.nio.file.Files.isRegularFile(xml)) {
                 return xml;
             }
-            fo = fo.getParent();
+            dir = dir.getParent();
         }
         return null;
     }

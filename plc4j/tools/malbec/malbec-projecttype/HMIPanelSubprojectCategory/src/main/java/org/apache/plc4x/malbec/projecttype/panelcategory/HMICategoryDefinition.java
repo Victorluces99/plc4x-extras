@@ -20,16 +20,16 @@ package org.apache.plc4x.malbec.projecttype.panelcategory;
 
 
 public enum HMICategoryDefinition {
-  IMAGE("Images", "com/prueba/hmipanelsubproject/category/FolderBlue.png"),
-    COMUNICATION("Communication", "com/prueba/hmipanelsubproject/category/FolderBlue.png"),
-    NOTICE_MANAGEMENT("Notification Management", "com/prueba/hmipanelsubproject/category/FolderBlue.png"),
-    RECIPE("Recipes", "com/prueba/hmipanelsubproject/category/FolderBlue.png"),
-    HISTORIAL("Historial", "com/prueba/hmipanelsubproject/category/FolderBlue.png"),
-    SCRIPTS("Scripts", "com/prueba/hmipanelsubproject/category/FolderBlue.png"),
-    REPORT("Reports", "com/prueba/hmipanelsubproject/category/FolderBlue.png"),
-    TEXT_GRAPHIC("Text and List of Charts", "com/prueba/hmipanelsubproject/category/FolderBlue.png"),
-    ADMIN_USER("Runtime User Management", "com/prueba/hmipanelsubproject/category/FolderBlue.png"),
-    CONFIG_PANEL("Operator Panel Configuration", "com/prueba/hmipanelsubproject/category/FolderBlue.png");
+    IMAGE("Images", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
+    COMUNICATION("Comunicacion", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/comm.png"),
+    NOTICE_MANAGEMENT("Gestion de Avisos", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
+    RECIPE("Recetas", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
+    HISTORIAL("Historial", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
+    SCRIPTS("Scripts", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
+    REPORT("Informes", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
+    TEXT_GRAPHIC("Texto y Lista de graficos", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
+    ADMIN_USER("Administracion de Usuarios runtime", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
+    CONFIG_PANEL("Configuracion de panel de operador", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png");
 
     private final String displayName;
     private final String iconPath;

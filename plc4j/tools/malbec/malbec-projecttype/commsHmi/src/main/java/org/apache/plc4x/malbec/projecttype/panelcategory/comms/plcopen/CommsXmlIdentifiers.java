@@ -18,7 +18,7 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.comms.plcopen;
 
-public final class CommsXmlIdentifiers {
+final class CommsXmlIdentifiers {
 
     public static final String PLCOPEN_NS = "http://www.plcopen.org/xml/tc6_0201";
     public static final String DEVICE_NS = "Device";

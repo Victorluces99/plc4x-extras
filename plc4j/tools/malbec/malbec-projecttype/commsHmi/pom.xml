@@ -26,10 +26,32 @@ under the License.
     </parent>
 
     <artifactId>commsHmi</artifactId>
-    <packaging>jar</packaging>
+    <packaging>nbm</packaging>
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.netbeans.utilities</groupId>
+                <artifactId>nbm-maven-plugin</artifactId>
+                <extensions>true</extensions>
+                <configuration>
+                    <publicPackages>
+                        <publicPackage>org.apache.plc4x.malbec.projecttype.panelcategory.comms.api</publicPackage>
+                        <publicPackage>org.apache.plc4x.malbec.projecttype.panelcategory.model</publicPackage>
+                        <publicPackage>org.apache.plc4x.malbec.projecttype.panelcategory.comms.plcopen</publicPackage>
+                        <publicPackage>org.apache.plc4x.malbec.projecttype.panelcategory.comms.persistence</publicPackage>
+                    </publicPackages>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+                    </archive>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.xmlbeans</groupId>
                 <artifactId>xmlbeans</artifactId>

@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -33,12 +34,18 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.AbstractAction;
 import javax.swing.JOptionPane;
 import javax.xml.parsers.DocumentBuilder;
@@ -52,12 +59,18 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import org.apache.plc4x.malbec.s88.api.S88Element;
 import org.apache.plc4x.malbec.s88.api.S88PlantModel;
+import org.apache.plc4x.malbec.s88.api.S88Repository;
+import org.apache.plc4x.malbec.s88.api.S88RepositoryProvider;
 import org.apache.plc4x.malbec.s88.api.S88Storage;
 import org.apache.plc4x.malbec.s88.plant.services.S88ProjectServices;
+import org.netbeans.api.progress.ProgressRunnable;
+import org.netbeans.api.progress.ProgressUtils;
 import org.netbeans.api.project.ProjectManager;
 import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileUtil;
 import org.openide.util.Exceptions;
+import org.openide.util.Lookup;
+import org.openide.windows.WindowManager;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -66,16 +79,58 @@ import org.xml.sax.SAXException;
 
 public class HMIPanelImportAction extends AbstractAction {
 
-    /**
-     * Nombre del archivo donde se vuelca el modelo de planta.
-     */
     private static final String PLANT_MODEL_DUMP = "plant-model.xml";
+
+    private static final Logger LOGGER =
+            Logger.getLogger(HMIPanelImportAction.class.getName());
+
+    static final Map<String, String> FORMATOS = Map.of("xml", "Modelo de planta (*.xml)");
 
     private final FileObject panel;
 
     public HMIPanelImportAction(FileObject panel) {
         super("Importar proyecto");
         this.panel = panel;
+    }
+
+    static String extensionDe(File archivo) {
+        String nombre = archivo.getName();
+        int punto = nombre.lastIndexOf('.');
+        return punto < 0 || punto == nombre.length() - 1
+                ? "" : nombre.substring(punto + 1).toLowerCase(Locale.ROOT);
+    }
+
+    static boolean extensionAdmitida(File archivo) {
+        return FORMATOS.containsKey(extensionDe(archivo));
+    }
+
+    static String formatosAdmitidos() {
+        return String.join(" o ", FORMATOS.values());
+    }
+
+    static FilenameFilter filtroDeArchivo() {
+        return (directorio, nombre) -> new File(directorio, nombre).isDirectory()
+                || FORMATOS.containsKey(extensionDe(new File(nombre)));
+    }
+
+    static Set<String> formatosSinProvider(Collection<? extends S88RepositoryProvider> providers,
+            Collection<String> declarados) {
+        Set<String> sinProvider = new TreeSet<>(declarados);
+        for (S88RepositoryProvider provider : providers) {
+            sinProvider.removeIf(provider::accepts);
+        }
+        return sinProvider;
+    }
+
+    static void avisarFormatosDesalineados() {
+        Set<String> sinProvider = formatosSinProvider(
+                Lookup.getDefault().lookupAll(S88RepositoryProvider.class),
+                FORMATOS.keySet());
+        if (!sinProvider.isEmpty()) {
+            LOGGER.log(Level.WARNING,
+                    "HMIPanelImportAction declara formatos que ningun S88RepositoryProvider acepta: {0}",
+                    sinProvider);
+        }
     }
 
     private record Storage(File file) implements S88Storage {
@@ -97,34 +152,61 @@ public class HMIPanelImportAction extends AbstractAction {
     }
 
     private void importPlant() {
-        FileDialog chooser = new FileDialog((Frame) null, "SELECT FILE", FileDialog.LOAD);
+        avisarFormatosDesalineados();
+
+        FileDialog chooser =
+                new FileDialog(WindowManager.getDefault().getMainWindow(),
+                        "Seleccionar modelo de planta", FileDialog.LOAD);
+        chooser.setDirectory(System.getProperty("user.home"));
+        chooser.setFilenameFilter(filtroDeArchivo());
         chooser.setVisible(true);
-        File[] selected = chooser.getFiles();
-        if (selected == null || selected.length == 0) {
+
+        File[] seleccion = chooser.getFiles();
+        if (seleccion == null || seleccion.length == 0) {
             return;
         }
-        File file = selected[0];
+        File archivo = seleccion[0];
+        if (!extensionAdmitida(archivo)) {
+            avisarFallo(archivo, "solo se admiten " + formatosAdmitidos() + ".");
+            return;
+        }
+
+        Resultado resultado = ProgressUtils.showProgressDialogAndRun(
+                handle -> {
+                    handle.setDisplayName("Importando modelo de planta...");
+                    handle.start(400);
+                    try {
+                        return importarEnSegundoPlano(archivo);
+                    } finally {
+                        handle.finish();
+                    }
+                },
+                "Importando modelo de planta...",
+                false);
+        mostrar(resultado);
+    }
+
+    private Resultado importarEnSegundoPlano(File archivo) {
+        S88Repository repositorio;
+        try {
+            repositorio = S88ProjectServices.createRepository(extensionDe(archivo), new Storage(archivo));
+        } catch (RuntimeException ex) {
+            LOGGER.log(Level.WARNING, "No hay repositorio para " + archivo.getName(), ex);
+            return new Fallo(archivo, "el formato " + extensionDe(archivo) + " no está soportado.");
+        }
 
         S88PlantModel modelo;
         try {
-            modelo = S88ProjectServices.createRepository("xml", new Storage(file)).loadPlant();
+            modelo = repositorio.loadPlant();
         } catch (RuntimeException ex) {
-            // createRepository lanza IllegalArgumentException si ningún provider
-            // acepta el formato, y el parseo puede fallar por formas que los
-            // repositorios no reachan a envolver.
-            Exceptions.printStackTrace(ex);
-            avisarFallo(file, ex.getMessage());
-            return;
+            LOGGER.log(Level.WARNING, "No se pudo interpretar " + archivo.getName(), ex);
+            return new Fallo(archivo, describe(ex));
         }
 
-        // loadPlant() devuelve null cuando el archivo no es un modelo de planta:
-        // está vacío, no es XML, o es XML válido que no es un B2MML. Antes esto
-        // seguía adelante y terminaba en NullPointerException al pedir la raíz.
         S88Element root = modelo == null ? null : modelo.getRoot();
         String areaId = root == null || root.getId() == null ? "" : root.getId().trim();
         if (areaId.isEmpty()) {
-            avisarFallo(file, "el archivo no define un área de planta.");
-            return;
+            return new Fallo(archivo, "el archivo no define un área de planta.");
         }
 
         File panelFile = FileUtil.toFile(panel);
@@ -141,20 +223,40 @@ public class HMIPanelImportAction extends AbstractAction {
 
         try {
             if (!exportPlantModel(root)) {
-                avisarFallo(file, "no se pudo escribir " + PLANT_MODEL_DUMP + " en el proyecto.");
-                return;
+                return new Fallo(archivo, "no se pudo escribir " + PLANT_MODEL_DUMP + " en el proyecto.");
             }
         } catch (IOException ex) {
-            Exceptions.printStackTrace(ex);
-            avisarFallo(file, ex.getMessage());
-            return;
+            LOGGER.log(Level.WARNING, "No se pudo escribir " + PLANT_MODEL_DUMP, ex);
+            return new Fallo(archivo, describe(ex));
         }
 
         if (panelFile != null) {
             FileUtil.refreshAll();
             ProjectManager.getDefault().clearNonProjectCache();
         }
-        avisarExito(file, areaId);
+        return new Exito(archivo, areaId);
+    }
+
+    private static String describe(Throwable ex) {
+        String mensaje = ex.getMessage();
+        return mensaje == null || mensaje.isBlank() ? ex.getClass().getSimpleName() : mensaje;
+    }
+
+    private void mostrar(Resultado resultado) {
+        if (resultado instanceof Exito exito) {
+            avisarExito(exito.archivo, exito.areaId);
+        } else if (resultado instanceof Fallo fallo) {
+            avisarFallo(fallo.archivo, fallo.motivo);
+        }
+    }
+
+    private sealed interface Resultado permits Exito, Fallo {
+    }
+
+    private record Exito(File archivo, String areaId) implements Resultado {
+    }
+
+    private record Fallo(File archivo, String motivo) implements Resultado {
     }
 
     private void avisarExito(File file, String areaId) {
@@ -169,15 +271,6 @@ public class HMIPanelImportAction extends AbstractAction {
                 "Error de importación", JOptionPane.ERROR_MESSAGE);
     }
 
-    /**
-     * Construye una representación en {@link LinkedHashMap} del árbol S88 (área
-     * y jerarquía de elementos) con sus variables (nombre y Type) y la agrega
-     * al {@value #PLANT_MODEL_DUMP} del proyecto. Cada planta importada queda
-     * delimitada por su etiqueta {@code <area>} con un {@code uuid} propio y no
-     * se sobreescribe: si el archivo ya existe se acumula la nueva planta; si
-     * la planta ya estaba importada (mismo id) se reemplaza solo su sección
-     * conservando el {@code uuid} original.
-     */
     private boolean exportPlantModel(S88Element root) throws IOException {
         LinkedHashMap<String, Object> snapshot = collectElement(root);
         File dir = FileUtil.toFile(panel);
@@ -225,11 +318,6 @@ public class HMIPanelImportAction extends AbstractAction {
                 DocumentBuilder builder = factory.newDocumentBuilder();
                 return builder.parse(target);
             } catch (SAXException | ParserConfigurationException ex) {
-                // El archivo existe pero no se puede leer. Antes de esto la
-                // excepción se imprimía y se devolvía un documento vacío, así que
-                // la importación siguiente lo sobreescribía y se perdían todas
-                // las plantas ya cargadas. Ahora se corta la operación y se avisa:
-                // un plant-model.xml corrupto no se reemplaza a ciegas.
                 throw new IOException(PLANT_MODEL_DUMP + " ya existe pero no se puede leer, "
                         + "por lo que la importación se canceló para no perder su contenido. "
                         + "Revisá el archivo y, si ya no sirve, borralo a mano.", ex);
@@ -296,16 +384,6 @@ public class HMIPanelImportAction extends AbstractAction {
         parent.appendChild(section);
     }
 
-    /**
-     * Serializa el documento sobre un temporal, lo relee y recién entonces
-     * reemplaza el destino.
-     *
-     * <p>Escribir directo sobre el archivo deja un XML truncado si la
-     * aplicación se corta a mitad de la escritura, y este es el único lugar
-     * donde quedan registradas las plantas importadas. Con el temporal hay dos
-     * garantías simples: el archivo anterior sobrevive intacto ante cualquier
-     * fallo, y lo nuevo se comprueba legible antes de pisarlo.
-     */
     private void writeSnapshotDocument(File target, Document doc) throws IOException {
         Path temporal = Files.createTempFile(target.toPath().getParent(), PLANT_MODEL_DUMP, ".tmp");
         try {
@@ -324,7 +402,6 @@ public class HMIPanelImportAction extends AbstractAction {
         }
     }
 
-    /** Vuelve a parsear el archivo para confirmar que quedó un XML válido. */
     private void verificarLegible(File archivo) throws IOException {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -335,21 +412,14 @@ public class HMIPanelImportAction extends AbstractAction {
         }
     }
 
-    private LinkedHashMap<String, Object> collectElement(S88Element node) {
+    static LinkedHashMap<String, Object> collectElement(S88Element node) {
         LinkedHashMap<String, Object> snap = new LinkedHashMap<>();
         snap.put("id", node.getId() == null ? "" : node.getId());
         snap.put("tag", tagFor(node));
-
-        /*
-         * Variables: las propiedades estructuradas (mapas). Una variable es un
-         * mapa con "Type". Las variables directas van a <variables>; las
-         * agrupadas bajo "Parameters" (salidas) van a <parameters> y las de
-         * "Reports" (entradas) van a <report>. En los EquipmentPropertyChild de
-         * esos grupos también se buscan variables (nombre + Type).
-         */
         List<Object> variables = new ArrayList<>();
         List<Object> parameters = new ArrayList<>();
         List<Object> report = new ArrayList<>();
+        
         for (Map.Entry<String, Object> entry : node.getProperties().entrySet()) {
             if (!(entry.getValue() instanceof Map<?, ?> map)) {
                 continue;
@@ -382,14 +452,14 @@ public class HMIPanelImportAction extends AbstractAction {
         return snap;
     }
 
-    private LinkedHashMap<String, Object> variable(String name, Object type) {
+    static LinkedHashMap<String, Object> variable(String name, Object type) {
         LinkedHashMap<String, Object> variable = new LinkedHashMap<>();
         variable.put("name", name);
         variable.put("type", type == null ? "" : String.valueOf(type));
         return variable;
     }
 
-    private String tagFor(S88Element node) {
+    static String tagFor(S88Element node) {
         if (node.getLevel() == null) {
             return "element";
         }
@@ -403,7 +473,7 @@ public class HMIPanelImportAction extends AbstractAction {
         };
     }
 
-    private List<Object> collectVariables(Object value) {
+    static List<Object> collectVariables(Object value) {
         List<Object> collected = new ArrayList<>();
         if (value instanceof Map<?, ?> map) {
             for (Map.Entry<?, ?> entry : map.entrySet()) {

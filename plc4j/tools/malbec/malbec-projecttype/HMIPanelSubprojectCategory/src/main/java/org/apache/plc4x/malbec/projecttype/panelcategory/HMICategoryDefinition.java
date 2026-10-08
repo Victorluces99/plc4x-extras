@@ -20,16 +20,16 @@ package org.apache.plc4x.malbec.projecttype.panelcategory;
 
 
 public enum HMICategoryDefinition {
-    IMAGE("Images", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
+    IMAGE("Image", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
     COMUNICATION("Comunicacion", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/comm.png"),
-    NOTICE_MANAGEMENT("Gestion de Avisos", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
-    RECIPE("Recetas", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
-    HISTORIAL("Historial", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
-    SCRIPTS("Scripts", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
-    REPORT("Informes", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
-    TEXT_GRAPHIC("Texto y Lista de graficos", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
-    ADMIN_USER("Administracion de Usuarios runtime", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png"),
-    CONFIG_PANEL("Configuracion de panel de operador", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/FolderBlue.png");
+    NOTICE_MANAGEMENT("Gestion de Avisos", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+    RECIPE("Recetas", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+    HISTORIAL("Historial", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+    SCRIPTS("Scripts", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+    REPORT("Informes", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+    TEXT_GRAPHIC("Texto y Lista de graficos", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+    ADMIN_USER("Administracion de Usuarios runtime", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+    CONFIG_PANEL("Configuracion de panel de operador", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png");
 
     private final String displayName;
     private final String iconPath;

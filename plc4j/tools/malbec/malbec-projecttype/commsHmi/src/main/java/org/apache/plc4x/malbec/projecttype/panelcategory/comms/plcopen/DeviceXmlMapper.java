@@ -30,7 +30,7 @@ import org.plcopen.xml.tc60201.AddData;
 import org.plcopen.xml.tc60201.ProjectDocument.Project.Instances.Configurations;
 import org.plcopen.xml.tc60201.ProjectDocument.Project.Instances.Configurations.Configuration;
 
-public final class DeviceXmlMapper {
+final class DeviceXmlMapper {
 
     private DeviceXmlMapper() {
     }

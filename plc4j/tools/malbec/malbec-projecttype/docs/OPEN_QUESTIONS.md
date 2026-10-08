@@ -341,6 +341,75 @@ al memento existe.
 
 ---
 
+## T2.2 — limpieza de dependencias: BLOQUEADA
+
+La tarea pide correr `mvn dependency:analyze` y eliminar las dependencias
+"declaradas pero no usadas". **No se puede ejecutar de forma segura en este build, y
+no se ha eliminado ninguna dependencia.**
+
+### Por que falla la herramienta
+
+`mvn dependency:analyze` falla con `Unsupported class file major version 65`. Es la
+version de bytecode de Java 21, que la version 3.4.0 de `maven-dependency-plugin` no
+sabe leer. Actualizar el plugin exigiría tocar `malbec/pom.xml`, fuera del alcance de
+este plan.
+
+### Por que el analisis manual tampoco es concluyente
+
+Se hizo a mano: se leyeron los paquetes reales de cada jar `org.netbeans.api` y se
+buscaron imports coincidentes. El resultado es orientativo, no una conclusion:
+
+| Modulo | NB declaradas | Con import directo | Sin import directo |
+|---|---:|---:|---:|
+| `ConfigPhoebus` | 25 | 5 | 20 |
+| `HMIPanelSubprojectCategory` | 30 | 17 | 13 |
+| `HMIPanelSubproject` | 30 | 16 | 14 |
+| `commsHmi` | 0 | 0 | 0 |
+
+`commsHmi` ya cumple su objetivo de 0 dependencias NB. Los otros tres no.
+
+**"Sin import directo" no es "sin uso".** Hay tres mecanismos de uso que ningun
+analisis de imports ve:
+
+1. **Rutas de layer.** `NodeFactorySupport.createCompositeChildren(project,
+   "Projects/org-apache-plc4x-panel/Nodes")` y
+   `Utilities.actionsForPath("Projects/org-plc4x-project/Actions")` resuelven clases
+   en runtime a partir de una ruta de string. No hay ningun import que las delate.
+2. **Lookup.** `Lookup.getDefault().lookup(...)` y los `@ServiceProvider` resuelven
+   implementaciones en runtime.
+3. **Requisito de modulo en runtime.** El plugin nbm convierte las dependencias Maven
+   en `OpenIDE-Module-Dependencies`. En un modulo de NetBeans, la lista de
+   dependencias *es* parte del cableado que carga el sistema de modulos.
+
+El caso de `ConfigPhoebus` lo ilustra: **2 ficheros Java y 25 dependencias NB**. Sus
+dependencias son su cableado, no imports. Bajarlo a las 8 que sugiere el plan seria
+adivinar.
+
+### La red de seguridad del plan no esta disponible
+
+El plan dice "verificando `nbm:manifest` y arranque". El manifest se puede comprobar, y
+de hecho asi se verifico que quitar `ConfigPhoebus` de `HMIPanelSubproject` se
+propagaba correctamente al NBM. El **arranque no se puede comprobar**: hace falta el
+runtime de NetBeans, y en este build no hay ningun `FileSystem` registrado. Ya se
+vio con H-01: sin la plataforma, ninguna de estas dependencias se puede validar en
+ejecucion.
+
+Precedente relevante: en `[T1.6]` el plugin nbm detecto un paquete no exportado que
+ningun analisis estatico habria visto. Un fallo de runtime aqui seria igual de
+invisible.
+
+### Que hace falta para cerrar T2.2
+
+1. Actualizar `maven-dependency-plugin` a una version que soporte Java 21, en
+   `malbec/pom.xml`.
+2. O una verificacion de arranque real: instalar la aplicacion y abrir un proyecto,
+   recorriendo el arbol, el wizard y la importacion.
+
+Mientras no haya una de las dos, la limpieza de dependencias no es verificable y queda
+documentada en lugar de aplicada.
+
+---
+
 ## Pendiente de informacion externa
 
 ### N-4. Datos corruptos en el proyecto `llenadora`
@@ -358,7 +427,6 @@ proyecto Phoebus desde linea de ordenes?
 y todo lo que se declare sobre su CLI quedaria sin verificar hasta saberlo.
 
 ### N-6. Cambio local ajeno, fuera de alcance
-
 `plc4j/tools/malbec/application/pom.xml` tiene un cambio sin commitear que sustituye
 `org-apache-commons-lang3` de `RELEASE130` a `${netbeans.version}`. Ese modulo esta
 fuera del alcance de este plan, asi que se ha dejado intacto en el arbol de trabajo

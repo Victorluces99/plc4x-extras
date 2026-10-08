@@ -18,7 +18,6 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -29,15 +28,12 @@ import java.util.logging.Logger;
 import javax.swing.event.ChangeListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.persistence.BootDbRepository;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRepository;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigStorage;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationStore;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationsConfig;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.netbeans.api.project.Project;
-import org.openide.filesystems.FileChangeAdapter;
-import org.openide.filesystems.FileEvent;
-import org.openide.filesystems.FileObject;
-import org.openide.filesystems.FileUtil;
 import org.openide.util.ChangeSupport;
 
 public final class HMICommunicationModel implements CommunicationStore {
@@ -46,79 +42,65 @@ public final class HMICommunicationModel implements CommunicationStore {
 
     private static final Logger LOGGER = Logger.getLogger(HMICommunicationModel.class.getName());
 
-    private final Project project;
+    private final ProjectStorage storage;
     private final ChangeSupport cs = new ChangeSupport(this);
-    private final FileChangeAdapter fileListener;
     private CommConfigRepository repository;
     private CommunicationsConfig config;
-    private FileObject file;
     private Exception loadError;
 
     public HMICommunicationModel(Project project) {
-        this.project = project;
-        this.fileListener = new FileChangeAdapter() {
-            @Override
-            public void fileChanged(FileEvent fe) {
-                reload();
-            }
+        this(new NetBeansProjectStorage(project));
+    }
 
-            @Override
-            public void fileDeleted(FileEvent fe) {
-                file = null;
-                repository = null;
-                config = new CommunicationsConfig();
-                loadError = null;
-                cs.fireChange();
-            }
-        };
+    HMICommunicationModel(ProjectStorage storage) {
+        this.storage = storage;
+        storage.setOnChanged(this::reload);
+        storage.setOnDeleted(this::olvidarConfiguracion);
         reload();
     }
 
     public final void reload() {
-        FileObject projectDir = project.getProjectDirectory();
-        boolean commProject = "Comunicacion".equalsIgnoreCase(projectDir.getName())
-                || projectDir.getFileObject(CONFIG_FILE) != null
-                || projectDir.getFileObject("comm.merlot") != null;
+        boolean commProject = "Comunicacion".equalsIgnoreCase(storage.directoryName())
+                || storage.has(CONFIG_FILE)
+                || storage.has("comm.merlot");
         if (!commProject) {
-            file = null;
-            repository = null;
-            config = new CommunicationsConfig();
+            olvidarConfiguracion();
             loadError = null;
             cs.fireChange();
             return;
         }
 
         boolean created = false;
-        file = projectDir.getFileObject(CONFIG_FILE);
-        if (file == null) {
+        CommConfigStorage configStorage = storage.config();
+        if (configStorage == null) {
             try {
-                file = projectDir.createData(CONFIG_FILE);
+                configStorage = storage.createConfig();
                 created = true;
             } catch (IOException ex) {
-                file = null;
+                configStorage = null;
             }
         }
-        if (file == null) {
+        if (configStorage == null) {
             // No se pudo ni leer ni crear el archivo. Sin archivo no hay nada que
             // cargar, y guardar aqui escribiria un modelo vacio sobre boot.db.
             loadError = new IOException("no se pudo crear " + CONFIG_FILE
-                    + " en el proyecto " + projectDir.getName());
+                    + " en el proyecto " + storage.directoryName());
             config = new CommunicationsConfig();
             LOGGER.log(Level.SEVERE, loadError.getMessage());
             cs.fireChange();
             return;
         }
 
-        file.removeFileChangeListener(fileListener);
-        file.addFileChangeListener(fileListener);
-        repository = new CommConfigServices().createRepository(new ProjectFileStorage(file));
+        storage.watchForChanges();
+        repository = new CommConfigServices().createRepository(configStorage);
         CommConfigLoader.Result carga;
         try {
             carga = new CommConfigLoader(repository).load();
         } catch (Exception ex) {
-            // H-01: el fallo ya no se traga. Antes se sustitodia la configuracion
-            // por una vacia sin decir nada, de modo que un XML danado se veia como
-            // «no hay dispositivos» y un «Guardar» posterior vaciaba boot.db.
+            // H-01: el fallo ya no se traga. Antes se sustituid la configuracion
+            // por una vacia sin decir nada, de modo que un archivo ilegible se veia
+            // como «no hay dispositivos» y un guardado posterior podia escribir
+            // encima un modelo que nunca se habia leido.
             // Ahora se conserva lo que habia, se registra el error y queda disponible
             // para que la interfaz avise. No se guarda nada en este estado.
             loadError = ex;
@@ -132,22 +114,38 @@ public final class HMICommunicationModel implements CommunicationStore {
         }
         loadError = null;
         config = carga.config();
-        boolean reparado = carga.uuidReparados();
-        if (created) {
-            try {
-                repository.save(config);
-            } catch (Exception ignored) {
-                // el archivo vacío se materializará en el primer save()
-            }
-        } else if (reparado) {
-            try {
-                repository.save(config);
-            } catch (Exception ex) {
-                System.err.println("No se pudo guardar el UUID reparado de "
-                        + CONFIG_FILE + ": " + ex.getMessage());
-            }
+        if (created || carga.uuidReparados()) {
+            escribir(repository, created);
         }
         cs.fireChange();
+    }
+
+    /** Reestablece el modelo tras borrarse el archivo de configuracion. */
+    private void olvidarConfiguracion() {
+        repository = null;
+        config = new CommunicationsConfig();
+        loadError = null;
+    }
+
+    /**
+     * Reescribe {@code comunicacion.xml} sin disparar una recarga sobre una
+     * escritura a medias.
+     */
+    private void escribir(CommConfigRepository destino, boolean archivoNuevo) {
+        storage.pauseNotifications();
+        try {
+            destino.save(config);
+        } catch (Exception ex) {
+            if (archivoNuevo) {
+                // El archivo vacio se materializara en el primer save() real.
+                LOGGER.log(Level.FINE, "Se dejara para el primer guardado: " + ex.getMessage());
+            } else {
+                LOGGER.log(Level.WARNING,
+                        "No se pudo guardar el UUID reparado de " + CONFIG_FILE, ex);
+            }
+        } finally {
+            storage.resumeNotifications();
+        }
     }
 
     static boolean repararUuidsAusentes(CommunicationsConfig config) {
@@ -223,43 +221,43 @@ public final class HMICommunicationModel implements CommunicationStore {
 
     public boolean save() {
         if (loadError != null) {
-            // H-01: con la carga fallida, el modelo puede estar vacio o incompleto.
-            // Escribirlo reconstruiria boot.db sin los dispositivos que si siguen
-            // en comunicacion.xml.
+            // H-01: con la carga fallida el modelo puede estar vacio o incompleto.
+            // Guardar aqui escribiria eso sobre comunicacion.xml y reconstruiria
+            // boot.db desde un modelo que nunca se ha podido leer. Se niega, y el
+            // motivo queda en el registro.
             LOGGER.log(Level.SEVERE, "No se guarda nada: la última carga de " + CONFIG_FILE
                     + " falló, así que el modelo no es fiable.", loadError);
             return false;
         }
+        CommConfigStorage configStorage = storage.config();
+        if (configStorage == null) {
+            try {
+                configStorage = storage.createConfig();
+            } catch (IOException ex) {
+                throw new IllegalStateException("No se pudo guardar la configuración de comunicaciones", ex);
+            }
+        }
+        final CommConfigRepository repo = new CommConfigServices().createRepository(configStorage);
         try {
-            FileObject projectDir = project.getProjectDirectory();
-            if (file == null || !file.isValid()) {
-                file = projectDir.getFileObject(CONFIG_FILE);
-            }
-            if (file == null) {
-                file = projectDir.createData(CONFIG_FILE);
-            }
-            CommConfigRepository repo = new CommConfigServices()
-                    .createRepository(new ProjectFileStorage(file));
-            file.removeFileChangeListener(fileListener);
+            storage.pauseNotifications();
             try {
                 repo.save(config);
             } finally {
-                file.addFileChangeListener(fileListener);
+                storage.resumeNotifications();
             }
-            repository = repo;
         } catch (Exception ex) {
             throw new IllegalStateException("No se pudo guardar la configuración de comunicaciones", ex);
         }
+        repository = repo;
         boolean databaseUpdated;
         try {
-            File dbFolder = project != null ? FileUtil.toFile(project.getProjectDirectory()) : null;
-            databaseUpdated = BootDbRepository.rebuild(dbFolder, config);
+            databaseUpdated = BootDbRepository.rebuild(storage.bootDbFolder(), config);
         } catch (Exception ex) {
-            System.err.println("Error volcando configuracion a boot.db: " + ex.getMessage());
+            LOGGER.log(Level.WARNING, "Error volcando la configuración a boot.db", ex);
             databaseUpdated = false;
         }
         if (!databaseUpdated) {
-            System.err.println("boot.db no pudo actualizarse; revise la salida de la aplicacion.");
+            LOGGER.warning("boot.db no pudo actualizarse; revise el registro de la aplicación.");
         }
         cs.fireChange();
         return databaseUpdated;
@@ -271,9 +269,5 @@ public final class HMICommunicationModel implements CommunicationStore {
 
     public void removeChangeListener(ChangeListener cl) {
         cs.removeChangeListener(cl);
-    }
-
-    public Project getProject() {
-        return project;
     }
 }

@@ -22,17 +22,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.Properties;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRepository;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigStorage;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationsConfig;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Integridad de la carga de {@code comunicacion.xml} (H-01).
@@ -54,6 +55,11 @@ import org.junit.jupiter.api.Test;
  * anterior en lugar de vaciarla, y {@code save()} se niega a escribir mientras haya
  * un error de carga pendiente, para que un {@code boot.db} no se reconstruya desde
  * un modelo que no se ha podido leer.
+ *
+ * <p>Todo esto se verifica con dos dobles, ninguno dependiente de NetBeans:
+ * {@link CommConfigLoader} recibe el repositorio por constructor y
+ * {@link ProjectStorage} tiene una implementacion en memoria. Asi el modelo se
+ * construye y se guarda en un test normal, sin el arnes de la plataforma.
  */
 class HMICommunicationModelIntegrityTest {
 
@@ -68,6 +74,46 @@ class HMICommunicationModelIntegrityTest {
             """;
 
     private static final String XML_VACIO = "";
+
+    /** XML bien formado con un unico dispositivo, para la ruta de carga correcta. */
+    private static final String XML_CON_UN_DISPOSITIVO = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <project xmlns="http://www.plcopen.org/xml/tc6_0201"
+                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                     xsi:schemaLocation="http://www.plcopen.org/xml/tc6_0201 http://www.plcopen.org/xml/tc6_0201.xsd">
+              <fileHeader companyName="Malbec" productName="Malbec Communication" productVersion="1.0" creationDateTime="2000-01-01T00:00:00Z"/>
+              <contentHeader name="MalbecCommunication">
+                <coordinateInfo>
+                  <fbd><scaling x="1" y="1"/></fbd>
+                  <ld><scaling x="1" y="1"/></ld>
+                  <sfc><scaling x="1" y="1"/></sfc>
+                </coordinateInfo>
+              </contentHeader>
+              <types>
+                <dataTypes/>
+                <pous/>
+              </types>
+              <instances>
+                <configurations>
+                  <configuration name="PLC_Control">
+                    <addData>
+                      <data name="http://apache.org/plc4x/malbec/device" handleUnknown="preserve">
+                        <device uuid="uuid-control" enabled="true" s88Uuid="s88-control" xmlns="Device">
+                          <brand>Siemens</brand>
+                          <model>S7-1500</model>
+                          <protocol>S7</protocol>
+                          <deviceKey>key-control</deviceKey>
+                          <description>PLC de control</description>
+                          <s88Node>S88.1</s88Node>
+                          <specificParameters>ipa=10.0.0.1,port=102</specificParameters>
+                        </device>
+                      </data>
+                    </addData>
+                  </configuration>
+                </configurations>
+              </instances>
+            </project>
+            """;
 
     @Test
     void elRepositorioPropagaElErrorDeUnXmlMalFormado() {
@@ -152,15 +198,123 @@ class HMICommunicationModelIntegrityTest {
                 "sin UUID ausentes no hay que reescribir el fichero");
     }
 
-    @Disabled("H-01, parte 2: verificar que save() se niega a escribir cuando la carga "
-            + "falló. Requiere un HMICommunicationModel constructed con un Project real, y "
-            + "en este build no hay FileSystem registrado, asi que el modelo no se puede "
-            + "construir desde un test. La guarda es una linea en save(); queda pendiente "
-            + "el arnes de NetBeans o una Costura equivalente. Ver docs/OPEN_QUESTIONS.md.")
     @Test
-    void unXmlDanadoNoPuedeTerminarEnUnBootDbVacio() {
-        fail("Pendiente: construir el modelo sobre un XML roto, invocar save() y comprobar "
-                + "que devuelve false y no toca boot.db ni comunicacion.xml.");
+    void unXmlDanadoImpideGuardarYNoTocaBootDb(@TempDir Path tempDir) {
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("llenadora", tempDir.toFile())
+                .withFile(HMICommunicationModel.CONFIG_FILE, XML_ROTO);
+        HMICommunicationModel model = new HMICommunicationModel(storage);
+
+        assertTrue(model.getLoadError().isPresent(),
+                "un XML danado tiene que dejar constancia del fallo");
+
+        assertFalse(model.save(),
+                "H-01: con la carga fallida, guardar tiene que negarse");
+
+        assertFalse(new File(tempDir.toFile(), "boot.db").exists(),
+                "H-01: no se puede reconstruir boot.db desde un modelo que no se ha podido leer");
+        assertEquals(0, storage.configWrites(),
+                "H-01: tampoco se debe reescribir comunicacion.xml");
+    }
+
+    @Test
+    void trasArreglarElXmlSeVuelveAGuardar(@TempDir Path tempDir) {
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("llenadora", tempDir.toFile())
+                .withFile(HMICommunicationModel.CONFIG_FILE, XML_ROTO);
+        HMICommunicationModel model = new HMICommunicationModel(storage);
+        assertFalse(model.save(), "precondición: con el XML roto no se guarda");
+
+        storage.withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO);
+        storage.fireChanged();
+
+        assertTrue(model.getLoadError().isEmpty(),
+                "una carga correcta tiene que limpiar el error anterior");
+        assertEquals(1, model.getDevices().size());
+        assertTrue(model.save(),
+                "H-01: reparado el fichero, guardar vuelve a estar permitido");
+        assertTrue(new File(tempDir.toFile(), "boot.db").exists(),
+                "con el modelo cargado, boot.db si se reconstruye");
+    }
+
+    @Test
+    void unaLecturaFallidaNoDejaSobrescribirElArchivo(@TempDir Path tempDir) {
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("Comunicacion", tempDir.toFile())
+                .withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO)
+                .failNextReads(1);
+        HMICommunicationModel model = new HMICommunicationModel(storage);
+
+        assertTrue(model.getLoadError().isPresent(),
+                "una lectura fallida tambien es un fallo de carga");
+        assertEquals(0, model.getDevices().size(),
+                "precondición: sin lectura no hay dispositivos en memoria");
+
+        assertFalse(model.save(),
+                "H-01: el archivo es escribible, asi que sin guarda se perderian sus datos");
+
+        assertEquals(XML_CON_UN_DISPOSITIVO, storage.contentOf(HMICommunicationModel.CONFIG_FILE),
+                "H-01: el fichero original tiene que quedar intacto");
+        assertEquals(0, storage.configWrites(), "no se debe escribir nada");
+        assertFalse(new File(tempDir.toFile(), "boot.db").exists(),
+                "H-01: ni boot.db debe reconstruirse desde un modelo vacio");
+    }
+
+    @Test
+    void unProyectoSinComunicacionNoGuardaNiSeQueja(@TempDir Path tempDir) {
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("otro", tempDir.toFile());
+        HMICommunicationModel model = new HMICommunicationModel(storage);
+
+        assertTrue(model.getLoadError().isEmpty(),
+                "un proyecto que no es de comunicaciones no tiene un error de carga");
+        assertEquals(0, model.getDevices().size());
+        assertFalse(new File(tempDir.toFile(), "boot.db").exists());
+    }
+
+    @Test
+    void unProyectoDeComunicacionesCreaElArchivoSiNoExiste(@TempDir Path tempDir) {
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("Comunicacion", tempDir.toFile());
+        new HMICommunicationModel(storage);
+
+        assertTrue(storage.has(HMICommunicationModel.CONFIG_FILE),
+                "un proyecto de comunicaciones debe materializar comunicacion.xml");
+    }
+
+    @Test
+    void unProyectoConElNombreEquivocadoNoCreaNada(@TempDir Path tempDir) {
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("llenadora", tempDir.toFile());
+        HMICommunicationModel model = new HMICommunicationModel(storage);
+
+        assertFalse(storage.has(HMICommunicationModel.CONFIG_FILE),
+                "un proyecto que no es de comunicaciones no debe crear el archivo");
+        assertTrue(model.getLoadError().isEmpty(),
+                "y no debe reportarse como error de carga");
+    }
+
+    @Test
+    void borrarElArchivoOlvidaElModelo(@TempDir Path tempDir) {
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("llenadora", tempDir.toFile())
+                .withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO);
+        HMICommunicationModel model = new HMICommunicationModel(storage);
+        assertEquals(1, model.getDevices().size(), "precondición: el XML es valido");
+
+        storage.fireDeleted();
+
+        assertEquals(0, model.getDevices().size(),
+                "tras borrar el archivo no queda ningun dispositivo en memoria");
+    }
+
+    @Test
+    void escribirNoDisparaUnaRecarga (@TempDir Path tempDir) {
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("llenadora", tempDir.toFile())
+                .withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO);
+        HMICommunicationModel model = new HMICommunicationModel(storage);
+        storage.fireChanged();
+        boolean estabaVigilando = storage.isWatched();
+
+        model.upsertDevice(dispositivo("uuid-nuevo", "Compresor extra"));
+        model.save();
+
+        assertTrue(estabaVigilando, "precondición: el modelo vigila el archivo");
+        assertEquals(2, model.getDevices().size(),
+                "guardar no debe recargar el modelo sobre una escritura a medias");
     }
 
     private static DeviceConfigData dispositivo(String uuid, String nombre) {

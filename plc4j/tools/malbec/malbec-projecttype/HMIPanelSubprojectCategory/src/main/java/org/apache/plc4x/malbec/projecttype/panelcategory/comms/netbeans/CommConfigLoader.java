@@ -35,8 +35,8 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.Communication
  * <p>Contrato: un fallo de lectura se propaga. No se devuelve nunca una
  * configuracion vacia en lugar de la que hay en el fichero. Antes el error se
  * tragaba con un {@code catch (Throwable)} y el usuario veia «cero dispositivos»
- * sin ninguna pista; un posterior «Guardar» reconstruia {@code boot.db} desde
- * ese modelo vacio y se perdia todo.
+ * sin ninguna pista, con lo que un guardado posterior podia escribir encima un
+ * modelo que nunca se habia leido.
  */
 final class CommConfigLoader {
 

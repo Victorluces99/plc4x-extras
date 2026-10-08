@@ -48,17 +48,23 @@ manual. Se aisla la politica de carga del entorno.
 **Como quedo.** `CommConfigLoader` (package-private) recibe el `CommConfigRepository`
 por constructor y encapsulate la politica de carga. `reload()` delega en el, de modo que
 la politica ya no necesita `Project`, `FileObject` ni `FileSystem`, y se puede simular
-con un repositorio que falle.
+con un repositorio que falle. Despues se extrajo tambien `ProjectStorage`, con
+`NetBeansProjectStorage` como unica implementacion que conoce NetBeans y una
+implementacion en memoria para pruebas.
 
-**Comprobado que el test tiene dientes.** Se reintrodujo el `catch` que se acaba de
-eliminar y 3 de los tests fallaron con mensajes explicitos; la mutacion se revirtio
-despues. Un test que nunca ha fallado no demuestra nada.
+**Comprobado que los tests tienen dientes.** Se reintrodujo el `catch` de la carga y 3
+tests fallaron; se neutralizo la guarda de `save()` y 3 mas fallaron. Ambas mutaciones
+se revirtieron. Un test que nunca ha fallado no demuestra nada.
 
-**Lo que sigue sin poder verificarse automaticamente.** La guarda de `save()` —que se
-niega a escribir si hay un error de carga pendiente— necesita construir un
-`HMICommunicationModel` con un `Project` real. Este test queda `@Disabled` con `fail()`
-para que no produzca un falso verde. Es una linea de codigo; queda pendiente el arnes
-o una costura equivalente para el guardado.
+**Alcance real de la guarda de `save()`.** Merece una aclaracion, porque en su momento
+se describio de forma imprecisa. Con un XML mal formado, `save()` sin la guarda falla
+tambien, al intentar volver a parsear el archivo: lanza `IllegalStateException`. No hay
+borrado silencioso en ese caso. El dano real ocurre cuando la lectura falla por un motivo
+que no es de parseo —el archivo bloqueado por otra herramienta, un problema de
+permisos—: ahi el archivo sigue siendo escribible y un guardado sin guarda devuelve
+`true` tras sobrescribir el fichero con un modelo vacio. Ese es el escenario que
+cubre `unaLecturaFallidaNoDejaSobrescribirElArchivo`, que se verifico desactivando la
+guarda y observando `expected: <false> but was: <true>`.
 
 ---
 

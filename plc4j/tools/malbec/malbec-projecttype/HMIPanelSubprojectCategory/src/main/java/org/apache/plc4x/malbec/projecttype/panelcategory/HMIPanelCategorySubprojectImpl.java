@@ -23,6 +23,7 @@ import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import javax.swing.Action;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -168,11 +169,18 @@ public class HMIPanelCategorySubprojectImpl implements Project {
             }
 
             public Action[] getActions(boolean context) {
-                FileObject projectDir = this.project.getProjectDirectory();
-                String detectedFile = findExistingCategoryFile(projectDir);
+                // H-05: antes se hacia switch sobre un String que podia ser null, y eso
+                // lanzaba NullPointerException al hacer clic derecho sobre un proyecto sin
+                // fichero marcador. La rama default no cubre el null. Un Optional no
+                // puede llegar nulo al switch.
+                Optional<String> detected = DeteccionCategoria.detectar(
+                        ArbolSobreFileObject.de(this.project.getProjectDirectory()));
+                if (detected.isEmpty()) {
+                    return getActionForName(new Action[0]);
+                }
 
                 // Identificar la acción específica asociada al archivo
-                Action[] customAction = switch (detectedFile) {
+                Action[] customAction = switch (detected.get()) {
                     case "template.bob" ->
                         new Action[]{
                             new HMICategoryCreateDisplayAction(this.project),                        
@@ -209,33 +217,6 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                 }
 
                 return actionList.toArray(Action[]::new);
-            }
-
-            private String findExistingCategoryFile(FileObject projectDir) {
-                String[] categoryFiles = {
-                    "template.bob", "comunicacion.xml", "base.oppc", "record.record",
-                    "base.rcp", "base.rpt", "base.scp", "base.wmg", "base.tlc", "base.rtum"
-                };
-
-                for (String fileName : categoryFiles) {
-                    if (hasChildFile(projectDir, fileName)) {
-                        return fileName;
-                    }
-                }
-                return null;
-            }
-
-            private boolean hasChildFile(FileObject folder, String fileName) {
-                for (FileObject child : folder.getChildren()) {
-                    if (child.isFolder()) {
-                        if (child.getFileObject(fileName) != null || hasChildFile(child, fileName)) {
-                            return true;
-                        }
-                    } else if (child.getNameExt().equalsIgnoreCase(fileName)) {
-                        return true;
-                    }
-                }
-                return false;
             }
 
             @Override

@@ -165,10 +165,10 @@ la asercion para que cuadre con el fallo seria perder lo que protege.
 | H-02 | Si | Alta | Si | T1.1 |
 | H-03 | Si | Alta | Si | T1.5 |
 | H-04 | Si, con matiz | Media | Si | T1.5 |
-| H-05 | Si | Alta | No | T1.3 |
+| H-05 | Si | Alta | Corregido, `[T1.3]` | T1.3 |
 | H-06 | Si | Media | No | T1.4 |
-| H-07 | Si | Media | No | T1.4 |
-| H-08 | Si, los 5 sub-casos | Alta | No | T1.6 |
+| H-07 | Si | Media | Corregido, `[T1.4]` | T1.4 |
+| H-08 | Si, los 5 sub-casos | Alta | (a) y (b) corregidos, `[T1.6]` | T1.6 |
 | H-09 | Si | Alta | No | T1.7 |
 
 ### H-02 — la escritura trunca el archivo antes de serializar — ALTA
@@ -225,7 +225,23 @@ Ademas `hasChildFile()` recursiona sobre todo el arbol, y se llama una vez por c
 uno de los diez ficheros marcador: diez recorridos completos del proyecto por cada
 clic derecho.
 
-No es testeable sin `FileSystem`. Requiere el arreglo de T1.3 (`Optional`).
+No testeable sin `FileSystem`. **Corregido en `[T1.3]`**: la deteccion se extrajo a
+`DeteccionCategoria`, sobre una vista `ArbolProyecto` que el test construye en memoria.
+
+- `DeteccionCategoria.detectar()` devuelve `Optional`, nunca `null`, asi que el
+  `switch` ya no puede recibir un nulo. Un proyecto sin marcador devuelve acciones
+  vacias en vez de lanzar `NullPointerException`.
+- **De diez recorridos a uno.** Antes se llamaba a una busqueda recursiva por cada
+  fichero marcador, y cada una recorria el arbol entero. Ahora se recogen todos los
+  nombres en una sola pasada con una pila explicita, en lugar de recursividad, para
+  que un arbol profundo no desborde la pila.
+- Se elimino tambien una comprobacion redundante: `child.getFileObject(fileName)` ya
+  estaba cubierta por la recursion.
+- **Detalle que importa:** solo cuentan los ficheros, no las carpetas. Una carpeta
+  llamada `comunicacion.xml` no es el fichero marcador. Un test detecto esto porque
+  la primera version de la deteccion aceptaba carpetas; el codigo original no lo hacia.
+
+Cubierto por `DeteccionCategoriaTest` (11 tests).
 
 ### H-06 — `attachMessage` no registra — MEDIA
 
@@ -254,8 +270,8 @@ latente: recibe `dir` como parametro y lo ignora, usando `project.getProjectDire
 
 | | Sub-caso | Estado |
 |---|---|---|
-| a | `image` ausente y retorno silencioso | **Confirmado y es el mas grave**: `reversechildstack` hace `return` si `baseDir` es `null` (linea 511), y el flujo sigue hasta `return new Exito(...)` (linea 237). Se anuncia «importacion exitosa» sin haber creado ninguna carpeta |
-| b | excepcion por nodo y se continua | Confirmado (linea 548): se imprime la excepcion y el bucle sigue; el resultado se reporta como exito sin agregar los fallos |
+| a | `image` ausente y retorno silencioso | **Confirmado y era el mas grave**: `reversechildstack` hacia `return` si `baseDir` era `null` (linea 511), y el flujo seguia hasta `return new Exito(...)` (linea 237). Se anuncia «importacion exitosa» sin haber creado ninguna carpeta. **Corregido en `[T1.6]`** |
+| b | excepcion por nodo y se continua | Confirmado (linea 548): se imprimia la excepcion y el bucle seguia; el resultado se reportaba como exito sin agregar los fallos. **Corregido en `[T1.6]`**: `reversechildstack` devuelve cuantos nodos fallaron y un fallo parcial ya no se anuncia como exito |
 | c | carpetas antes que `plant-model.xml` | Confirmado (lineas 218-231): si el volcado falla se informa del fallo, pero las carpetas ya creadas quedan sin rollback |
 | d | `node.getId()` sin sanear | Confirmado (lineas 494, 505): el id viene del XML externo y se usa como nombre de carpeta y de fichero, sin validar |
 | e | `DocumentBuilderFactory` sin endurecer | Confirmado en tres sitios (lineas 317, 327, 407), sin `disallow-doctype-decl` ni `FEATURE_SECURE_PROCESSING` |

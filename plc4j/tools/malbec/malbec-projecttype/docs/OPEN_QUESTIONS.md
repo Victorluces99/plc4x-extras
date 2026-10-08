@@ -149,6 +149,137 @@ criterio. Ver N-4 de la seccion siguiente.
 
 ---
 
+## Comprobaciones de integridad H-02 a H-09
+
+Los ocho hallazgos del plan se han contrastado con el codigo. **Los ocho se
+confirman**, pero no todos con la misma severidad ni con el mismo alcance. Donde ha
+sido posible se ha fijado el comportamiento actual con tests de caracterizacion.
+
+**Los tests de caracterizacion describen el fallo, no la especificacion.** Cuando se
+corrija el hallazgo, el fallo debe observarse ahi: o el test pasa con el
+comportamiento nuevo, o se reescribe como test del comportamiento correcto. Ajustar
+la asercion para que cuadre con el fallo seria perder lo que protege.
+
+| # | Confirmado | Sev | Fijado con test | Tarea del plan |
+|---|---|---|---|---|
+| H-02 | Si | Alta | Si | T1.1 |
+| H-03 | Si | Alta | Si | T1.5 |
+| H-04 | Si, con matiz | Media | Si | T1.5 |
+| H-05 | Si | Alta | No | T1.3 |
+| H-06 | Si | Media | No | T1.4 |
+| H-07 | Si | Media | No | T1.4 |
+| H-08 | Si, los 5 sub-casos | Alta | No | T1.6 |
+| H-09 | Si | Alta | No | T1.7 |
+
+### H-02 — la escritura trunca el archivo antes de serializar — ALTA
+
+`PlcOpenCommConfigRepositoryImpl.save()` abre el destino con `storage.create()` y
+solo despues serializa. `ProjectFileStorage.create()` llama a
+`fileObject.getOutputStream()`, que vacia el archivo en ese instante, y sin
+`FileLock`. Un fallo a mitad deja el archivo vacio o truncado y el contenido anterior
+perdido.
+
+Fijado en `PlcOpenSaveIntegrityTest` con un storage que reproduce el orden real de
+operaciones: el contenido anterior desaparece en cuanto se pide el destino, y tras
+un fallo de escritura no sobrevive ni un resto.
+
+### H-03 — `boot.db` sin transaccion global — ALTA
+
+`rebuild()` hace `DROP TABLE` de las cuatro tablas y cierra la conexion; despues
+`createDB()` las recrea en otra conexion; y a continuacion inserta dispositivo por
+dispositivo, cada uno con su propia conexion. El `DROP TABLE` ya esta confirmado
+cuando empieza el primer `INSERT`, asi que un fallo intermedio destruye la base
+anterior valida y deja un estado parcial.
+
+Fijado en `BootDbRepositoryIntegrityTest`:
+
+- Un fallo en el segundo dispositivo deja el primero escrito y el segundo no, y
+  `rebuild()` devuelve `false`.
+- Una base buena seguida de un guardado invalido deja la base **anterior
+  destruida y vacia**, no intacta. Este es el caso grave: `comunicacion.xml` ya se
+  habia guardado antes de llamar a `rebuild`.
+
+### H-04 — valores inventados — MEDIA, con un matiz
+
+`insertDeviceConfig()` rellena con literales cuando no hay dispositivo: `DefaultDriver`
+como driver, `tcp://localhost:502` como URL, `Key123` como clave y la descripcion
+fija `Dispositivo guardado desde DeviceManager`. Ademas, con dispositivo pero sin
+`deviceKey`, tambien escribe `Key123`.
+
+**El plan se equivoca en un punto:** afirma que los `Md5` de grupos, areas y PVs
+tambien son literales. No lo son. Solo el del dispositivo lo es
+(`"md5_device_hash"`); los otros salen del modelo (`g.getMd5()`, `item.getMd5()`,
+`pv.getMd5()`). Fijado en `BootDbRepositoryIntegrityTest`.
+
+Tambien hay un matiz a favor: una clave **vacia** si se respeta, solo una clave
+**nula** se sustituye por `Key123`.
+
+### H-05 — NPE en clic derecho y recorrido recursivo — ALTA
+
+`findExistingCategoryFile()` devuelve `null` si no encuentra ningun fichero marcador
+(linea 225) y `getActions()` hace `switch` sobre ese `String` (linea 175). En Java un
+`switch` sobre `String` nulo lanza `NullPointerException`, y la rama `default` no lo
+evita. Se dispara al hacer clic derecho sobre un proyecto sin marcador.
+
+Ademas `hasChildFile()` recursiona sobre todo el arbol, y se llama una vez por cada
+uno de los diez ficheros marcador: diez recorridos completos del proyecto por cada
+clic derecho.
+
+No es testeable sin `FileSystem`. Requiere el arreglo de T1.3 (`Optional`).
+
+### H-06 — `attachMessage` no registra — MEDIA
+
+`HMIPanelCategorySubprojectImpl.getLookup()` envuelve la creacion del modelo en
+`catch (Throwable)` y solo llama a `Exceptions.attachMessage`, que anota la excepcion
+pero no la registra. Si `HMICommunicationModel` falla al inicializarse, el modelo se
+omite del Lookup y el usuario no ve ningun indicio.
+
+Relevante por H-01: era justo el mecanismo que hacia invisible el fallo anterior. La
+interfaz usa el modelo y el guardado silencioso ya no es posible, pero el aviso al
+usuario sigue sin implementarse.
+
+No testeable sin `Project`. Es el arreglo de T1.4.
+
+### H-07 — catch vacio en `loadProjects()` — MEDIA
+
+`HMIPanelCategorySubprojectProviderImpl.loadProjects()` (en `HMIPanelSubproject`,
+linea 73) tiene `catch (Exception e) { }` completamente vacio: un subproyecto que
+falle al cargarse desaparece del arbol sin aviso.
+
+Es **el unico `catch` vacio que queda en los cuatro modulos**, asi que T1.4 esta a un
+cambio de cumplir su criterio de aceptacion. El mismo metodo tiene ademas un bug
+latente: recibe `dir` como parametro y lo ignora, usando `project.getProjectDirectory()`.
+
+### H-08 — importacion de planta, los cinco sub-casos — ALTA
+
+| | Sub-caso | Estado |
+|---|---|---|
+| a | `image` ausente y retorno silencioso | **Confirmado y es el mas grave**: `reversechildstack` hace `return` si `baseDir` es `null` (linea 511), y el flujo sigue hasta `return new Exito(...)` (linea 237). Se anuncia «importacion exitosa» sin haber creado ninguna carpeta |
+| b | excepcion por nodo y se continua | Confirmado (linea 548): se imprime la excepcion y el bucle sigue; el resultado se reporta como exito sin agregar los fallos |
+| c | carpetas antes que `plant-model.xml` | Confirmado (lineas 218-231): si el volcado falla se informa del fallo, pero las carpetas ya creadas quedan sin rollback |
+| d | `node.getId()` sin sanear | Confirmado (lineas 494, 505): el id viene del XML externo y se usa como nombre de carpeta y de fichero, sin validar |
+| e | `DocumentBuilderFactory` sin endurecer | Confirmado en tres sitios (lineas 317, 327, 407), sin `disallow-doctype-decl` ni `FEATURE_SECURE_PROCESSING` |
+
+No testeable sin `FileSystem`. Requiere el arreglo de T1.6.
+
+### H-09 — Phoebus: memento global y pipe sin drenar — ALTA
+
+`HMICategoryOpenPhoebusAction`:
+
+- **Sobrescribe `~/.phoebus/memento`** (linea 110) sin copia de seguridad. Es estado
+  global de sesion del usuario, y se pisa cada vez que se abre un `.bob`.
+- **Pipe sin drenar**: `redirectErrorStream(true)` (linea 118) fusiona stderr en
+  stdout, `pb.start()` (linea 119) descarta el `Process` y nadie lee la salida. Si el
+  proceso escribe mas que el buffer del pipe, **se queda bloqueado**.
+- **Pasa `"-edit", ""`** (lineas 114-115) con cadena vacia, que probablemente no es
+  lo que Phoebus espera.
+
+Esto confirma que **N-5 sigue bloqueando** la parte de T1.7 que consiste en pasar el
+`.bob` por linea de comandos: sin saber la CLI real no se puede saber si la alternativa
+al memento existe.
+
+---
+
 ## Pendiente de informacion externa
 
 ### N-4. Datos corruptos en el proyecto `llenadora`

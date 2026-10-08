@@ -21,8 +21,11 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.event.ChangeListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.persistence.BootDbRepository;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRepository;
@@ -41,12 +44,15 @@ public final class HMICommunicationModel implements CommunicationStore {
 
     public static final String CONFIG_FILE = "comunicacion.xml";
 
+    private static final Logger LOGGER = Logger.getLogger(HMICommunicationModel.class.getName());
+
     private final Project project;
     private final ChangeSupport cs = new ChangeSupport(this);
     private final FileChangeAdapter fileListener;
     private CommConfigRepository repository;
     private CommunicationsConfig config;
     private FileObject file;
+    private Exception loadError;
 
     public HMICommunicationModel(Project project) {
         this.project = project;
@@ -61,6 +67,7 @@ public final class HMICommunicationModel implements CommunicationStore {
                 file = null;
                 repository = null;
                 config = new CommunicationsConfig();
+                loadError = null;
                 cs.fireChange();
             }
         };
@@ -76,6 +83,7 @@ public final class HMICommunicationModel implements CommunicationStore {
             file = null;
             repository = null;
             config = new CommunicationsConfig();
+            loadError = null;
             cs.fireChange();
             return;
         }
@@ -91,7 +99,12 @@ public final class HMICommunicationModel implements CommunicationStore {
             }
         }
         if (file == null) {
+            // No se pudo ni leer ni crear el archivo. Sin archivo no hay nada que
+            // cargar, y guardar aqui escribiria un modelo vacio sobre boot.db.
+            loadError = new IOException("no se pudo crear " + CONFIG_FILE
+                    + " en el proyecto " + projectDir.getName());
             config = new CommunicationsConfig();
+            LOGGER.log(Level.SEVERE, loadError.getMessage());
             cs.fireChange();
             return;
         }
@@ -99,12 +112,27 @@ public final class HMICommunicationModel implements CommunicationStore {
         file.removeFileChangeListener(fileListener);
         file.addFileChangeListener(fileListener);
         repository = new CommConfigServices().createRepository(new ProjectFileStorage(file));
+        CommConfigLoader.Result carga;
         try {
-            config = repository.load();
-        } catch (Throwable t) {
-            config = new CommunicationsConfig();
+            carga = new CommConfigLoader(repository).load();
+        } catch (Exception ex) {
+            // H-01: el fallo ya no se traga. Antes se sustitodia la configuracion
+            // por una vacia sin decir nada, de modo que un XML danado se veia como
+            // «no hay dispositivos» y un «Guardar» posterior vaciaba boot.db.
+            // Ahora se conserva lo que habia, se registra el error y queda disponible
+            // para que la interfaz avise. No se guarda nada en este estado.
+            loadError = ex;
+            if (config == null) {
+                config = new CommunicationsConfig();
+            }
+            LOGGER.log(Level.SEVERE, "No se pudo cargar " + CONFIG_FILE
+                    + "; se conserva la configuración anterior.", ex);
+            cs.fireChange();
+            return;
         }
-        boolean reparado = repararUuidsAusentes();
+        loadError = null;
+        config = carga.config();
+        boolean reparado = carga.uuidReparados();
         if (created) {
             try {
                 repository.save(config);
@@ -120,10 +148,6 @@ public final class HMICommunicationModel implements CommunicationStore {
             }
         }
         cs.fireChange();
-    }
-
-    private boolean repararUuidsAusentes() {
-        return repararUuidsAusentes(config);
     }
 
     static boolean repararUuidsAusentes(CommunicationsConfig config) {
@@ -159,6 +183,20 @@ public final class HMICommunicationModel implements CommunicationStore {
         return config;
     }
 
+    /**
+     * Error de la ultima carga, si lo hubo (H-01).
+     *
+     * <p>La interfaz debe consultarlo para avisar al usuario. Mientras siga
+     * presente, {@link #save()} se niega a escribir: el modelo puede contener solo
+     * parte de la informacion o estar vacio, y volcar eso a {@code boot.db}
+     * destruiria datos que siguen intactos en el fichero.
+     *
+     * @return el fallo de carga, o vacio si la ultima carga fue correcta
+     */
+    public Optional<Exception> getLoadError() {
+        return Optional.ofNullable(loadError);
+    }
+
     public List<DeviceConfigData> getDevices() {
         return config.getDevices();
     }
@@ -184,6 +222,14 @@ public final class HMICommunicationModel implements CommunicationStore {
     }
 
     public boolean save() {
+        if (loadError != null) {
+            // H-01: con la carga fallida, el modelo puede estar vacio o incompleto.
+            // Escribirlo reconstruiria boot.db sin los dispositivos que si siguen
+            // en comunicacion.xml.
+            LOGGER.log(Level.SEVERE, "No se guarda nada: la última carga de " + CONFIG_FILE
+                    + " falló, así que el modelo no es fiable.", loadError);
+            return false;
+        }
         try {
             FileObject projectDir = project.getProjectDirectory();
             if (file == null || !file.isValid()) {

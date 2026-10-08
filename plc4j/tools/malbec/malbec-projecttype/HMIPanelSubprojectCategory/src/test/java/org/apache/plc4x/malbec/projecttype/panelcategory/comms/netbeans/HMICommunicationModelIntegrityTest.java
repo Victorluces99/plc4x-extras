@@ -19,40 +19,41 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
+import java.util.Properties;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRepository;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigStorage;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationsConfig;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /**
  * Integridad de la carga de {@code comunicacion.xml} (H-01).
  *
- * <p>El diagnostico de H-01 son tres capas, y este test fija donde esta el
- * problema y donde no:
+ * <p>El fallo estaba en tres capas, y solo una se comportaba mal:
  *
  * <ol>
- *   <li>{@code PlcOpenCommConfigRepositoryImpl.load()} propaga el error de un XML
- *       mal formado (cubierto tambien en {@code GoldenFileContractTest}).</li>
- *   <li>{@code CommConfigServices.createRepository()} entrega ese mismo repositorio
- *       sin tragarse nada. Este test lo comprueba.</li>
- *   <li>{@code HMICommunicationModel.reload()} envuelve la llamada en
- *       {@code catch (Throwable)} y sustituye la configuracion por una vacia, sin
- *       registrar nada. Ahi es donde se pierde el error.</li>
+ *   <li>{@code PlcOpenCommConfigRepositoryImpl.load()} ya propagaba el error de un
+ *       XML mal formado.</li>
+ *   <li>{@code CommConfigServices.createRepository()} entregaba ese repositorio sin
+ *       alterar nada.</li>
+ *   <li>{@code reload()} lo envolvia en {@code catch (Throwable)} y sustituania la
+ *       configuracion por una vacia, sin registrar nada. Era la unica capa que
+ *       perdera informacion, y por eso se extrajo a {@link CommConfigLoader} para
+ *       poderla verificar sin el runtime de NetBeans.</li>
  * </ol>
  *
- * <p>Los tests de la capa 3 estan deshabilitados porque {@code reload()} exige un
- * {@code Project} de NetBeans, y en este build no hay ningun {@code FileSystem}
- * registrado: {@code FileUtil.toFileObject(File)} devuelve {@code null} para
- * cualquier directorio real, ya que el layer de modulos no corre bajo surefire y
- * {@code org-openide-filesystems-nb} no esta en el classpath de test. Verificar
- * esa capa de verdad exige el arnes de pruebas de NetBeans o extraer la carga a un
- * punto inyectable; la decision queda en {@code docs/OPEN_QUESTIONS.md}.
+ * <p>La correccion: la carga falla de forma visible, se conserva la configuracion
+ * anterior en lugar de vaciarla, y {@code save()} se niega a escribir mientras haya
+ * un error de carga pendiente, para que un {@code boot.db} no se reconstruya desde
+ * un modelo que no se ha podido leer.
  */
 class HMICommunicationModelIntegrityTest {
 
@@ -88,33 +89,148 @@ class HMICommunicationModelIntegrityTest {
 
     @Test
     void unArchivoVacioNoSeConsideraUnError() throws Exception {
-        CommConfigRepository repo = new CommConfigServices()
-                .createRepository(new TextoFijo(XML_VACIO));
+        CommConfigLoader.Result carga = new CommConfigLoader(
+                new CommConfigServices().createRepository(new TextoFijo(XML_VACIO))).load();
 
-        CommunicationsConfig config = repo.load();
-
-        assertEquals(0, config.getDevices().size(),
+        assertEquals(0, carga.config().getDevices().size(),
                 "un archivo vacio es un proyecto nuevo, no una carga fallida");
+        assertFalse(carga.uuidReparados());
     }
 
-    @Disabled("H-01: reload() se traga el error y devuelve una configuracion vacia. "
-            + "Ademas reload() necesita un Project de NetBeans y en este build no hay "
-            + "FileSystem registrado, asi que ni siquiera es invocable desde un test.")
     @Test
     void unXmlDanadoNoPuedeCargarseEnSilencio() {
-        fail("Pendiente de H-01: invocar reload() con un XML roto y comprobar que la carga"
-                + " fallida llega hasta arriba en lugar de devolver cero dispositivos."
-                + " Requiere arnes de NetBeans o un punto de carga inyectable."
-                + " Ver docs/OPEN_QUESTIONS.md.");
+        CommConfigLoader loader = new CommConfigLoader(
+                new CommConfigServices().createRepository(new TextoFijo(XML_ROTO)));
+
+        assertThrows(Exception.class, loader::load,
+                "H-01: la carga de un XML danado tiene que fallar, no devolver un modelo vacio");
     }
 
-    @Disabled("H-01: con el error tragado, guardar desde el modelo ya vacio reconstruye "
-            + "boot.db sin ningun dispositivo. Misma limitacion de arnes que el test anterior.")
+    @Test
+    void laCargaPropagaElFalloTalCualDelRepositorio() {
+        Exception original = new IllegalStateException("xml corrupto en el byte 412");
+        CommConfigRepository queFalla = new RepositorioQueFalla(original);
+
+        Exception recibido = assertThrows(Exception.class,
+                () -> new CommConfigLoader(queFalla).load());
+
+        assertEquals(original, recibido,
+                "H-01: el error debe llegar intacto para que el mensaje sea util");
+    }
+
+    @Test
+    void laCargaRechazaUnaConfiguracionNula() {
+        assertThrows(IllegalStateException.class,
+                () -> new CommConfigLoader(new RepositorioVacio()).load(),
+                "un repositorio que devuelve null es un fallo, no una configuracion vacia");
+    }
+
+    @Test
+    void laCargaReparaLosUuidsAusentesYLoInforma() throws Exception {
+        CommunicationsConfig config = new CommunicationsConfig();
+        config.upsertDevice(dispositivo("", "Compresor viejo"));
+        config.upsertDevice(dispositivo("uuid-ok", "Compresor"));
+
+        CommConfigLoader.Result carga = new CommConfigLoader(new RepositorioFijo(config)).load();
+
+        assertTrue(carga.uuidReparados(),
+                "el modelo debe saber que el fichero necesita reescribirse");
+        assertEquals("uuid-ok", carga.config().getDevices().get(1).getUuid(),
+                "un dispositivo con UUID no se toca");
+        assertFalse(carga.config().getDevices().get(0).getUuid().isBlank(),
+                "el dispositivo sin UUID debe recibir uno");
+    }
+
+    @Test
+    void unaCargaCorrectaNoDejaUuidsQueReparar() throws Exception {
+        CommunicationsConfig config = new CommunicationsConfig();
+        config.upsertDevice(dispositivo("uuid-ok", "Compresor"));
+
+        CommConfigLoader.Result carga = new CommConfigLoader(new RepositorioFijo(config)).load();
+
+        assertFalse(carga.uuidReparados(),
+                "sin UUID ausentes no hay que reescribir el fichero");
+    }
+
+    @Disabled("H-01, parte 2: verificar que save() se niega a escribir cuando la carga "
+            + "falló. Requiere un HMICommunicationModel constructed con un Project real, y "
+            + "en este build no hay FileSystem registrado, asi que el modelo no se puede "
+            + "construir desde un test. La guarda es una linea en save(); queda pendiente "
+            + "el arnes de NetBeans o una Costura equivalente. Ver docs/OPEN_QUESTIONS.md.")
     @Test
     void unXmlDanadoNoPuedeTerminarEnUnBootDbVacio() {
-        fail("Pendiente de H-01: comprobar que save() no puede volcar a boot.db una carga"
-                + " que ha fallado. Misma limitacion de arnes que el test anterior."
-                + " Ver docs/OPEN_QUESTIONS.md.");
+        fail("Pendiente: construir el modelo sobre un XML roto, invocar save() y comprobar "
+                + "que devuelve false y no toca boot.db ni comunicacion.xml.");
+    }
+
+    private static DeviceConfigData dispositivo(String uuid, String nombre) {
+        Properties p = new Properties();
+        p.put("brand", "Siemens");
+        p.put("model", "S7-1500");
+        p.put("protocol", "S7");
+        p.put("deviceName", nombre);
+        p.put("deviceKey", "K-" + nombre);
+        p.put("description", "descripcion de " + nombre);
+        p.put("uuid", uuid);
+        p.put("enable", Boolean.TRUE);
+        p.put("s88Node", "MD70");
+        p.put("s88Uuid", "uuid-md70");
+        p.put("specificParameters", "s7:cotp://192.168.0.10:102");
+        return new DeviceConfigData(p);
+    }
+
+    /** Repositorio que devuelve siempre la misma configuracion. */
+    private static final class RepositorioFijo implements CommConfigRepository {
+
+        private final CommunicationsConfig config;
+
+        RepositorioFijo(CommunicationsConfig config) {
+            this.config = config;
+        }
+
+        @Override
+        public CommunicationsConfig load() {
+            return config;
+        }
+
+        @Override
+        public void save(CommunicationsConfig config) {
+            // este test solo carga
+        }
+    }
+
+    /** Repositorio que simula un fallo de lectura. */
+    private static final class RepositorioQueFalla implements CommConfigRepository {
+
+        private final Exception error;
+
+        RepositorioQueFalla(Exception error) {
+            this.error = error;
+        }
+
+        @Override
+        public CommunicationsConfig load() throws Exception {
+            throw error;
+        }
+
+        @Override
+        public void save(CommunicationsConfig config) {
+            // no llega aqui
+        }
+    }
+
+    /** Repositorio que devuelve null, que es un fallo distinto de una carga vacia. */
+    private static final class RepositorioVacio implements CommConfigRepository {
+
+        @Override
+        public CommunicationsConfig load() {
+            return null;
+        }
+
+        @Override
+        public void save(CommunicationsConfig config) {
+            // este test solo carga
+        }
     }
 
     /** Almacenamiento que siempre devuelve el mismo texto, sin tocar disco. */

@@ -22,52 +22,43 @@
 Dudas que necesitan una decision externa antes de poder seguir. Todo lo que no
 aparece aqui se puede resolver leyendo el codigo.
 
-Estado: Fase 0 completada. Actualizado al terminar `[T0.4]`.
+Estado: Fase 0 completada. B-1 y B-2 resueltas. Actualizado tras `[H-01]`.
 
 ---
 
-## Bloqueantes
+## Resueltas
 
-### B-1. T1.12 — alcance de `DisplayNodeFactory`
+### B-1. T1.12 — alcance de `DisplayNodeFactory` — EXCLUIDA
 
-**Pregunta.** Should `DisplayNodeFactory` apply to every category, or only to those
-with a real display template?
+**Decision.** `DisplayNodeFactory` queda fuera de la refactorizacion. No se toca en
+ninguna fase.
 
-**Por que importa.** El guard actual esta comentado, asi que la fabrica construye
-nodos de display para categorias sin plantilla. Cambiarlo afecta al arbol de
-nodos del explorador, no solo a la pintura de un panel.
+**Alcance exacto.** La clase se mantiene intacta: sin cambios de comportamiento, sin
+reformateo y sin moverla. Como tampoco se toca, sus dependencias con el resto de clases
+no se modifican y no queda trabajo de desacoplamiento pendiente alrededor de ella.
 
-**Opciones.**
+**Sin pendientes.** No hace falta ninguna accion posterior para T1.12. La decision se
+tomo con la Fase 0 ya cerrada, asi que la tarea nunca llego a entrar en la lista.
 
-1. Dejarlo como esta hasta que lo confirme el responsable (tarea en pausa).
-2. Aplicarlo solo a categorias con `folderName` de display.
-3. Aplicarlo a todas y tratar la plantilla ausente como caso valido.
+### B-2. H-01 — verificacion mediante costura inyectable — RESUELTA EN `[H-01]`
 
-**Quien decide.** Responsable del modulo de categorias. Prohibido tocar
-`DisplayNodeFactory` mientras tanto.
+**Decision.** Levantar el arnes de NetBeans queda descartado, igual que la verificacion
+manual. Se aisla la politica de carga del entorno.
 
-### B-2. H-01 no se puede verificar de verdad en este build
+**Como quedo.** `CommConfigLoader` (package-private) recibe el `CommConfigRepository`
+por constructor y encapsulate la politica de carga. `reload()` delega en el, de modo que
+la politica ya no necesita `Project`, `FileObject` ni `FileSystem`, y se puede simular
+con un repositorio que falle.
 
-**Pregunta.** How should the H-01 fix be verified: NetBeans test harness, or an
-injectable load seam in `HMICommunicationModel`?
+**Comprobado que el test tiene dientes.** Se reintrodujo el `catch` que se acaba de
+eliminar y 3 de los tests fallaron con mensajes explicitos; la mutacion se revirtio
+despues. Un test que nunca ha fallado no demuestra nada.
 
-**Por que importa.** `reload()` traga el error con `catch (Throwable)` y devuelve
-una configuracion vacia sin registrar nada (`HMICommunicationModel.java:102-106`).
-Los tests de `reload()` estan `@Disabled` porque no hay ningun `FileSystem`
-registrado bajo surefire: `FileUtil.toFileObject(File)` devuelve `null` para
-cualquier directorio real, y `org-openide-filesystems-nb` no esta en el classpath
-de test. Comprobado con un sonda, no supuesto.
-
-**Opciones.**
-
-1. Anadir el arnes de pruebas de NetBeans (mas fiel, mas coste).
-2. Extraer la carga a un punto inyectable y testearlo sin `Project` (mas barato,
-   toca codigo de produccion).
-3. Corregir H-01 sin test automatico y verificarlo a mano.
-
-**Nota.** Los dos tests deshabilitados de
-`HMICommunicationModelIntegrityTest` llaman a `fail()` a proposito, para que
-quitarlos no produzca un falso verde.
+**Lo que sigue sin poder verificarse automaticamente.** La guarda de `save()` —que se
+niega a escribir si hay un error de carga pendiente— necesita construir un
+`HMICommunicationModel` con un `Project` real. Este test queda `@Disabled` con `fail()`
+para que no produzca un falso verde. Es una linea de codigo; queda pendiente el arnes
+o una costura equivalente para el guardado.
 
 ---
 
@@ -145,7 +136,7 @@ criterio. Ver N-4 de la seccion siguiente.
 
 | Tarea | Motivo |
 |---|---|
-| T1.12 | Prohibido tocar `DisplayNodeFactory`. Ver B-1. |
+| T1.12 | `DisplayNodeFactory` excluida de la refactorizacion por decision (ver B-1). |
 | T2.5 | `commsHmi` ya es `nbm` con el jar embebido via `X-Class-Path`, sin dependencias de NetBeans, y un spike previo verifico que funciona. |
 | T6.2 | `HMIPanelImportAction` ya usa `sealed interface`, `record`, `ProgressUtils`, filtro de extension y `Logger`. |
 | T6.5 | El aviso de formatos desalineados ya se emite al abrir el importador, no al pulsar «Importar». |
@@ -155,7 +146,6 @@ criterio. Ver N-4 de la seccion siguiente.
 ## Pendiente de informacion externa
 
 ### N-4. Datos corruptos en el proyecto `llenadora`
-
 **Situacion.** `Comunicacion/comunicacion.xml` tiene un area sin rango y dos areas
 solapadas. No se ha tocado el fichero.
 

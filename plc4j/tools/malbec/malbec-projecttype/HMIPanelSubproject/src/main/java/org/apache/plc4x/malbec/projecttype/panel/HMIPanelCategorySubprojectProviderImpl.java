@@ -22,6 +22,8 @@ package org.apache.plc4x.malbec.projecttype.panel;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.event.ChangeListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.HMICategoryDefinition;
 import org.netbeans.api.project.Project;
@@ -34,6 +36,10 @@ import org.openide.filesystems.FileObject;
 public class HMIPanelCategorySubprojectProviderImpl implements SubprojectProvider {
 
     public static final String CATEGORY_SUBPROJECT_FILE = "category.cfg";
+
+    private static final Logger LOGGER =
+            Logger.getLogger(HMIPanelCategorySubprojectProviderImpl.class.getName());
+
     private Project project;
 
     private final String[] folders = new String[HMICategoryDefinition.values().length];
@@ -58,20 +64,35 @@ public class HMIPanelCategorySubprojectProviderImpl implements SubprojectProvide
 
     }
 
-    private Set loadProjects(FileObject dir) {
+    /**
+     * Carga los subproyectos de categoria que cuelgan de {@code dir}.
+     *
+     * <p>H-07: el {@code catch} estaba vacio, asi que un subproyecto que fallase al
+     * cargarse desaparecia del arbol de proyectos sin dejar rastro. Ahora el fallo se
+     * registra y el resto de subproyectos se sigue cargando.
+     *
+     * <p>Antes el metodo ignoraba su parametro y usaba
+     * {@code project.getProjectDirectory()}; se corrige para usar lo que recibe.
+     */
+    private Set<Project> loadProjects(FileObject dir) {
         Set<Project> subProjects = new HashSet<>();
+        if (dir == null) {
+            return subProjects;
+        }
 
-        for (FileObject child : project.getProjectDirectory().getChildren()) {
-            if (child.isFolder() && child.getFileObject(CATEGORY_SUBPROJECT_FILE) != null) {
-
-                try {
-                    Project subProject = ProjectManager.getDefault().findProject(child);
-
-                    if (subProject != null) {
-                        subProjects.add(subProject);
-                    }
-                } catch (Exception e) {
+        for (FileObject child : dir.getChildren()) {
+            if (!child.isFolder() || child.getFileObject(CATEGORY_SUBPROJECT_FILE) == null) {
+                continue;
+            }
+            try {
+                Project subProject = ProjectManager.getDefault().findProject(child);
+                if (subProject != null) {
+                    subProjects.add(subProject);
                 }
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING,
+                        "No se pudo cargar el subproyecto de categoría '" + child.getName()
+                                + "'; no aparecerá en el árbol de proyectos.", e);
             }
         }
         return subProjects;

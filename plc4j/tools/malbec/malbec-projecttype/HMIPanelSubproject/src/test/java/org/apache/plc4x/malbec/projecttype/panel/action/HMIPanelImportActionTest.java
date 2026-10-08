@@ -232,4 +232,18 @@ public class HMIPanelImportActionTest {
                 "sin propiedades la lista queda vacia, no nula");
         assertTrue(((List<?>) snapshot.get("children")).isEmpty());
     }
+
+    // ------------------------------------------------------- H-08(a)
+
+    @Test
+    void sinCarpetaImageLaImportacionEsUnFalloExplicito() {
+        String problema = HMIPanelImportAction.problemaDelDestino(null);
+
+        assertTrue(problema != null && !problema.isBlank(),
+                "H-08(a): sin la carpeta 'image' hay que informar del fallo");
+        assertTrue(problema.contains("image"),
+                "el mensaje debe decir que falta la carpeta image: " + problema);
+        assertTrue(problema.contains("no se ha creado nada"),
+                "el mensaje debe dejar claro que no se ha creado nada: " + problema);
+    }
 }

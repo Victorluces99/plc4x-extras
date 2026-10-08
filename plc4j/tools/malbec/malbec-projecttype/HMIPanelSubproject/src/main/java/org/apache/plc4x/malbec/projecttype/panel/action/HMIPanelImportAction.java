@@ -214,11 +214,29 @@ public class HMIPanelImportAction extends AbstractAction {
             FileUtil.refreshFor(panelFile);
         }
 
+        // H-08(a): antes se pedia la carpeta 'image' y, si no existia,
+        // reversechildstack hacia return en silencio y el flujo llegaba igualmente a
+        // "importación exitosa" sin haber creado nada. Ahora la ausencia es un fallo.
         FileObject imageFo = panel.getFileObject("image");
+        String problema = problemaDelDestino(imageFo);
+        if (problema != null) {
+            LOGGER.log(Level.WARNING, "No se importó {0}: {1}",
+                    new Object[]{archivo.getName(), problema});
+            return new Fallo(archivo, problema);
+        }
+
+        int fallidos = 0;
         if (root.getChildren() != null) {
             for (S88Element child : root.getChildren()) {
-                reversechildstack(child, imageFo);
+                fallidos += reversechildstack(child, imageFo);
             }
+        }
+        if (fallidos > 0) {
+            // H-08(b): antes cada IOException por nodo se imprimia y el bucle seguia,
+            // y el resultado se reportaba como exito. Una importacion parcial no es un
+            // exito: se informa del numero de nodos que quedaron fuera.
+            return new Fallo(archivo, fallidos + " nodo(s) del modelo no se pudieron crear;"
+                    + " la importación está incompleta.");
         }
 
         try {
@@ -240,6 +258,22 @@ public class HMIPanelImportAction extends AbstractAction {
     private static String describe(Throwable ex) {
         String mensaje = ex.getMessage();
         return mensaje == null || mensaje.isBlank() ? ex.getClass().getSimpleName() : mensaje;
+    }
+
+    /**
+     * Comprueba que el panel tiene donde crear la estructura del modelo (H-08(a)).
+     *
+     * @return el motivo por el que no se puede importar, o {@code null} si todo va bien
+     */
+    static String problemaDelDestino(FileObject imageFo) {
+        if (imageFo == null) {
+            return "el panel no tiene la carpeta 'image', que es donde se crea la estructura;"
+                    + " no se ha creado nada.";
+        }
+        if (!imageFo.isFolder()) {
+            return "'image' existe pero no es una carpeta; no se ha creado nada.";
+        }
+        return null;
     }
 
     private void mostrar(Resultado resultado) {
@@ -507,13 +541,21 @@ public class HMIPanelImportAction extends AbstractAction {
         }
     }
 
-    public void reversechildstack(S88Element root, FileObject baseDir) {
+    /**
+     * Crea la estructura de carpetas y ficheros del modelo a partir de {@code root}.
+     *
+     * @return cuantos nodos no se pudieron crear (H-08(b)). Antes el metodo no
+     *         devolvia nada: cada fallo se imprimia y el bucle continuaba, y quien
+     *         llama acababa anunciando una importacion successful.
+     */
+    public int reversechildstack(S88Element root, FileObject baseDir) {
         if (root == null || baseDir == null) {
-            return;
+            return 0;
         }
 
         Deque<S88Element> stack = new ArrayDeque<>();
         Map<S88Element, FileObject> dirMap = new HashMap<>();
+        int fallidos = 0;
 
         stack.push(root);
         dirMap.put(root, baseDir);
@@ -530,10 +572,10 @@ public class HMIPanelImportAction extends AbstractAction {
                 FileObject currentDir = createFolder(node, parentDir);
                 createCfgFile(currentDir);
 
-                System.out.println("Propiedades en " + node.getId() + ": " + node.getProperties());
-                System.out.println("check: " + node.isCheck());
+                LOGGER.fine(() -> "Propiedades en " + node.getId() + ": " + node.getProperties());
+                LOGGER.fine(() -> "check: " + node.isCheck());
                 if (node.isCheck()) {
-                    System.out.println("-> Creando BOB File para: " + node.getId());
+                    LOGGER.fine(() -> "Creando BOB para: " + node.getId());
                     createBobFile(node, currentDir);
                 }
 
@@ -546,9 +588,11 @@ public class HMIPanelImportAction extends AbstractAction {
                     }
                 }
             } catch (IOException ex) {
-                Exceptions.printStackTrace(ex);
+                fallidos++;
+                LOGGER.log(Level.WARNING, "No se pudo crear el nodo '" + node.getId() + "'", ex);
             }
         }
+        return fallidos;
     }
 
 }

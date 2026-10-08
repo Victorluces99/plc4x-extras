@@ -49,7 +49,6 @@ import java.util.logging.Logger;
 import javax.swing.AbstractAction;
 import javax.swing.JOptionPane;
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
@@ -57,6 +56,7 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import org.apache.plc4x.malbec.projecttype.panelcategory.xml.XmlSafe;
 import org.apache.plc4x.malbec.s88.api.S88Element;
 import org.apache.plc4x.malbec.s88.api.S88PlantModel;
 import org.apache.plc4x.malbec.s88.api.S88Repository;
@@ -226,6 +226,15 @@ public class HMIPanelImportAction extends AbstractAction {
         }
 
         int fallidos = 0;
+        String nombreInvalido = primerNombreInvalido(root);
+        if (nombreInvalido != null) {
+            // H-08(d): se comprueba todo el modelo antes de crear la primera carpeta,
+            // para no dejar estructura a medias en el panel.
+            LOGGER.log(Level.WARNING, "No se importó {0}: {1}",
+                    new Object[]{archivo.getName(), nombreInvalido});
+            return new Fallo(archivo, nombreInvalido);
+        }
+
         if (root.getChildren() != null) {
             for (S88Element child : root.getChildren()) {
                 fallidos += reversechildstack(child, imageFo);
@@ -253,6 +262,84 @@ public class HMIPanelImportAction extends AbstractAction {
             ProjectManager.getDefault().clearNonProjectCache();
         }
         return new Exito(archivo, areaId);
+    }
+
+    /** Caracteres que Windows no admite en un nombre de fichero o carpeta. */
+    private static final String INVALIDOS = "/\\:*?\"<>|";
+
+    /**
+     * Comprueba que un nombre de nodo se puede usar como carpeta y como fichero.
+     *
+     * <p>H-08(d): el {@code id} viene del fichero de modelo que elige el usuario y se
+     * usaba tal cual en {@code createFolder}, {@code createData} y
+     * {@code getFileObject}. Un id como {@code ../../evil} escapaba del panel y
+     * creaba carpetas fuera, y caracteres como {@code :} o {@code *} producen rutas
+     * invalidas en Windows.
+     *
+     * <p>Se rechaza en lugar de renombrar: renombrar en silencio crearia carpetas con
+     * un nombre que el usuario no reconoce y romperia la correspondencia con el modelo.
+     *
+     * @return el motivo por el que el nombre no vale, o {@code null} si es valido
+     */
+    static String problemaDeNombre(String id) {
+        if (id == null || id.isBlank()) {
+            return "un nodo del modelo no tiene identificador";
+        }
+        String nombre = id.trim();
+        if (nombre.isEmpty()) {
+            return "un nodo del modelo tiene un identificador vacío";
+        }
+        // Se comprueba '..' antes que los caracteres invalidos: un identificador como
+        // '../../x' es un intento de salir del panel y merece el aviso mas grave, no el
+        // mensaje generico de 'caracter no valido'.
+        if (nombre.contains("..")) {
+            return "el identificador '" + nombre + "' contiene '..' y podría crear carpetas"
+                    + " fuera del panel";
+        }
+        for (int i = 0; i < INVALIDOS.length(); i++) {
+            char c = INVALIDOS.charAt(i);
+            if (nombre.indexOf(c) >= 0) {
+                return "el identificador '" + nombre + "' contiene el carácter '" + c
+                        + "', que no se puede usar en el nombre de una carpeta";
+            }
+        }
+        if (Character.isISOControl(nombre.charAt(0))
+                || Character.isISOControl(nombre.charAt(nombre.length() - 1))) {
+            return "el identificador '" + nombre + "' empieza o acaba con un carácter de control";
+        }
+        return null;
+    }
+
+    /**
+     * Primer identificador invalido del modelo, buscando en todo el arbol.
+     *
+     * <p>Se recorre antes de crear nada: si se detectara durante la creacion, ya
+     * habria carpetas a medias en el panel.
+     *
+     * @return el motivo del primer id invalido, o {@code null} si todos valen
+     */
+    static String primerNombreInvalido(S88Element root) {
+        Deque<S88Element> pendientes = new ArrayDeque<>();
+        if (root != null) {
+            pendientes.push(root);
+        }
+        while (!pendientes.isEmpty()) {
+            S88Element node = pendientes.pop();
+            String problema = problemaDeNombre(node.getId());
+            if (problema != null) {
+                return problema;
+            }
+            List<S88Element> children = node.getChildren();
+            if (children != null) {
+                for (int i = children.size() - 1; i >= 0; i--) {
+                    S88Element child = children.get(i);
+                    if (child != null) {
+                        pendientes.push(child);
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private static String describe(Throwable ex) {
@@ -348,8 +435,10 @@ public class HMIPanelImportAction extends AbstractAction {
     private Document loadOrCreateDocument(File target) throws IOException {
         if (target.exists()) {
             try {
-                DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-                DocumentBuilder builder = factory.newDocumentBuilder();
+                // H-08(e): sin XmlSafe, una DOCTYPE con entidades externas permitiria
+                // leer ficheros locales o hacer peticiones salientes desde un
+                // plant-model.xml manipulado.
+                DocumentBuilder builder = XmlSafe.newFactory().newDocumentBuilder();
                 return builder.parse(target);
             } catch (SAXException | ParserConfigurationException ex) {
                 throw new IOException(PLANT_MODEL_DUMP + " ya existe pero no se puede leer, "
@@ -358,8 +447,7 @@ public class HMIPanelImportAction extends AbstractAction {
             }
         }
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder builder = factory.newDocumentBuilder();
+            DocumentBuilder builder = XmlSafe.newFactory().newDocumentBuilder();
             Document doc = builder.newDocument();
             doc.appendChild(doc.createElement("plant-model"));
             return doc;
@@ -438,8 +526,8 @@ public class HMIPanelImportAction extends AbstractAction {
 
     private void verificarLegible(File archivo) throws IOException {
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.newDocumentBuilder().parse(archivo);
+            // H-08(e): misma proteccion que en la lectura.
+            XmlSafe.newFactory().newDocumentBuilder().parse(archivo);
         } catch (SAXException | ParserConfigurationException ex) {
             throw new IOException("El " + PLANT_MODEL_DUMP + " generado no se pudo leer, "
                     + "por lo que no se reemplazó el archivo existente.", ex);
@@ -569,6 +657,14 @@ public class HMIPanelImportAction extends AbstractAction {
             }
 
             try {
+                // H-08(d): guarda defensiva. El flujo normal ya valida todo el modelo
+                // antes de crear nada, pero este metodo es publico.
+                String problema = problemaDeNombre(node.getId());
+                if (problema != null) {
+                    fallidos++;
+                    LOGGER.log(Level.WARNING, "Nodo rechazado: {0}", problema);
+                    continue;
+                }
                 FileObject currentDir = createFolder(node, parentDir);
                 createCfgFile(currentDir);
 

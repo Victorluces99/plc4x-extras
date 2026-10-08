@@ -246,4 +246,87 @@ public class HMIPanelImportActionTest {
         assertTrue(problema.contains("no se ha creado nada"),
                 "el mensaje debe dejar claro que no se ha creado nada: " + problema);
     }
+
+    // ------------------------------------------------------- H-08(d)
+
+    @Test
+    void unIdConTraversalSeRechaza() {
+        String problema = HMIPanelImportAction.problemaDeNombre("../../etc/passwd");
+
+        assertTrue(problema != null, "H-08(d): '..' no puede usarse como nombre de carpeta");
+        assertTrue(problema.contains("fuera del panel"),
+                "el mensaje debe explicar el riesgo: " + problema);
+    }
+
+    @Test
+    void unIdConSeparadorDeRutaSeRechaza() {
+        for (String id : new String[]{"a/b", "a\\b", "a:b", "a*b", "a?b", "a\"b", "a<b", "a>b", "a|b"}) {
+            String problema = HMIPanelImportAction.problemaDeNombre(id);
+
+            assertTrue(problema != null,
+                    "H-08(d): el identificador '" + id + "' no puede usarse como carpeta");
+        }
+    }
+
+    @Test
+    void unIdSinTraversalSeRechazaPorLaBarraPunts() {
+        assertTrue(HMIPanelImportAction.problemaDeNombre("..") != null);
+        assertTrue(HMIPanelImportAction.problemaDeNombre("area/../otra") != null);
+        assertTrue(HMIPanelImportAction.problemaDeNombre("a..b") != null);
+    }
+
+    @Test
+    void unIdNuloOVacioSeRechaza() {
+        assertTrue(HMIPanelImportAction.problemaDeNombre(null) != null);
+        assertTrue(HMIPanelImportAction.problemaDeNombre("") != null);
+        assertTrue(HMIPanelImportAction.problemaDeNombre("   ") != null);
+    }
+
+    @Test
+    void unIdNormalSeAcepta() {
+        for (String id : new String[]{"Llenadora", "area_1", "Zona-A", "tanque02", "Área Ñ"}) {
+            assertTrue(HMIPanelImportAction.problemaDeNombre(id) == null,
+                    "el identificador '" + id + "' es valido y debe aceptarse");
+        }
+    }
+
+    @Test
+    void unIdValidoSeRecortaAntesDeComprobar() {
+        assertTrue(HMIPanelImportAction.problemaDeNombre("  Llenadora  ") == null,
+                "los espacios alrededor se recortan, como ya se hacia con areaId");
+    }
+
+    @Test
+    void seDetectaElPrimerIdInvalidoEnTodoElArbol() {
+        S88Element raiz = nodo("Llenadora");
+        S88Element intermedio = nodo("Zona1");
+        S88Element culpable = nodo("sub/carpeta");
+        intermedio.addChild(culpable);
+        raiz.addChild(intermedio);
+
+        String problema = HMIPanelImportAction.primerNombreInvalido(raiz);
+
+        assertTrue(problema != null && problema.contains("sub/carpeta"),
+                "H-08(d): hay que encontrar el id invalido aunque este anidado: " + problema);
+    }
+
+    @Test
+    void unArbolEnteramenteValidoNoDaProblema() {
+        S88Element raiz = nodo("Llenadora");
+        S88Element hijo = nodo("Zona1");
+        hijo.addChild(nodo("Tanque-02"));
+        raiz.addChild(hijo);
+
+        assertTrue(HMIPanelImportAction.primerNombreInvalido(raiz) == null);
+    }
+
+    @Test
+    void unArbolVacioNoDaProblema() {
+        assertTrue(HMIPanelImportAction.primerNombreInvalido(null) == null);
+        assertTrue(HMIPanelImportAction.primerNombreInvalido(nodo("SinHijos")) == null);
+    }
+
+    private static S88Element nodo(String id) {
+        return new S88Element().setId(id);
+    }
 }

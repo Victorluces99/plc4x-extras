@@ -37,6 +37,8 @@ under the License.
                     <publicPackages>
                         <publicPackage>org.apache.plc4x.malbec.projecttype.panelcategory</publicPackage>
                         <publicPackage>org.apache.plc4x.malbec.projecttype.panelcategory.nodes</publicPackage>
+                        <!-- XmlSafe lo consume HMIPanelSubproject para el importador -->
+                        <publicPackage>org.apache.plc4x.malbec.projecttype.panelcategory.xml</publicPackage>
                     </publicPackages>
                 </configuration>
             </plugin>

@@ -273,10 +273,55 @@ latente: recibe `dir` como parametro y lo ignora, usando `project.getProjectDire
 | a | `image` ausente y retorno silencioso | **Confirmado y era el mas grave**: `reversechildstack` hacia `return` si `baseDir` era `null` (linea 511), y el flujo seguia hasta `return new Exito(...)` (linea 237). Se anuncia «importacion exitosa» sin haber creado ninguna carpeta. **Corregido en `[T1.6]`** |
 | b | excepcion por nodo y se continua | Confirmado (linea 548): se imprimia la excepcion y el bucle seguia; el resultado se reportaba como exito sin agregar los fallos. **Corregido en `[T1.6]`**: `reversechildstack` devuelve cuantos nodos fallaron y un fallo parcial ya no se anuncia como exito |
 | c | carpetas antes que `plant-model.xml` | Confirmado (lineas 218-231): si el volcado falla se informa del fallo, pero las carpetas ya creadas quedan sin rollback |
-| d | `node.getId()` sin sanear | Confirmado (lineas 494, 505): el id viene del XML externo y se usa como nombre de carpeta y de fichero, sin validar |
-| e | `DocumentBuilderFactory` sin endurecer | Confirmado en tres sitios (lineas 317, 327, 407), sin `disallow-doctype-decl` ni `FEATURE_SECURE_PROCESSING` |
+| d | `node.getId()` sin sanear | **Corregido en `[T1.6]`**: ver abajo |
+| e | `DocumentBuilderFactory` sin endurecer | **Corregido en `[T1.6]`**: ver abajo |
 
 No testeable sin `FileSystem`. Requiere el arreglo de T1.6.
+
+### H-08(d) y H-08(e), corregidos en `[T1.6]`
+
+**H-08(d), path traversal.** El `id` viene del fichero que elige el usuario y se usaba
+tal cual como nombre de carpeta y de fichero. Ahora `problemaDeNombre()` rechaza
+`/ \ : * ? " < > |`, cualquier `..`, y nulos, vacios o caracteres de control en los
+extremos.
+
+- Se **rechaza** en lugar de renombrar: renombrar en silencio crearia carpetas con un
+  nombre que el usuario no reconoce.
+- `primerNombreInvalido()` recorre todo el modelo **antes** de crear la primera
+  carpeta, para que un id invalido no deje estructura a medias.
+- `..` se comprueba antes que los caracteres invalidos, porque un traversal merece el
+  aviso mas grave.
+- Queda una guarda defensiva en `reversechildstack`, que es publico.
+
+**H-08(e), XXE.** Nueva clase publica `XmlSafe` en el paquete `panelcategory.xml`, con
+el criterio compartido: la usan el importador y `PlantModelReader`, que ya se endurecia
+pero por su cuenta y podia divergir.
+
+**La vulnerabilidad era real y queda demostrada.** Una sonda con una
+`DocumentBuilderFactory` sin endurecer en JDK 21 resolvio una entidad externa y filtro
+al DOM 85 caracteres de `C:/Windows/win.ini`. Verificado empiricamente, no supuesto.
+
+**Dos detalles del proceso que conviene no pasar por alto:**
+
+1. El plugin nbm detecto que `panelcategory.xml` no era accesible en runtime y fallo el
+   build. Sin esa comprobacion habria sido un `NoClassDefFoundError` al desplegar. El
+   paquete quedo exportado como `publicPackage`; la dependencia entre los dos modulos ya
+   existia, asi que no se creo ninguna arista nueva.
+
+2. Mi primer payload de test era **invalido** y por eso los tests de XXE pasaban sin
+   probar nada. XML prohibe referencias a entidades externas dentro de valores de
+   atributo, de modo que `id="&robado;"` lanzaba siempre, con o sin proteccion. La
+   mutacion lo destapo. El payload correcto usa contenido de elemento
+   (`<area>&robado;</area>`), y con el los tests fallan sin proteccion.
+
+### Capas de proteccion y por que estan todas
+
+Con `disallow-doctype-decl` no se admite ninguna `DOCTYPE`, y con ella llegan las
+entidades: es la proteccion que manda. Las demas (entidades externas, DTD externo,
+XInclude) son defensa en profundidad y se ignoran en silencio si el parser no las
+soporta, porque con la primera activa no hay nada que las alcance. Si la principal no se
+puede activar, se propaga la excepcion: es preferible no parsear antes que parsear sin
+proteccion.
 
 ### H-09 — Phoebus: memento global y pipe sin drenar — ALTA
 

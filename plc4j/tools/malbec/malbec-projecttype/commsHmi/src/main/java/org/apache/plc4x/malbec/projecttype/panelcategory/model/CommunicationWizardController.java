@@ -507,7 +507,7 @@ public class CommunicationWizardController {
                 new ArrayList<>(state.getGroups()),
                 new ArrayList<>(state.getItems()),
                 new ArrayList<>(state.getPvs()));
-store.upsertComms(state.getSelectedDevice().getUuid(), config);
+            store.upsertComms(state.getSelectedDevice().getUuid(), config);
             SaveResult resultado = store.save();
             state.setCambiosSinGuardar(!resultado.isComplete());
             return resultado.isComplete();

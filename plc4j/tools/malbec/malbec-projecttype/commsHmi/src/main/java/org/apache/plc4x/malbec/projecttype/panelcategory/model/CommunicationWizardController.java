@@ -81,8 +81,10 @@ public class CommunicationWizardController {
         }
         String scantime = scan != null && !scan.isEmpty() ? scan : actual.getScantime();
         int idx = state.indexOfGroup(uuid);
-        state.getGroups().set(idx, new CommConfigData.GroupConfig(
-                actual.getUuid(), actual.getName(), desc, scantime, enable, actual.getMd5()));
+        state.getGroups().set(idx, actual
+                .withDescription(desc)
+                .withScantime(scantime)
+                .withEnable(enable));
         state.setCambiosSinGuardar(true);
     }
 
@@ -120,9 +122,10 @@ public class CommunicationWizardController {
             return;
         }
         int idx = state.indexOfItem(uuid);
-        state.getItems().set(idx, new CommConfigData.ItemConfig(
-                actual.getUuid(), actual.getName(), desc, tag, enable,
-                actual.getMd5(), actual.getGroupUuid()));
+        state.getItems().set(idx, actual
+                .withDescription(desc)
+                .withTag(tag)
+                .withEnable(enable));
         state.setCambiosSinGuardar(true);
         cacheTags.clear();
     }
@@ -162,12 +165,19 @@ public class CommunicationWizardController {
             return;
         }
         int idx = state.indexOfPv(uuid);
-        state.getPvs().set(idx, new CommConfigData.PvConfig(
-                actual.getUuid(), actual.getName(), actual.getType(), actual.getAreaUuid(),
-                actual.getOffset(), descriptor, scanTime, scanEnable, writeEnable,
-                displayLimitLow, displayLimitHigh, displayDescription, displayFormat,
-                displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
-                actual.getMd5(), actual.getS88Path()));
+        state.getPvs().set(idx, actual
+                .withDescriptor(descriptor)
+                .withScanTime(scanTime)
+                .withScanEnable(scanEnable)
+                .withWriteEnable(writeEnable)
+                .withDisplayLimitLow(displayLimitLow)
+                .withDisplayLimitHigh(displayLimitHigh)
+                .withDisplayDescription(displayDescription)
+                .withDisplayFormat(displayFormat)
+                .withDisplayUnits(displayUnits)
+                .withControlLimitLow(controlLimitLow)
+                .withControlLimitHigh(controlLimitHigh)
+                .withControlMinStep(controlMinStep));
         state.setCambiosSinGuardar(true);
     }
 

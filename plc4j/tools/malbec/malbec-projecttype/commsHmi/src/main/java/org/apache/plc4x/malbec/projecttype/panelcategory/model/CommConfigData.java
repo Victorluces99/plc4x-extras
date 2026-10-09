@@ -88,6 +88,29 @@ public class CommConfigData {
         public String getMd5() {
             return md5;
         }
+        /**
+         * Copia con un unico campo distinto. Se generan desde la lista de
+         * componentes para que el constructor no pueda descolocarse respecto al
+         * record, que es el fallo tipico al escribirlos a mano.
+         */
+        public GroupConfig withUuid(String uuid) {
+            return new GroupConfig(uuid, name, description, scantime, enable, md5);
+        }
+        public GroupConfig withName(String name) {
+            return new GroupConfig(uuid, name, description, scantime, enable, md5);
+        }
+        public GroupConfig withDescription(String description) {
+            return new GroupConfig(uuid, name, description, scantime, enable, md5);
+        }
+        public GroupConfig withScantime(String scantime) {
+            return new GroupConfig(uuid, name, description, scantime, enable, md5);
+        }
+        public GroupConfig withEnable(boolean enable) {
+            return new GroupConfig(uuid, name, description, scantime, enable, md5);
+        }
+        public GroupConfig withMd5(String md5) {
+            return new GroupConfig(uuid, name, description, scantime, enable, md5);
+        }
     }
 
     /** Area: una direccion de memoria con su etiqueta y su grupo. */
@@ -125,6 +148,32 @@ public class CommConfigData {
 
         public String getGroupUuid() {
             return groupUuid;
+        }
+        /**
+         * Copia con un unico campo distinto. Se generan desde la lista de
+         * componentes para que el constructor no pueda descolocarse respecto al
+         * record, que es el fallo tipico al escribirlos a mano.
+         */
+        public ItemConfig withUuid(String uuid) {
+            return new ItemConfig(uuid, name, description, tag, enable, md5, groupUuid);
+        }
+        public ItemConfig withName(String name) {
+            return new ItemConfig(uuid, name, description, tag, enable, md5, groupUuid);
+        }
+        public ItemConfig withDescription(String description) {
+            return new ItemConfig(uuid, name, description, tag, enable, md5, groupUuid);
+        }
+        public ItemConfig withTag(String tag) {
+            return new ItemConfig(uuid, name, description, tag, enable, md5, groupUuid);
+        }
+        public ItemConfig withEnable(boolean enable) {
+            return new ItemConfig(uuid, name, description, tag, enable, md5, groupUuid);
+        }
+        public ItemConfig withMd5(String md5) {
+            return new ItemConfig(uuid, name, description, tag, enable, md5, groupUuid);
+        }
+        public ItemConfig withGroupUuid(String groupUuid) {
+            return new ItemConfig(uuid, name, description, tag, enable, md5, groupUuid);
         }
     }
 
@@ -228,6 +277,125 @@ public class CommConfigData {
 
         public String getS88Path() {
             return s88Path;
+        }
+        /**
+         * Copia con un unico campo distinto. Se generan desde la lista de
+         * componentes para que el constructor no pueda descolocarse respecto al
+         * record, que es el fallo tipico al escribirlos a mano.
+         */
+        public PvConfig withUuid(String uuid) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withName(String name) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withType(String type) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withAreaUuid(String areaUuid) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withOffset(String offset) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withDescriptor(String descriptor) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withScanTime(String scanTime) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withScanEnable(boolean scanEnable) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withWriteEnable(boolean writeEnable) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withDisplayLimitLow(String displayLimitLow) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withDisplayLimitHigh(String displayLimitHigh) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withDisplayDescription(String displayDescription) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withDisplayFormat(String displayFormat) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withDisplayUnits(String displayUnits) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withControlLimitLow(String controlLimitLow) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withControlLimitHigh(String controlLimitHigh) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withControlMinStep(String controlMinStep) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withMd5(String md5) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
+        }
+        public PvConfig withS88Path(String s88Path) {
+            return new PvConfig(uuid, name, type, areaUuid, offset, descriptor, scanTime,
+                    scanEnable, writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
+                    md5, s88Path);
         }
     }
 }

@@ -42,10 +42,10 @@ public class HMICategoryDuplicateDisplayAction extends AbstractAction{
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        RequestProcessor.getDefault().post(() ->Duplicate(this.bobFile));
+        RequestProcessor.getDefault().post(() -> duplicate(this.bobFile));
     }
     
-    private void Duplicate(FileObject nuevobobFile){
+    private void duplicate(FileObject nuevobobFile){
         FileObject parent = nuevobobFile.getParent();
         if (parent == null) {
             return;

@@ -57,10 +57,10 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
     }
 
     public void actionPerformed(ActionEvent e) {
-        RequestProcessor.getDefault().post(() -> OpenNativeBob(this.bobFile));
+        RequestProcessor.getDefault().post(() -> openNativeBob(this.bobFile));
     }
 
-    private void OpenNativeBob(FileObject nuevoArchivoBob) {
+    private void openNativeBob(FileObject nuevoArchivoBob) {
         File file = FileUtil.toFile(nuevoArchivoBob);
         if (file == null) {
             return;
@@ -110,7 +110,7 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
         }
 
         try {
-            OverwriteMemento(file);
+            overwriteMemento(file);
             ProcessBuilder pb = new ProcessBuilder(
                     rutaPhoebus,
                     "-nosplash",
@@ -130,18 +130,18 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
         }
     }
 
-    private void OverwriteMemento(File file) throws IOException {
+    private void overwriteMemento(File file) throws IOException {
 
         String userHome = System.getProperty("user.home");
         Path rutaMemento = Paths.get(userHome, ".phoebus", "memento");
-        //Construir la URI del archivo (siempre con / y la funcion XmlEscaping)
+        // Construir la URI del archivo (siempre con / y escapada con xmlEscape)
         String nuevaUri = file.toURI().toString();
-        nuevaUri = XmlEscaping(nuevaUri);
+        nuevaUri = xmlEscape(nuevaUri);
         String user = System.getProperty("user.name", "user");
         String uid = "DockItem_" + UUID.randomUUID().toString().replace("-", "_");
         String memento = MEMENTO_TEMPLATE
                 .replace("%ID%", uid)
-                .replace("%USER%", XmlEscaping(user))
+                .replace("%USER%", xmlEscape(user))
                 .replace("%URI%", nuevaUri);
         Files.createDirectories(rutaMemento.getParent());
         Files.write(rutaMemento, memento.getBytes(StandardCharsets.UTF_8));
@@ -149,7 +149,7 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
                     new Object[]{rutaMemento, memento});
     }
 
-    private static String XmlEscaping(String s) {
+    private static String xmlEscape(String s) {
         if (s == null) {
             return "";
         }

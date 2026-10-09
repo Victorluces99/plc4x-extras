@@ -45,10 +45,10 @@ public class HMIPanelCompileAction extends AbstractAction {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        CompilePanel(this.panel);
+        compilePanel(this.panel);
     }
 
-    private void CompilePanel(FileObject panel) {
+    private void compilePanel(FileObject panel) {
         File folderOrigen = FileUtil.toFile(panel);
         if (folderOrigen == null || !folderOrigen.isDirectory()) {
             StatusDisplayer.getDefault().setStatusText("No se pudo obtener la carpeta del panel.");

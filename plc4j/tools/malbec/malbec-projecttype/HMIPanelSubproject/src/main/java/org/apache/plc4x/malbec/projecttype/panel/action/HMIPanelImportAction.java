@@ -238,7 +238,7 @@ public class HMIPanelImportAction extends AbstractAction {
 
         if (root.getChildren() != null) {
             for (S88Element child : root.getChildren()) {
-                fallidos += reversechildstack(child, imageFo);
+                fallidos += reverseChildStack(child, imageFo);
             }
         }
         if (fallidos > 0) {
@@ -638,7 +638,7 @@ public class HMIPanelImportAction extends AbstractAction {
      *         devolvia nada: cada fallo se imprimia y el bucle continuaba, y quien
      *         llama acababa anunciando una importacion successful.
      */
-    public int reversechildstack(S88Element root, FileObject baseDir) {
+    public int reverseChildStack(S88Element root, FileObject baseDir) {
         if (root == null || baseDir == null) {
             return 0;
         }

@@ -61,9 +61,7 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.Communication
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceModel;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceDynamicPanelBuilder;
-import org.apache.plc4x.malbec.projecttype.panelcategory.model.SiemensPanelBuilder;
-import org.apache.plc4x.malbec.projecttype.panelcategory.model.ModbusPanelBuilder;
-import org.apache.plc4x.malbec.projecttype.panelcategory.model.AllenBradleyPanelBuilder;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.PanelBuilderRegistry;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.UrlDisassembler;
 
 public final class CreateDevicePanel extends JPanel {
@@ -95,6 +93,7 @@ public final class CreateDevicePanel extends JPanel {
     private final JTextField txtParamValue = new JTextField();
     private final JTextField txtUrlPreview = new JTextField();
     private DeviceDynamicPanelBuilder activeBuilder;
+    private final PanelBuilderRegistry registry = PanelBuilderRegistry.porDefecto();
     private final Map<String, List<DeviceModel>> devicesMap = new HashMap<>();
     private final Map<String, String> s88NodesMap = new HashMap<>();
     private final Set<String> usedS88Nodes = new HashSet<>();
@@ -354,14 +353,9 @@ public final class CreateDevicePanel extends JPanel {
                 limpiarConexion();
             }
 
-            String brand = selectedDevice.getBrand();
-            if ("Allen Bradley".equalsIgnoreCase(brand)) {
-                activeBuilder = new AllenBradleyPanelBuilder();
-            } else if ("Modbus".equalsIgnoreCase(brand)) {
-                activeBuilder = new ModbusPanelBuilder();
-            } else {
-                activeBuilder = new SiemensPanelBuilder();
-            }
+            // El builder lo decide el registro por marca (T3.5): añadir un protocolo es
+            // registrarlo allí, no tocar este panel.
+            activeBuilder = registry.para(selectedDevice.getBrand());
 
             loadBuilderParams();
         });

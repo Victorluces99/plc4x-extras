@@ -53,6 +53,7 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DataType;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.MemoryTag;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.TagDiagnostico;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.TagIssue;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardController;
 
 public class StepGroupAreaPanel extends JPanel {
@@ -318,9 +319,9 @@ public class StepGroupAreaPanel extends JPanel {
 
     private void avisarTag() {
         ocultarAvisoTag();
-        List<String> errores = TagDiagnostico.errores(txtItemTag.getText());
-        List<String> avisos = TagDiagnostico.avisos(txtItemTag.getText());
-        List<String> todo = new ArrayList<>(errores);
+        List<TagIssue> errores = TagDiagnostico.errores(txtItemTag.getText());
+        List<TagIssue> avisos = TagDiagnostico.avisos(txtItemTag.getText());
+        List<TagIssue> todo = new ArrayList<>(errores);
         todo.addAll(avisos);
         txtItemTag.setBorder(errores.isEmpty()
                 ? bordeOriginalTag
@@ -330,14 +331,50 @@ public class StepGroupAreaPanel extends JPanel {
         }
     }
 
-    private void mostrarAvisoTag(List<String> mensajes) {
+    /**
+     * Traduce los codigos de {@link TagIssue} al texto que ve el usuario.
+     *
+     * <p>Las plantillas viven aqui, no en el modelo: el diagnostico no sabe nada de
+     * Swing ni de como se maquetan los parrafos (T3.8).
+     */
+    private static String mensajeDe(TagIssue issue) {
+        List<String> a = issue.args();
+        return switch (issue.codigo()) {
+            case TagIssue.CORCHETE_SIN_CERRAR -> "Falta cerrar el corchete: hay un '[' sin su ']'.";
+            case TagIssue.CORCHETE_SOBRANTE -> "Hay un ']' sin el '[' que lo abre.";
+            case TagIssue.RANGO_INVALIDO -> "El rango «[" + a.get(0) + "]» no es válido."
+                    + " Un rango se escribe con dos puntos, del tipo [0..9], y un solo"
+                    + " número es un índice, del tipo [10].";
+            case TagIssue.CARACTERES_RAROS -> "El tag tiene caracteres que no pueden ser parte"
+                    + " de una dirección: «" + a.get(0) + "». Se guardará tal cual, pero el PLC"
+                    + " puede que no lo entienda.";
+            case TagIssue.NO_ES_DIRECCION -> "«" + a.get(0) + "» no es una dirección válida."
+                    + " El área se puede guardar, pero se tratará como un nombre: no se le"
+                    + " calculará el tamaño y no se podrán comprobar solapes con las"
+                    + " demás áreas. Si es una dirección, revise la notación:"
+                    + " Ej: %DB22.DBB4[0..9]:BYTE.";
+            case TagIssue.SIN_TIPOS -> "Con el tipo '" + a.get(0) + "' el área no va a ofrecer"
+                    + " ningún tipo de dato, así que no se le podrán añadir variables."
+                    + " Los tipos del programa son: " + a.get(1) + ".";
+            case TagIssue.SIN_TAMANO -> "No se sabe el tamaño del área, así que no se le podrá"
+                    + " añadir ninguna variable. Añada un rango al tag, del tipo [0..9],"
+                    + " o un tipo tras los dos puntos, del tipo :INT.";
+            default -> issue.codigo();
+        };
+    }
+
+    private void mostrarAvisoTag(List<TagIssue> issues) {
         Point enPantalla = txtItemTag.getLocationOnScreen();
         int anchoCampo = txtItemTag.getWidth();
         int altoCampo = txtItemTag.getHeight();
         int ancho = Math.max(240, Math.min(320, anchoCampo - 20));
 
+        List<String> parrafos = new ArrayList<>(issues.size());
+        for (TagIssue issue : issues) {
+            parrafos.add(mensajeDe(issue));
+        }
         JLabel etiqueta = new JLabel("<html><body style='width:" + (ancho - 16) + "px'>"
-                + String.join("<br><br>", mensajes) + "</body></html>");
+                + String.join("<br><br>", parrafos) + "</body></html>");
         etiqueta.setFont(txtItemTag.getFont());
 
         JPanel caja = new JPanel(new BorderLayout());

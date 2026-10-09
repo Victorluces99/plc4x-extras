@@ -262,7 +262,7 @@ class CommunicationWizardUpdateTest {
     @Test
     void losCambiosMarcanElEstadoComoSucio() {
         CommunicationWizardState state = new CommunicationWizardState();
-        assertFalse(state.isCambiosSinGuardar(), "precondiciÃ³n: reciÃ©n creado estÃ¡ limpio");
+        assertFalse(state.isCambiosSinGuardar(), "precondición: recién creado está limpio");
 
         CommunicationWizardController c =
                 new CommunicationWizardController(new NoopCommunicationStore(), state);

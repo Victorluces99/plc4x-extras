@@ -144,7 +144,7 @@ public final class HMICommunicationModel implements CommunicationStore {
         } catch (Exception ex) {
             // H-01: el fallo ya no se traga. Antes se sustituid la configuracion
             // por una vacia sin decir nada, de modo que un archivo ilegible se veia
-            // como Â«no hay dispositivosÂ» y un guardado posterior podia escribir
+            // como «no hay dispositivos» y un guardado posterior podia escribir
             // encima un modelo que nunca se habia leido.
             // Ahora se conserva lo que habia, se registra el error y queda disponible
             // para que la interfaz avise. No se guarda nada en este estado.
@@ -153,7 +153,7 @@ public final class HMICommunicationModel implements CommunicationStore {
                 config = new CommunicationsConfig();
             }
             LOGGER.log(Level.SEVERE, "No se pudo cargar " + CONFIG_FILE
-                    + "; se conserva la configuraciÃ³n anterior.", ex);
+                    + "; se conserva la configuración anterior.", ex);
             cs.fireChange();
             return;
         }

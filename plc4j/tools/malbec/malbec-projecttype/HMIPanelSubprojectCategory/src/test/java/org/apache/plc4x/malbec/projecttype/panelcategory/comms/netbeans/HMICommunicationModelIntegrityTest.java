@@ -219,7 +219,7 @@ class HMICommunicationModelIntegrityTest {
         InMemoryProjectStorage storage = new InMemoryProjectStorage("llenadora", tempDir.toFile())
                 .withFile(HMICommunicationModel.CONFIG_FILE, XML_ROTO);
         HMICommunicationModel model = new HMICommunicationModel(storage);
-        assertFalse(model.save().xmlSaved(), "precondiciÃ³n: con el XML roto no se guarda");
+        assertFalse(model.save().xmlSaved(), "precondición: con el XML roto no se guarda");
 
         storage.withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO);
         storage.fireChanged();
@@ -243,7 +243,7 @@ class HMICommunicationModelIntegrityTest {
         assertTrue(model.getLoadError().isPresent(),
                 "una lectura fallida tambien es un fallo de carga");
         assertEquals(0, model.getDevices().size(),
-                "precondiciÃ³n: sin lectura no hay dispositivos en memoria");
+                "precondición: sin lectura no hay dispositivos en memoria");
 
         assertFalse(model.save().xmlSaved(),
                 "H-01: el archivo es escribible, asi que sin guarda se perderian sus datos");
@@ -291,7 +291,7 @@ class HMICommunicationModelIntegrityTest {
         InMemoryProjectStorage storage = new InMemoryProjectStorage("llenadora", tempDir.toFile())
                 .withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO);
         HMICommunicationModel model = new HMICommunicationModel(storage);
-        assertEquals(1, model.getDevices().size(), "precondiciÃ³n: el XML es valido");
+        assertEquals(1, model.getDevices().size(), "precondición: el XML es valido");
 
         storage.fireDeleted();
 
@@ -310,7 +310,7 @@ class HMICommunicationModelIntegrityTest {
         model.upsertDevice(dispositivo("uuid-nuevo", "Compresor extra"));
         model.save();
 
-        assertTrue(estabaVigilando, "precondiciÃ³n: el modelo vigila el archivo");
+        assertTrue(estabaVigilando, "precondición: el modelo vigila el archivo");
         assertEquals(2, model.getDevices().size(),
                 "guardar no debe recargar el modelo sobre una escritura a medias");
     }

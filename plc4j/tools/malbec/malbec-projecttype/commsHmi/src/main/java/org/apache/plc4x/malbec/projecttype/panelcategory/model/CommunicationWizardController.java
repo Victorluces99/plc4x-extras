@@ -19,8 +19,10 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.model;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationStore;
 
@@ -32,6 +34,9 @@ public class CommunicationWizardController {
 
     private final CommunicationStore store;
     private final CommunicationWizardState state;
+
+    /** Tags ya desglosados, para no repetir el parseo en cada validacion (T3.7). */
+    private final Map<String, MemoryTag> cacheTags = new HashMap<>();
 
     public CommunicationWizardController(CommunicationStore store, CommunicationWizardState state) {
         this.store = store;
@@ -107,8 +112,9 @@ public class CommunicationWizardController {
                 uuid, name, desc, tag, enable, MD5_ITEM, groupUuid));
         state.getItemsGroup().put(uuid, groupUuid);
         state.setCambiosSinGuardar(true);
+        cacheTags.clear();
     }
-    
+
     public void updateItem(String uuid, String desc, String tag, boolean enable) {
         CommConfigData.ItemConfig actual = state.itemByUuid(uuid);
         if (actual == null) {
@@ -120,6 +126,7 @@ public class CommunicationWizardController {
                 actual.getMd5(), actual.getGroupUuid()));
         state.getItemsGroup().put(actual.getUuid(), actual.getGroupUuid());
         state.setCambiosSinGuardar(true);
+        cacheTags.clear();
     }
 
     public List<String> deleteItem(String uuid) {
@@ -137,6 +144,7 @@ public class CommunicationWizardController {
         state.getItems().remove(item);
         state.getItemsGroup().remove(uuid);
         state.setCambiosSinGuardar(true);
+        cacheTags.clear();
         return nombres;
     }
 
@@ -185,9 +193,31 @@ public class CommunicationWizardController {
     }
 
     // --- layout de memoria de un área ---------------------------------------
+
+    /**
+     * Parseo de tag con memoria (T3.7).
+     *
+     * <p>Se indexa por el texto del tag, no por el UUID del área. La clave correcta
+     * es el propio tag: {@code MemoryTag} es inmutable, así que el mismo texto da
+     * siempre el mismo resultado y no hay forma de que la cache se quede obsoleta.
+     * Indexar por UUID obligaria a invalidar en cada cambio de tag, y el UUID no
+     * cambia cuando el usuario corrige el texto.
+     *
+     * <p>Se limpia al anadir, editar o borrar un área para que no crezca con cada
+     * pulsación.
+     */
+    private MemoryTag parseTag(String tag) {
+        if (tag == null) {
+            return null;
+        }
+        // computeIfAbsent no guarda null, que es justo lo que queremos para un tag
+        // que no se puede desglosar: se vuelve a intentar, pero no se acumula.
+        return cacheTags.computeIfAbsent(tag, MemoryTag::parse);
+    }
+
     private MemoryTag tagOf(String areaUuid) {
         CommConfigData.ItemConfig item = state.itemByUuid(areaUuid);
-        return item == null ? null : MemoryTag.parse(item.getTag());
+        return item == null ? null : parseTag(item.getTag());
     }
 
     public DataType lockedType(String areaUuid) {
@@ -232,7 +262,7 @@ public class CommunicationWizardController {
         }
         List<DataType> todos = new ArrayList<>();
         for (DataType t : DataType.values()) {
-            if (t.habilitado()) {
+            if (t.isEnabled()) {
                 todos.add(t);
             }
         }
@@ -241,7 +271,7 @@ public class CommunicationWizardController {
 
     public String nextOffset(String areaUuid, DataType type) {
         MemoryTag tag = tagOf(areaUuid);
-        if (tag == null || type == null || !type.habilitado() || tag.byteCapacity() <= 0) {
+        if (tag == null || type == null || !type.isEnabled() || tag.byteCapacity() <= 0) {
             return null;
         }
         Set<Integer> ocupados = bitsOcupados(areaUuid);
@@ -310,7 +340,7 @@ public class CommunicationWizardController {
 
     public int areaFreeSlots(String areaUuid, DataType type) {
         MemoryTag tag = tagOf(areaUuid);
-        if (tag == null || type == null || !type.habilitado()) {
+        if (tag == null || type == null || !type.isEnabled()) {
             return -1;
         }
         int bytes = tag.byteCapacity();
@@ -342,7 +372,7 @@ public class CommunicationWizardController {
     }
 
     public CommConfigData.ItemConfig areaQueChoca(String tag, String uuidEnEdicion) {
-        MemoryTag nuevo = MemoryTag.parse(tag);
+        MemoryTag nuevo = parseTag(tag);
         if (nuevo == null) {
             return null;
         }
@@ -350,7 +380,7 @@ public class CommunicationWizardController {
             if (uuidEnEdicion != null && uuidEnEdicion.equals(i.getUuid())) {
                 continue;
             }
-            if (nuevo.solapaCon(MemoryTag.parse(i.getTag()))) {
+            if (nuevo.solapaCon(parseTag(i.getTag()))) {
                 return i;
             }
         }
@@ -358,7 +388,7 @@ public class CommunicationWizardController {
     }
 
     public CommConfigData.ItemConfig areaConMismoTag(String tag, String uuidEnEdicion) {
-        MemoryTag t = MemoryTag.parse(tag);
+        MemoryTag t = parseTag(tag);
         if (t == null || t.tieneDireccion()) {
             return null;
         }
@@ -370,7 +400,7 @@ public class CommunicationWizardController {
             if (uuidEnEdicion != null && uuidEnEdicion.equals(i.getUuid())) {
                 continue;
             }
-            MemoryTag suyo = MemoryTag.parse(i.getTag());
+            MemoryTag suyo = parseTag(i.getTag());
             if (suyo != null && suyo.tieneDireccion()) {
                 continue;
             }
@@ -403,7 +433,7 @@ public class CommunicationWizardController {
     public List<DataType> typesForCombo(String areaUuid) {
         List<DataType> combo = new ArrayList<>(typesAllowed(areaUuid));
         for (DataType t : DataType.values()) {
-            if (!combo.contains(t) && !t.habilitado()) {
+            if (!combo.contains(t) && !t.isEnabled()) {
                 combo.add(t);
             }
         }
@@ -411,7 +441,7 @@ public class CommunicationWizardController {
     }
 
     public boolean typeAllowed(String areaUuid, DataType type) {
-        return type != null && type.habilitado()
+        return type != null && type.isEnabled()
                 && typesAllowed(areaUuid).contains(type);
     }
 

@@ -68,3 +68,23 @@ Lo que **no** cubre ningun test, porque necesita `JOptionPane`:
 - [ ] Confirmar que la hoja de Propiedades muestra los once campos.
 - [ ] Confirmar que "Modificar" avisa cuando el dispositivo ya no esta.
 - [ ] Confirmar que el arbol repinta la etiqueta al renombrar un dispositivo.
+
+## T4.5 - limpieza de salidas por consola (K-07)
+
+Las cuatro acciones de categoria pendientes de implementar ya no imprimen en consola:
+muestran un aviso. La consola del IDE queda limpia durante el uso normal.
+
+- [ ] Al pulsar "Editar panel de operador" sale el aviso y no aparece nada en la consola.
+- [ ] Lo mismo para "Editar textos y graficos", "Editar gestion de avisos" y
+      "Editar usuarios runtime".
+- [ ] El aviso nombra la accion concreta, para saber cual falta.
+
+### Fuera del alcance de esta tarea
+
+El modulo `hmi/` (un plugin aparte, `Plc4xHMISubProjectProviderImpl` y
+`Plc4xHMISubProjectNodeFactoryImpl`) tiene tres `System.out` de traza. No se han tocado
+porque ese modulo no esta en el gate de cuatro modulos que se ejecuta aqui: cualquier
+cambioallo quedaria sin comprobar. Anotado para cuando se incluya.
+
+Tambien queda codigo comentado muerto con `System.out` dentro; no se ejecuta, y el test
+de regresion lo admite a proposito, porque lo que K-07 prohibe son llamadas vivas.

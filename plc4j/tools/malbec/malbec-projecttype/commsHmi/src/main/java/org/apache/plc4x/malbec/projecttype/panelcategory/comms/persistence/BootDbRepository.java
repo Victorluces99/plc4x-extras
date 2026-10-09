@@ -29,8 +29,12 @@ import java.util.UUID;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationsConfig;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class BootDbRepository {
+
+    private static final Logger LOGGER = Logger.getLogger(BootDbRepository.class.getName());
 
     private static final String SQL_CREATE_TABLE_DEVICES
             = "CREATE TABLE IF NOT EXISTS Devices("
@@ -104,7 +108,7 @@ public final class BootDbRepository {
             }
             return true;
         } catch (SQLException e) {
-            System.err.println("Error al crear las tablas: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Error al crear las tablas", e);
             return false;
         }
     }
@@ -129,10 +133,11 @@ public final class BootDbRepository {
         String sqlPv = "INSERT OR REPLACE INTO PvRecords(PvUuId, PvName, PvType, PvId, PvOffset, PvDescriptor, PvScanTime, PvScanEnable, PvWriteEnable, PvDisplayLimitLow, PvDisplayLimitHigh, PvDisplayDescription, PvDisplayFormat, PvDisplayUnits, PvControlLimitLow, PvControlLimitHigh, PvControlMinStep, Md5) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
         try (Connection conn = DriverManager.getConnection(url)) {
-            String areaInvalida = primerAreaSinGrupo(comms);
+String areaInvalida = primerAreaSinGrupo(comms);
             if (areaInvalida != null) {
-                System.err.println("No se guardÃ³ el dispositivo '" + deviceName
-                        + "': el Ã¡rea '" + areaInvalida + "' no tiene grupo de escaneo.");
+                LOGGER.log(Level.WARNING,
+                        "No se guardó el dispositivo '{0}': el área '{1}' no tiene grupo de escaneo.",
+                        new Object[]{deviceName, areaInvalida});
                 return false;
             }
             conn.setAutoCommit(false); 
@@ -210,7 +215,7 @@ public final class BootDbRepository {
             return true;
 
         } catch (SQLException e) {
-            System.err.println("Error insertando datos en SQLite: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Error insertando datos en SQLite", e);
             return false;
         }
     }
@@ -245,7 +250,7 @@ public final class BootDbRepository {
             stmt.execute("DROP TABLE IF EXISTS Groups");
             stmt.execute("DROP TABLE IF EXISTS Devices");
         } catch (SQLException e) {
-            System.err.println("Error limpiando boot.db: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Error limpiando boot.db", e);
             return false;
         }
 

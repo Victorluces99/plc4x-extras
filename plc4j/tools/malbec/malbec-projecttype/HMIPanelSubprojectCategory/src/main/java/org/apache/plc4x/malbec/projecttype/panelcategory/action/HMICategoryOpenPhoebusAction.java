@@ -33,8 +33,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.UUID;
 import org.apache.plc4x.malbec.projecttype.configphoebus.PhoebusOptionsPanelController;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class HMICategoryOpenPhoebusAction extends AbstractAction {
+
+    private static final Logger LOGGER = Logger.getLogger(HMICategoryOpenPhoebusAction.class.getName());
 
     private final FileObject bobFile;
     private static final String MEMENTO_TEMPLATE
@@ -54,7 +58,6 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
 
     public void actionPerformed(ActionEvent e) {
         RequestProcessor.getDefault().post(() -> OpenNativeBob(this.bobFile));
-        System.out.println("Acción abrir ejecutada sobre: " + bobFile.getNameExt());
     }
 
     private void OpenNativeBob(FileObject nuevoArchivoBob) {
@@ -142,8 +145,8 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
                 .replace("%URI%", nuevaUri);
         Files.createDirectories(rutaMemento.getParent());
         Files.write(rutaMemento, memento.getBytes(StandardCharsets.UTF_8));
-        System.out.println("[abrirBobNativo] Memento creado en: " + rutaMemento
-                + " contenido: " + memento);
+            LOGGER.log(Level.FINE, "[abrirBobNativo] Memento creado en: {0} contenido: {1}",
+                    new Object[]{rutaMemento, memento});
     }
 
     private static String XmlEscaping(String s) {

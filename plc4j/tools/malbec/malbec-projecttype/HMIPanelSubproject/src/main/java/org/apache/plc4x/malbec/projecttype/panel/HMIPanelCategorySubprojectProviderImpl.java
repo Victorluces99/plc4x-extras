@@ -25,7 +25,6 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.event.ChangeListener;
-import org.apache.plc4x.malbec.projecttype.panelcategory.HMICategoryDefinition;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectManager;
 import org.netbeans.spi.project.SubprojectProvider;
@@ -41,8 +40,6 @@ public class HMIPanelCategorySubprojectProviderImpl implements SubprojectProvide
             Logger.getLogger(HMIPanelCategorySubprojectProviderImpl.class.getName());
 
     private Project project;
-
-    private final String[] folders = new String[HMICategoryDefinition.values().length];
 
     public HMIPanelCategorySubprojectProviderImpl(Project project) {
         this.project = project;
@@ -97,13 +94,4 @@ public class HMIPanelCategorySubprojectProviderImpl implements SubprojectProvide
         }
         return subProjects;
     }
-
-    private void fillAllNames() {
-        HMICategoryDefinition[] values = HMICategoryDefinition.values();
-        for (int i = 0; i < values.length; i++) {
-            folders[i] = values[i].getDisplayName();
-            System.out.println(values[i].getDisplayName());
-        }
-    }
-
 }

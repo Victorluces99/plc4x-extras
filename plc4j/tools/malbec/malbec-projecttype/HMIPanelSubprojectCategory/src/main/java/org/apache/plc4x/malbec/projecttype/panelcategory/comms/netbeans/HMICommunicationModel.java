@@ -157,8 +157,9 @@ public final class HMICommunicationModel implements CommunicationStore {
             }
             reparado = true;
             String uuid = UUID.randomUUID().toString();
-            System.err.println(CONFIG_FILE + ": el dispositivo '" + device.getDeviceName()
-                    + "' no tenÃ­a UUID y recibiÃ³ " + uuid + " al cargar.");
+            LOGGER.log(Level.WARNING, CONFIG_FILE + ": el dispositivo '{0}' no tenía UUID "
+                    + "y recibió {1} al cargar.",
+                    new Object[]{device.getDeviceName(), uuid});
             Properties p = new Properties();
             p.put("brand", device.getBrand());
             p.put("model", device.getModel());

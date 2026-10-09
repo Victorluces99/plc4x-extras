@@ -408,7 +408,8 @@ public class HMIPanelImportAction extends AbstractAction {
         doc.getDocumentElement().appendChild(areaXml);
         writeSnapshotDocument(target, doc);
         FileUtil.refreshFor(target);
-        System.out.println("Snapshot del modelo de planta en: " + target.getAbsolutePath());
+            LOGGER.log(Level.INFO, "Snapshot del modelo de planta en: {0}",
+                    target.getAbsolutePath());
         return true;
     }
 

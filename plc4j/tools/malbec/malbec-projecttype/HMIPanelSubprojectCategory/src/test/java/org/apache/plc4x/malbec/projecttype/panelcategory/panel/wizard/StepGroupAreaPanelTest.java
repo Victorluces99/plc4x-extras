@@ -194,13 +194,15 @@ class StepGroupAreaPanelTest {
     @EnabledIfSystemProperty(named = "java.awt.headless", matches = "true")
     void unAvisoDeTagNoRompeSinPantalla() throws Exception {
         StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
-        Method mostrarAviso = StepGroupAreaPanel.class
-                .getDeclaredMethod("mostrarAvisoTag", List.class);
+        // El diagnostico del tag vive ahora en TagField (T5.4), no en el panel: el campo se
+        // diagnostica a si mismo. Se llama por reflexion porque es privado y porque
+        // entrar al metodo es justamente lo que hay que comprobar.
+        Method mostrarAviso = TagField.class.getDeclaredMethod("mostrarAvisoTag", List.class);
         mostrarAviso.setAccessible(true);
 
         // Lista vacia a proposito: lo que revienta es entrar al metodo, no tener avisos
         // que pintar. Asi el test no depende de que TagDiagnostico produzca algo.
-        assertDoesNotThrow(() -> mostrarAviso.invoke(panel, List.of()),
+        assertDoesNotThrow(() -> mostrarAviso.invoke(panel.getItemTag(), List.of()),
                 "sin pantalla no se puede colocar el globo, pero tampoco debe fallar");
     }
 

@@ -194,7 +194,7 @@ class DeviceXmlMapperTest {
         assertEquals("p1", p.getUuid());
         assertEquals("PV1", p.getName());
         assertEquals("INT", p.getType());
-        assertEquals("pv-id", p.getId());
+        assertEquals("pv-id", p.getAreaUuid());
         assertEquals("0", p.getOffset());
         assertEquals("descriptor", p.getDescriptor());
         assertEquals("500", p.getScanTime());

@@ -86,7 +86,8 @@ final class DeviceXmlMapper {
             new Field<>("uuid", CommConfigData.PvConfig::getUuid),
             new Field<>("name", CommConfigData.PvConfig::getName),
             new Field<>("type", CommConfigData.PvConfig::getType),
-            new Field<>("id", CommConfigData.PvConfig::getId),
+            // El XML lo llama "id"; en el modelo es el area al que pertenece el registro.
+            new Field<>("id", CommConfigData.PvConfig::getAreaUuid),
             new Field<>("offset", CommConfigData.PvConfig::getOffset),
             new Field<>("descriptor", CommConfigData.PvConfig::getDescriptor),
             new Field<>("scanTime", CommConfigData.PvConfig::getScanTime),
@@ -206,7 +207,8 @@ final class DeviceXmlMapper {
                 for (XmlObject p : children(comm, "pvs", "pv")) {
                     Map<String, String> m = readFields(PV_FIELDS, p);
                     pvs.add(new CommConfigData.PvConfig(
-                            m.get("uuid"), m.get("name"), m.get("type"), m.get("id"),
+                            m.get("uuid"), m.get("name"), m.get("type"),
+                            m.get("id"),
                             m.get("offset"), m.get("descriptor"), m.get("scanTime"),
                             Boolean.parseBoolean(m.get("scanEnable")),
                             Boolean.parseBoolean(m.get("writeEnable")), m.get("displayLimitLow"),

@@ -75,8 +75,8 @@ public class StepPvPanel extends JPanel {
     private static final int SCANTIME_PASO = 100;
 
     private final NonEditableTableModel pvModel = new NonEditableTableModel(new String[]{
-        "Variable", "Área", "PvId", "Tipo", "Offset", "Descriptor", "ScanTime",
-        "Scan", "Write", "Lím. bajo", "Lím. alto", "Descripción", "Formato", "Unidades",
+        "Variable", "Ãrea", "PvId", "Tipo", "Offset", "Descriptor", "ScanTime",
+        "Scan", "Write", "LÃ­m. bajo", "LÃ­m. alto", "DescripciÃ³n", "Formato", "Unidades",
         "Ctrl. bajo", "Ctrl. alto", "Ctrl. MinStep", "Ruta S88", "UUID", "Md5"});
     private final JTable tbPvs = new JTable(pvModel) {
         private static final long serialVersionUID = 1L;
@@ -109,7 +109,7 @@ public class StepPvPanel extends JPanel {
     private final JSpinner spControlLimitHigh = spinnerDeLimite();
     private final JSpinner spControlMinStep = spinnerDeLimite();
 
-    private final JButton btnAddPv = new JButton("Añadir");
+    private final JButton btnAddPv = new JButton("AÃ±adir");
     private final JButton btnUpdatePv = new JButton("Modificar");
     private final JButton btnDeletePv = new JButton("Eliminar");
     private final JButton btnCancelPv = new JButton("Cancelar");
@@ -168,7 +168,7 @@ public class StepPvPanel extends JPanel {
                     label.setText(t.label() + "  ("
                             + (elegible ? pesoDe(t) : "no disponible") + ")");
                 } else {
-                    label.setText("—");
+                    label.setText("â€”");
                 }
                 return label;
             }
@@ -199,8 +199,8 @@ public class StepPvPanel extends JPanel {
                             : v.getPath() + "/" + v.getName();
                     if (v.isUsed()) {
                         label.setEnabled(false);
-                        label.setToolTipText("Variable ya asignada a otra configuración");
-                        text += "  — en uso";
+                        label.setToolTipText("Variable ya asignada a otra configuraciÃ³n");
+                        text += "  â€” en uso";
                     }
                     label.setText(text);
                 } else {
@@ -234,17 +234,17 @@ public class StepPvPanel extends JPanel {
         g.gridx = 0;
         g.gridy = 0;
         g.gridwidth = 4;
-        form.add(WizardUi.stepTitle("Paso 3 de 3 — Variable de proceso"), g);
+        form.add(WizardUi.stepTitle("Paso 3 de 3 â€” Variable de proceso"), g);
         g.gridwidth = 1;
 
         int row = 0;
-        WizardUi.addLabel(form, g, ++row, "Área (PvId):");
+        WizardUi.addLabel(form, g, ++row, "Ãrea (PvId):");
         g.gridx = 1;
         g.gridwidth = 3;
         form.add(cbArea, g);
         g.gridwidth = 1;
 
-        WizardUi.addLabel(form, g, ++row, "Variable (del área S88):");
+        WizardUi.addLabel(form, g, ++row, "Variable (del Ã¡rea S88):");
         g.gridx = 1;
         g.gridwidth = 3;
         form.add(cbVariable, g);
@@ -520,25 +520,25 @@ public class StepPvPanel extends JPanel {
             return;
         }
         DataType elegido = tipoElegido();
-        StringBuilder texto = new StringBuilder("<html>El área <b>")
+        StringBuilder texto = new StringBuilder("<html>El Ã¡rea <b>")
                 .append(area.getName()).append("</b> ");
         if (elegido == null) {
-            texto.append("aún no tiene tipo: elígelo arriba. Todas sus variables")
-                    .append(" usarán ese mismo tipo.");
+            texto.append("aÃºn no tiene tipo: elÃ­gelo arriba. Todas sus variables")
+                    .append(" usarÃ¡n ese mismo tipo.");
         } else {
             texto.append("usa <b>").append(elegido.label()).append("</b> (")
                     .append(pesoDe(elegido)).append(" por variable). Todas sus")
-                    .append(" variables serán de ese tipo.");
+                    .append(" variables serÃ¡n de ese tipo.");
         }
         int libres = controller.areaFreeSlots(area.getUuid(), elegido);
         int bytesLibres = controller.areaFreeBytes(area.getUuid());
         if (bytesLibres < 0) {
-            texto.append("<br>Del tag no se sabe el tamaño, así que no se lleva la cuenta.");
+            texto.append("<br>Del tag no se sabe el tamaÃ±o, asÃ­ que no se lleva la cuenta.");
         } else if (libres <= 0) {
-            texto.append("<br><b>No cabe una variable más: se ha llegado al límite.</b>")
-                    .append(" El área abarca ")
+            texto.append("<br><b>No cabe una variable mÃ¡s: se ha llegado al lÃ­mite.</b>")
+                    .append(" El Ã¡rea abarca ")
                     .append(controller.areaCapacityBytes(area.getUuid()))
-                    .append(" bytes y están todos ocupados.");
+                    .append(" bytes y estÃ¡n todos ocupados.");
         } else {
             texto.append("<br>Quedan <b>").append(bytesLibres).append(" bytes</b> libres, ")
                     .append("que es lo mismo que <b>").append(libres)
@@ -560,7 +560,7 @@ public class StepPvPanel extends JPanel {
         }
         if (v.isUsed()) {
             JOptionPane.showMessageDialog(this,
-                    "La variable '" + v.getKey() + "' ya está en uso.",
+                    "La variable '" + v.getKey() + "' ya estÃ¡ en uso.",
                     "Variable ocupada", JOptionPane.WARNING_MESSAGE);
             cbVariable.setSelectedIndex(0);
             return;
@@ -591,11 +591,11 @@ public class StepPvPanel extends JPanel {
     private void refreshPvTable() {
         pvModel.setRowCount(0);
         for (CommConfigData.PvConfig pv : controller.getState().getPvs()) {
-            CommConfigData.ItemConfig area = controller.getState().itemByUuid(pv.getId());
+            CommConfigData.ItemConfig area = controller.getState().itemByUuid(pv.getAreaUuid());
             pvModel.addRow(new Object[]{
                 pv.getName(),
-                area == null ? "—" : area.getName(),
-                pv.getId(),
+                area == null ? "â€”" : area.getName(),
+                pv.getAreaUuid(),
                 pv.getType(),
                 pv.getOffset(),
                 pv.getDescriptor(),
@@ -674,7 +674,7 @@ public class StepPvPanel extends JPanel {
     }
 
     void cargarEnFormulario(CommConfigData.PvConfig pv) {
-        CommConfigData.ItemConfig area = controller.getState().itemByUuid(pv.getId());
+        CommConfigData.ItemConfig area = controller.getState().itemByUuid(pv.getAreaUuid());
         if (area != null) {
             for (int i = 0; i < cbArea.getItemCount(); i++) {
                 if (cbArea.getItemAt(i).getUuid().equals(area.getUuid())) {
@@ -688,13 +688,13 @@ public class StepPvPanel extends JPanel {
         seleccionarScanTime(pv.getScanTime());
         chkScanEnable.setSelected(pv.isScanEnable());
         chkWriteEnable.setSelected(pv.isWriteEnable());
-        spDisplayLimitLow.setValue(aLimite(pv.getDisplayLimitLow(), "Display límite bajo"));
-        spDisplayLimitHigh.setValue(aLimite(pv.getDisplayLimitHigh(), "Display límite alto"));
+        spDisplayLimitLow.setValue(aLimite(pv.getDisplayLimitLow(), "Display lÃ­mite bajo"));
+        spDisplayLimitHigh.setValue(aLimite(pv.getDisplayLimitHigh(), "Display lÃ­mite alto"));
         txtDisplayDescription.setText(pv.getDisplayDescription());
         txtDisplayFormat.setText(pv.getDisplayFormat());
         txtDisplayUnits.setText(pv.getDisplayUnits());
-        spControlLimitLow.setValue(aLimite(pv.getControlLimitLow(), "Control límite bajo"));
-        spControlLimitHigh.setValue(aLimite(pv.getControlLimitHigh(), "Control límite alto"));
+        spControlLimitLow.setValue(aLimite(pv.getControlLimitLow(), "Control lÃ­mite bajo"));
+        spControlLimitHigh.setValue(aLimite(pv.getControlLimitHigh(), "Control lÃ­mite alto"));
         spControlMinStep.setValue(aLimite(pv.getControlMinStep(), "Control MinStep"));
         lblFormTitle.setText("Modificando variable: " + pv.getName());
         seleccionarVariable(pv);
@@ -712,7 +712,7 @@ public class StepPvPanel extends JPanel {
             ajustesAlCargar.add("ScanTime: '" + scanTime.trim() + "' no es una de las"
                     + " ofertas (" + SCANTIME_MIN + " a " + SCANTIME_MAX
                     + " de " + SCANTIME_PASO + " en " + SCANTIME_PASO + "),"
-                    + " así que hay que elegir uno");
+                    + " asÃ­ que hay que elegir uno");
         }
     }
 
@@ -722,19 +722,19 @@ public class StepPvPanel extends JPanel {
         try {
             numero = Double.parseDouble(texto.isEmpty() ? "x" : texto.replace(',', '.'));
         } catch (NumberFormatException e) {
-            ajustesAlCargar.add(etiqueta + ": '" + texto + "' no es un número,"
-                    + " se guardará " + LIMITE_INICIAL);
+            ajustesAlCargar.add(etiqueta + ": '" + texto + "' no es un nÃºmero,"
+                    + " se guardarÃ¡ " + LIMITE_INICIAL);
             return LIMITE_INICIAL;
         }
         int entero = (int) numero;
         if (entero < LIMITE_MIN) {
-            ajustesAlCargar.add(etiqueta + ": '" + texto + "' está por debajo de "
-                    + LIMITE_MIN + ", se guardará " + LIMITE_MIN);
+            ajustesAlCargar.add(etiqueta + ": '" + texto + "' estÃ¡ por debajo de "
+                    + LIMITE_MIN + ", se guardarÃ¡ " + LIMITE_MIN);
             return LIMITE_MIN;
         }
         if (entero > LIMITE_MAX) {
-            ajustesAlCargar.add(etiqueta + ": '" + texto + "' está por encima de "
-                    + LIMITE_MAX + ", se guardará " + LIMITE_MAX);
+            ajustesAlCargar.add(etiqueta + ": '" + texto + "' estÃ¡ por encima de "
+                    + LIMITE_MAX + ", se guardarÃ¡ " + LIMITE_MAX);
             return LIMITE_MAX;
         }
         return entero;
@@ -827,26 +827,26 @@ public class StepPvPanel extends JPanel {
         PlantVariable variable = (PlantVariable) cbVariable.getSelectedItem();
         if (area == null) {
             JOptionPane.showMessageDialog(this,
-                    "Seleccione un área de memoria (PvId) para la variable.",
-                    "Falta área", JOptionPane.WARNING_MESSAGE);
+                    "Seleccione un Ã¡rea de memoria (PvId) para la variable.",
+                    "Falta Ã¡rea", JOptionPane.WARNING_MESSAGE);
             return;
         }
         if (variable == null) {
-            JOptionPane.showMessageDialog(this, "Seleccione la variable de proceso del área S88.",
+            JOptionPane.showMessageDialog(this, "Seleccione la variable de proceso del Ã¡rea S88.",
                     "Falta variable", JOptionPane.WARNING_MESSAGE);
             return;
         }
         if (variable.isUsed()) {
             JOptionPane.showMessageDialog(this,
-                    "La variable '" + variable.getKey() + "' ya está en uso y no puede configurarse de nuevo.",
+                    "La variable '" + variable.getKey() + "' ya estÃ¡ en uso y no puede configurarse de nuevo.",
                     "Variable ocupada", JOptionPane.WARNING_MESSAGE);
             return;
         }
         DataType type = tipoElegido();
         if (!controller.typeAllowed(area.getUuid(), type)) {
             JOptionPane.showMessageDialog(this,
-                    "Seleccione un tipo de dato que el área admita. Los que salen en "
-                    + "gris no tienen tamaño definido y no se pueden usar.",
+                    "Seleccione un tipo de dato que el Ã¡rea admita. Los que salen en "
+                    + "gris no tienen tamaÃ±o definido y no se pueden usar.",
                     "Falta tipo", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -861,27 +861,27 @@ public class StepPvPanel extends JPanel {
         
         if (offset == null) {
             JOptionPane.showMessageDialog(this,
-                    "No cabe una variable más de tipo '" + type.label() + "' en el área '"
+                    "No cabe una variable mÃ¡s de tipo '" + type.label() + "' en el Ã¡rea '"
                     + area.getName() + "'.\n\n"
-                    + "El área abarca " + controller.areaCapacityBytes(area.getUuid())
+                    + "El Ã¡rea abarca " + controller.areaCapacityBytes(area.getUuid())
                     + " bytes y cada " + type.label() + " ocupa "
                     + pesoDe(type) + ".\n"
                     + (bytesLibres > 0
                             ? "Quedan " + bytesLibres + " bytes sueltos, pero no llegan"
-                            + " para uno entero, así que se considera llena.\n"
+                            + " para uno entero, asÃ­ que se considera llena.\n"
                             : "")
-                    + "Amplíe el rango del tag del área si necesita más sitio.",
-                    "Se ha llegado al límite del área", JOptionPane.WARNING_MESSAGE);
+                    + "AmplÃ­e el rango del tag del Ã¡rea si necesita mÃ¡s sitio.",
+                    "Se ha llegado al lÃ­mite del Ã¡rea", JOptionPane.WARNING_MESSAGE);
             return;
         }
         if (libres == 0) {
             JOptionPane.showMessageDialog(this,
-                    "El área '" + area.getName() + "' ya está llena.\n\n"
+                    "El Ã¡rea '" + area.getName() + "' ya estÃ¡ llena.\n\n"
                     + "Abarca " + controller.areaCapacityBytes(area.getUuid())
                     + " bytes y admite " + type.label() + " de " + pesoDe(type)
-                    + ", así que no cabe una variable más.\n"
-                    + "Amplíe el rango del tag del área si necesita más sitio.",
-                    "Área de memoria llena", JOptionPane.WARNING_MESSAGE);
+                    + ", asÃ­ que no cabe una variable mÃ¡s.\n"
+                    + "AmplÃ­e el rango del tag del Ã¡rea si necesita mÃ¡s sitio.",
+                    "Ãrea de memoria llena", JOptionPane.WARNING_MESSAGE);
             return;
         }
         avisarAjustes();
@@ -946,15 +946,15 @@ public class StepPvPanel extends JPanel {
             salirDeEdicionPv();
             return;
         }
-        CommConfigData.ItemConfig area = controller.getState().itemByUuid(pv.getId());
+        CommConfigData.ItemConfig area = controller.getState().itemByUuid(pv.getAreaUuid());
         if (!validarAntesDeEscribir()) {
             return;
         }
         int opcion = JOptionPane.showConfirmDialog(this,
                 "Va a eliminar la variable '" + pv.getName() + "'"
-                + (area == null ? "" : " del área '" + area.getName() + "'") + ".\n\n"
-                + "También se quitará de comunicacion.xml y de boot.db.\n\n"
-                + "¿Desea continuar?",
+                + (area == null ? "" : " del Ã¡rea '" + area.getName() + "'") + ".\n\n"
+                + "TambiÃ©n se quitarÃ¡ de comunicacion.xml y de boot.db.\n\n"
+                + "Â¿Desea continuar?",
                 "Eliminar variable", JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE);
         if (opcion != JOptionPane.YES_OPTION) {
@@ -971,7 +971,7 @@ public class StepPvPanel extends JPanel {
         if (cbScanTime.getSelectedItem() == null) {
             vacios.add("ScanTime");
         }
-        agregarSiVacio(vacios, "Display descripción", txtDisplayDescription);
+        agregarSiVacio(vacios, "Display descripciÃ³n", txtDisplayDescription);
         agregarSiVacio(vacios, "Display formato", txtDisplayFormat);
         agregarSiVacio(vacios, "Display unidades", txtDisplayUnits);
         return vacios;
@@ -1018,16 +1018,16 @@ public class StepPvPanel extends JPanel {
     String motivoDeOffsetDesconocido(CommConfigData.ItemConfig area) {
         MemoryTag tag = MemoryTag.parse(area.getTag());
         if (tag == null || !tag.tieneDireccion()) {
-            return "El tag del área '" + area.getName() + "' es '" + area.getTag()
-                    + "', y eso no es una dirección válida.\n\n"
-                    + "Sin dirección no se sabe qué bytes ocupa el área, así que no se"
-                    + " puede calcular dónde va cada variable.\n\n"
+            return "El tag del Ã¡rea '" + area.getName() + "' es '" + area.getTag()
+                    + "', y eso no es una direcciÃ³n vÃ¡lida.\n\n"
+                    + "Sin direcciÃ³n no se sabe quÃ© bytes ocupa el Ã¡rea, asÃ­ que no se"
+                    + " puede calcular dÃ³nde va cada variable.\n\n"
                     + "Corrija el tag en el paso anterior, del tipo"
                     + " %DB22.DBB4[0..9]:REAL.";
         }
-        return "No se sabe el tamaño del área '" + area.getName() + "': su tag es '"
-                + area.getTag() + "' y no dice cuántos bytes ocupa.\n\n"
-                + "Añada un rango, del tipo %DB21.DBB0[0..9], o un tipo tras los dos"
+        return "No se sabe el tamaÃ±o del Ã¡rea '" + area.getName() + "': su tag es '"
+                + area.getTag() + "' y no dice cuÃ¡ntos bytes ocupa.\n\n"
+                + "AÃ±ada un rango, del tipo %DB21.DBB0[0..9], o un tipo tras los dos"
                 + " puntos, del tipo :INT.";
     }
 

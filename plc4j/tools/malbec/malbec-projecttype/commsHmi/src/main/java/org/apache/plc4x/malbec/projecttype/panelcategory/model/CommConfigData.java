@@ -19,8 +19,17 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.model;
 
 import java.util.List;
-import java.util.Properties;
 
+/**
+ * Comunicacion de un dispositivo: sus grupos de escaneo, sus areas y sus registros.
+ *
+ * <p>Los tres tipos anidados son {@code record}, asi que sus campos no se pueden reasignar
+ * y el compilador lo impide. Editar una fila del asistente es crear un objeto nuevo y
+ * sustituirlo en la lista, nunca tocar el que ya estaba.
+ *
+ * <p>Se mantienen los nombres {@code getXxx()} porque son el API que consume el resto del
+ * proyecto, incluida la tabla de campos de {@code DeviceXmlMapper}.
+ */
 public class CommConfigData {
 
     private final String deviceName;
@@ -28,7 +37,8 @@ public class CommConfigData {
     private final List<ItemConfig> items;
     private final List<PvConfig> pvs;
 
-    public CommConfigData(String deviceName, List<GroupConfig> groups, List<ItemConfig> items, List<PvConfig> pvs) {
+    public CommConfigData(String deviceName, List<GroupConfig> groups, List<ItemConfig> items,
+            List<PvConfig> pvs) {
         this.deviceName = deviceName;
         this.groups = groups;
         this.items = items;
@@ -51,24 +61,9 @@ public class CommConfigData {
         return pvs;
     }
 
-    // --- MODEL GROUP ---
-    public static class GroupConfig {
-
-        private String uuid;
-        private String name;
-        private String description;
-        private String scantime;
-        private boolean enable;
-        private String md5;
-
-        public GroupConfig(String uuid, String name, String description, String scantime, boolean enable, String md5) {
-            this.uuid = uuid;
-            this.name = name;
-            this.description = description;
-            this.scantime = scantime;
-            this.enable = enable;
-            this.md5 = md5;
-        }
+    /** Grupo de escaneo: cada area pertenece como mucho a uno. */
+    public record GroupConfig(String uuid, String name, String description, String scantime,
+            boolean enable, String md5) {
 
         public String getUuid() {
             return uuid;
@@ -95,30 +90,13 @@ public class CommConfigData {
         }
     }
 
-    // --- MODEL ITEM ---
-    public static class ItemConfig {
+    /** Area: una direccion de memoria con su etiqueta y su grupo. */
+    public record ItemConfig(String uuid, String name, String description, String tag,
+            boolean enable, String md5, String groupUuid) {
 
-        private String uuid;
-        private String name;
-        private String description;
-        private String tag;
-        private boolean enable;
-        private String md5;
-        private String groupUuid;
-
-        public ItemConfig(String uuid, String name, String description, String tag, boolean enable, String md5) {
-            this(uuid, name, description, tag, enable, md5, null);
-        }
-
-        public ItemConfig(String uuid, String name, String description, String tag, boolean enable, String md5,
-                String groupUuid) {
-            this.uuid = uuid;
-            this.name = name;
-            this.description = description;
-            this.tag = tag;
-            this.enable = enable;
-            this.md5 = md5;
-            this.groupUuid = groupUuid;
+        public ItemConfig(String uuid, String name, String description, String tag, boolean enable,
+                String md5) {
+            this(uuid, name, description, tag, enable, md5, "");
         }
 
         public String getUuid() {
@@ -150,68 +128,29 @@ public class CommConfigData {
         }
     }
 
-    // --- MODEL PV ---
-    public static class PvConfig {
+    /**
+     * Registro: un valor del area a la que apunta.
+     *
+     * <p>{@code areaUuid} es el UUID del area, aunque el atributo del XML siga siendo
+     * {@code id}. El nombre viejo {@code getId()} era ambiguo, porque no decia de que
+     * identificador se trataba.
+     */
+    public record PvConfig(String uuid, String name, String type, String areaUuid, String offset,
+            String descriptor, String scanTime, boolean scanEnable, boolean writeEnable,
+            String displayLimitLow, String displayLimitHigh, String displayDescription,
+            String displayFormat, String displayUnits, String controlLimitLow,
+            String controlLimitHigh, String controlMinStep, String md5, String s88Path) {
 
-        private String uuid;
-        private String name;
-        private String type;
-        private String id;
-        private String offset;
-        private String descriptor;
-        private String scanTime;
-        private boolean scanEnable;
-        private boolean writeEnable;
-        private String displayLimitLow;
-        private String displayLimitHigh;
-        private String displayDescription;
-        private String displayFormat;
-        private String displayUnits;
-        private String controlLimitLow;
-        private String controlLimitHigh;
-        private String controlMinStep;
-        private String md5;
-        private String s88Path;
-
-        //TODO: Property java para pasarla al constructor
-        public PvConfig(String uuid, String name, String type, String id, String offset, String descriptor,
-                String scanTime, boolean scanEnable, boolean writeEnable, String displayLimitLow,
-                String displayLimitHigh, String displayDescription, String displayFormat,
-                String displayUnits, String controlLimitLow, String controlLimitHigh,
-                String controlMinStep, String md5) {
-            this(uuid, name, type, id, offset, descriptor, scanTime, scanEnable, writeEnable,
-                    displayLimitLow, displayLimitHigh, displayDescription, displayFormat,
-                    displayUnits, controlLimitLow, controlLimitHigh, controlMinStep, md5, "");
-        }
-
-        public PvConfig(String uuid, String name, String type, String id, String offset, String descriptor,
-                String scanTime, boolean scanEnable, boolean writeEnable, String displayLimitLow,
-                String displayLimitHigh, String displayDescription, String displayFormat,
-                String displayUnits, String controlLimitLow, String controlLimitHigh,
-                String controlMinStep, String md5, String s88Path) {
-            this.uuid = uuid;
-            this.name = name;
-            this.type = type;
-            this.id = id;
-            this.offset = offset;
-            this.descriptor = descriptor;
-            this.scanTime = scanTime;
-            this.scanEnable = scanEnable;
-            this.writeEnable = writeEnable;
-            this.displayLimitLow = displayLimitLow;
-            this.displayLimitHigh = displayLimitHigh;
-            this.displayDescription = displayDescription;
-            this.displayFormat = displayFormat;
-            this.displayUnits = displayUnits;
-            this.controlLimitLow = controlLimitLow;
-            this.controlLimitHigh = controlLimitHigh;
-            this.controlMinStep = controlMinStep;
-            this.md5 = md5;
-            this.s88Path = s88Path;
-        }
-
-        public PvConfig(Properties p) {
-            p.get("uuid");
+        /** Registro sin ruta en S88, que es el caso habitual. */
+        public PvConfig(String uuid, String name, String type, String areaUuid, String offset,
+                String descriptor, String scanTime, boolean scanEnable, boolean writeEnable,
+                String displayLimitLow, String displayLimitHigh, String displayDescription,
+                String displayFormat, String displayUnits, String controlLimitLow,
+                String controlLimitHigh, String controlMinStep, String md5) {
+            this(uuid, name, type, areaUuid, offset, descriptor, scanTime, scanEnable,
+                    writeEnable, displayLimitLow, displayLimitHigh, displayDescription,
+                    displayFormat, displayUnits, controlLimitLow, controlLimitHigh,
+                    controlMinStep, md5, "");
         }
 
         public String getUuid() {
@@ -226,8 +165,9 @@ public class CommConfigData {
             return type;
         }
 
-        public String getId() {
-            return id;
+        /** El area a la que pertenece este registro. El XML lo llama {@code id}. */
+        public String getAreaUuid() {
+            return areaUuid;
         }
 
         public String getOffset() {

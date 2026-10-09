@@ -80,7 +80,7 @@ public class CommunicationWizardController {
             return;
         }
         String scantime = scan != null && !scan.isEmpty() ? scan : actual.getScantime();
-        int idx = state.getGroups().indexOf(actual);
+        int idx = state.indexOfGroup(uuid);
         state.getGroups().set(idx, new CommConfigData.GroupConfig(
                 actual.getUuid(), actual.getName(), desc, scantime, enable, actual.getMd5()));
         state.setCambiosSinGuardar(true);
@@ -100,7 +100,7 @@ public class CommunicationWizardController {
         if (!areasDelGrupo.isEmpty()) {
             return areasDelGrupo;
         }
-        state.getGroups().remove(group);
+        state.getGroups().remove(state.indexOfGroup(uuid));
         state.setCambiosSinGuardar(true);
         return List.of();
     }
@@ -110,7 +110,6 @@ public class CommunicationWizardController {
     public void addItem(String uuid, String name, String desc, String tag, boolean enable, String groupUuid) {
         state.getItems().add(new CommConfigData.ItemConfig(
                 uuid, name, desc, tag, enable, MD5_ITEM, groupUuid));
-        state.getItemsGroup().put(uuid, groupUuid);
         state.setCambiosSinGuardar(true);
         cacheTags.clear();
     }
@@ -120,11 +119,10 @@ public class CommunicationWizardController {
         if (actual == null) {
             return;
         }
-        int idx = state.getItems().indexOf(actual);
+        int idx = state.indexOfItem(uuid);
         state.getItems().set(idx, new CommConfigData.ItemConfig(
                 actual.getUuid(), actual.getName(), desc, tag, enable,
                 actual.getMd5(), actual.getGroupUuid()));
-        state.getItemsGroup().put(actual.getUuid(), actual.getGroupUuid());
         state.setCambiosSinGuardar(true);
         cacheTags.clear();
     }
@@ -136,13 +134,12 @@ public class CommunicationWizardController {
         }
         List<String> nombres = new ArrayList<>();
         for (CommConfigData.PvConfig pv : state.getPvs()) {
-            if (item.getUuid().equals(pv.getId())) {
+            if (item.getUuid().equals(pv.getAreaUuid())) {
                 nombres.add(pv.getName());
             }
         }
-        state.getPvs().removeIf(pv -> uuid.equals(pv.getId()));
-        state.getItems().remove(item);
-        state.getItemsGroup().remove(uuid);
+        state.getPvs().removeIf(pv -> uuid.equals(pv.getAreaUuid()));
+        state.getItems().remove(state.indexOfItem(uuid));
         state.setCambiosSinGuardar(true);
         cacheTags.clear();
         return nombres;
@@ -164,9 +161,9 @@ public class CommunicationWizardController {
         if (actual == null) {
             return;
         }
-        int idx = state.getPvs().indexOf(actual);
+        int idx = state.indexOfPv(uuid);
         state.getPvs().set(idx, new CommConfigData.PvConfig(
-                actual.getUuid(), actual.getName(), actual.getType(), actual.getId(),
+                actual.getUuid(), actual.getName(), actual.getType(), actual.getAreaUuid(),
                 actual.getOffset(), descriptor, scanTime, scanEnable, writeEnable,
                 displayLimitLow, displayLimitHigh, displayDescription, displayFormat,
                 displayUnits, controlLimitLow, controlLimitHigh, controlMinStep,
@@ -175,11 +172,10 @@ public class CommunicationWizardController {
     }
 
     public boolean deletePv(String uuid) {
-        CommConfigData.PvConfig pv = state.pvByUuid(uuid);
-        if (pv == null) {
+        if (state.pvByUuid(uuid) == null) {
             return false;
         }
-        state.getPvs().remove(pv);
+        state.getPvs().remove(state.indexOfPv(uuid));
         state.setCambiosSinGuardar(true);
         return true;
     }
@@ -192,19 +188,19 @@ public class CommunicationWizardController {
         return MD5_GROUP;
     }
 
-    // --- layout de memoria de un área ---------------------------------------
+    // --- layout de memoria de un ÃƒÂ¡rea ---------------------------------------
 
     /**
      * Parseo de tag con memoria (T3.7).
      *
-     * <p>Se indexa por el texto del tag, no por el UUID del área. La clave correcta
-     * es el propio tag: {@code MemoryTag} es inmutable, así que el mismo texto da
+     * <p>Se indexa por el texto del tag, no por el UUID del ÃƒÂ¡rea. La clave correcta
+     * es el propio tag: {@code MemoryTag} es inmutable, asÃƒÂ­ que el mismo texto da
      * siempre el mismo resultado y no hay forma de que la cache se quede obsoleta.
      * Indexar por UUID obligaria a invalidar en cada cambio de tag, y el UUID no
      * cambia cuando el usuario corrige el texto.
      *
-     * <p>Se limpia al anadir, editar o borrar un área para que no crezca con cada
-     * pulsación.
+     * <p>Se limpia al anadir, editar o borrar un ÃƒÂ¡rea para que no crezca con cada
+     * pulsaciÃƒÂ³n.
      */
     private MemoryTag parseTag(String tag) {
         if (tag == null) {
@@ -478,7 +474,7 @@ public class CommunicationWizardController {
         return usedKeys;
     }
 
-    // --- validación y persistencia ------------------------------------------
+    // --- validaciÃƒÂ³n y persistencia ------------------------------------------
     public List<String> areasSinGrupoNames() {
         List<String> nombres = new ArrayList<>();
         for (CommConfigData.ItemConfig i : state.areasSinGrupo()) {

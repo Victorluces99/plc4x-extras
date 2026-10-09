@@ -131,8 +131,8 @@ public final class BootDbRepository {
         try (Connection conn = DriverManager.getConnection(url)) {
             String areaInvalida = primerAreaSinGrupo(comms);
             if (areaInvalida != null) {
-                System.err.println("No se guardó el dispositivo '" + deviceName
-                        + "': el área '" + areaInvalida + "' no tiene grupo de escaneo.");
+                System.err.println("No se guardÃ³ el dispositivo '" + deviceName
+                        + "': el Ã¡rea '" + areaInvalida + "' no tiene grupo de escaneo.");
                 return false;
             }
             conn.setAutoCommit(false); 
@@ -186,7 +186,7 @@ public final class BootDbRepository {
                         pstmt.setString(1, pv.getUuid());
                         pstmt.setString(2, pv.getName());
                         pstmt.setString(3, pv.getType());
-                        pstmt.setString(4, pv.getId());
+                        pstmt.setString(4, pv.getAreaUuid());
                         pstmt.setString(5, pv.getOffset());
                         pstmt.setString(6, pv.getDescriptor());
                         pstmt.setString(7, pv.getScanTime());

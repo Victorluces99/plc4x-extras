@@ -1,3 +1,21 @@
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
+-->
 # Validacion manual pendiente en el IDE
 
 Estos puntos no los cubre el build: dependen del runtime de NetBeans. Estan
@@ -31,3 +49,22 @@ reflexion desde un test. Y el comportamiento del arbol solo se observa con el
 IDE abierto. Las posiciones se pueden comprobar porque viven en
 CategoryNodePositions, que si es codigo normal: ahi esta la unica copia y la
 anotacion la referencia.
+
+## T4.3 - division de la factory de Comunicacion
+
+407 lineas partida en cinco ficheros: `HMICategoryCommunicationNodeFactory` (53),
+`CommunicationNodeList` (145), `DeviceNode` (219), `DeleteDeviceDialog` (103) y
+`DeviceNodeLabels` (122). Los textos que ve el usuario se movieron sin cambios: se
+comparo automaticamente el conjunto de cadenas del fichero original contra los nuevos,
+resolviendo escapes Unicode. 46 antes, 46 despues, ninguna diferencia.
+
+Lo que **no** cubre ningun test, porque necesita `JOptionPane`:
+
+- [ ] Confirmar que al cancelar el borrado no ocurre nada.
+- [ ] Confirmar que el aviso de "guardado parcial" sale cuando se borra del XML pero
+      no de `boot.db`. Este aviso se puede quitar por error y el build no lo nota:
+      es el hueco de cobertura mas relevante de este refactor.
+- [ ] Confirmar que el error de guardado (excepcion) se avisa y no se traga.
+- [ ] Confirmar que la hoja de Propiedades muestra los once campos.
+- [ ] Confirmar que "Modificar" avisa cuando el dispositivo ya no esta.
+- [ ] Confirmar que el arbol repinta la etiqueta al renombrar un dispositivo.

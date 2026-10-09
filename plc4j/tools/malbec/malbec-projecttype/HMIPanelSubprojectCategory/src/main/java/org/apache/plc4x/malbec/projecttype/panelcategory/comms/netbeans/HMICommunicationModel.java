@@ -92,14 +92,14 @@ public final class HMICommunicationModel implements CommunicationStore {
         }
 
         storage.watchForChanges();
-        repository = new CommConfigServices().createRepository(configStorage);
+        repository = CommConfigRepositoryLookup.createRepository(configStorage);
         CommConfigLoader.Result carga;
         try {
             carga = new CommConfigLoader(repository).load();
         } catch (Exception ex) {
             // H-01: el fallo ya no se traga. Antes se sustituid la configuracion
             // por una vacia sin decir nada, de modo que un archivo ilegible se veia
-            // como «no hay dispositivos» y un guardado posterior podia escribir
+            // como Â«no hay dispositivosÂ» y un guardado posterior podia escribir
             // encima un modelo que nunca se habia leido.
             // Ahora se conserva lo que habia, se registra el error y queda disponible
             // para que la interfaz avise. No se guarda nada en este estado.
@@ -108,7 +108,7 @@ public final class HMICommunicationModel implements CommunicationStore {
                 config = new CommunicationsConfig();
             }
             LOGGER.log(Level.SEVERE, "No se pudo cargar " + CONFIG_FILE
-                    + "; se conserva la configuración anterior.", ex);
+                    + "; se conserva la configuraciÃ³n anterior.", ex);
             cs.fireChange();
             return;
         }
@@ -158,7 +158,7 @@ public final class HMICommunicationModel implements CommunicationStore {
             reparado = true;
             String uuid = UUID.randomUUID().toString();
             System.err.println(CONFIG_FILE + ": el dispositivo '" + device.getDeviceName()
-                    + "' no tenía UUID y recibió " + uuid + " al cargar.");
+                    + "' no tenÃ­a UUID y recibiÃ³ " + uuid + " al cargar.");
             Properties p = new Properties();
             p.put("brand", device.getBrand());
             p.put("model", device.getModel());
@@ -221,8 +221,8 @@ public final class HMICommunicationModel implements CommunicationStore {
             // Guardar aqui escribiria eso sobre comunicacion.xml y reconstruiria
             // boot.db desde un modelo que nunca se ha podido leer. Se niega, y el
             // motivo queda en el registro.
-            LOGGER.log(Level.SEVERE, "No se guarda nada: la última carga de " + CONFIG_FILE
-                    + " falló, así que el modelo no es fiable.", loadError);
+            LOGGER.log(Level.SEVERE, "No se guarda nada: la Ãºltima carga de " + CONFIG_FILE
+                    + " fallÃ³, asÃ­ que el modelo no es fiable.", loadError);
             return false;
         }
         CommConfigStorage configStorage = storage.config();
@@ -230,10 +230,10 @@ public final class HMICommunicationModel implements CommunicationStore {
             try {
                 configStorage = storage.createConfig();
             } catch (IOException ex) {
-                throw new IllegalStateException("No se pudo guardar la configuración de comunicaciones", ex);
+                throw new IllegalStateException("No se pudo guardar la configuraciÃ³n de comunicaciones", ex);
             }
         }
-        final CommConfigRepository repo = new CommConfigServices().createRepository(configStorage);
+        final CommConfigRepository repo = CommConfigRepositoryLookup.createRepository(configStorage);
         try {
             storage.pauseNotifications();
             try {
@@ -242,18 +242,18 @@ public final class HMICommunicationModel implements CommunicationStore {
                 storage.resumeNotifications();
             }
         } catch (Exception ex) {
-            throw new IllegalStateException("No se pudo guardar la configuración de comunicaciones", ex);
+            throw new IllegalStateException("No se pudo guardar la configuraciÃ³n de comunicaciones", ex);
         }
         repository = repo;
         boolean databaseUpdated;
         try {
             databaseUpdated = BootDbRepository.rebuild(storage.bootDbFolder(), config);
         } catch (Exception ex) {
-            LOGGER.log(Level.WARNING, "Error volcando la configuración a boot.db", ex);
+            LOGGER.log(Level.WARNING, "Error volcando la configuraciÃ³n a boot.db", ex);
             databaseUpdated = false;
         }
         if (!databaseUpdated) {
-            LOGGER.warning("boot.db no pudo actualizarse; revise el registro de la aplicación.");
+            LOGGER.warning("boot.db no pudo actualizarse; revise el registro de la aplicaciÃ³n.");
         }
         cs.fireChange();
         return databaseUpdated;

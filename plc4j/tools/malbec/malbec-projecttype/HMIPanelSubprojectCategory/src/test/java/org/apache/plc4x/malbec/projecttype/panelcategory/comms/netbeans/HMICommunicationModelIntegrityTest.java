@@ -117,8 +117,7 @@ class HMICommunicationModelIntegrityTest {
 
     @Test
     void elRepositorioPropagaElErrorDeUnXmlMalFormado() {
-        CommConfigRepository repo = new CommConfigServices()
-                .createRepository(new TextoFijo(XML_ROTO));
+        CommConfigRepository repo = CommConfigRepositoryLookup.createRepository(new TextoFijo(XML_ROTO));
 
         assertThrows(Exception.class, repo::load,
                 "H-01, capa 1: la lectura de un XML roto tiene que fallar");
@@ -126,8 +125,7 @@ class HMICommunicationModelIntegrityTest {
 
     @Test
     void elCableadoDeNetbeansNoSeTragaElError() {
-        CommConfigRepository repo = new CommConfigServices()
-                .createRepository(new TextoFijo(XML_ROTO));
+        CommConfigRepository repo = CommConfigRepositoryLookup.createRepository(new TextoFijo(XML_ROTO));
 
         assertThrows(Exception.class, repo::load,
                 "H-01, capa 2: crear el repositorio no puede alterar como falla la lectura");
@@ -136,7 +134,7 @@ class HMICommunicationModelIntegrityTest {
     @Test
     void unArchivoVacioNoSeConsideraUnError() throws Exception {
         CommConfigLoader.Result carga = new CommConfigLoader(
-                new CommConfigServices().createRepository(new TextoFijo(XML_VACIO))).load();
+                CommConfigRepositoryLookup.createRepository(new TextoFijo(XML_VACIO))).load();
 
         assertEquals(0, carga.config().getDevices().size(),
                 "un archivo vacio es un proyecto nuevo, no una carga fallida");
@@ -146,7 +144,7 @@ class HMICommunicationModelIntegrityTest {
     @Test
     void unXmlDanadoNoPuedeCargarseEnSilencio() {
         CommConfigLoader loader = new CommConfigLoader(
-                new CommConfigServices().createRepository(new TextoFijo(XML_ROTO)));
+                CommConfigRepositoryLookup.createRepository(new TextoFijo(XML_ROTO)));
 
         assertThrows(Exception.class, loader::load,
                 "H-01: la carga de un XML danado tiene que fallar, no devolver un modelo vacio");
@@ -221,7 +219,7 @@ class HMICommunicationModelIntegrityTest {
         InMemoryProjectStorage storage = new InMemoryProjectStorage("llenadora", tempDir.toFile())
                 .withFile(HMICommunicationModel.CONFIG_FILE, XML_ROTO);
         HMICommunicationModel model = new HMICommunicationModel(storage);
-        assertFalse(model.save(), "precondición: con el XML roto no se guarda");
+        assertFalse(model.save(), "precondiciÃ³n: con el XML roto no se guarda");
 
         storage.withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO);
         storage.fireChanged();
@@ -245,7 +243,7 @@ class HMICommunicationModelIntegrityTest {
         assertTrue(model.getLoadError().isPresent(),
                 "una lectura fallida tambien es un fallo de carga");
         assertEquals(0, model.getDevices().size(),
-                "precondición: sin lectura no hay dispositivos en memoria");
+                "precondiciÃ³n: sin lectura no hay dispositivos en memoria");
 
         assertFalse(model.save(),
                 "H-01: el archivo es escribible, asi que sin guarda se perderian sus datos");
@@ -293,7 +291,7 @@ class HMICommunicationModelIntegrityTest {
         InMemoryProjectStorage storage = new InMemoryProjectStorage("llenadora", tempDir.toFile())
                 .withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO);
         HMICommunicationModel model = new HMICommunicationModel(storage);
-        assertEquals(1, model.getDevices().size(), "precondición: el XML es valido");
+        assertEquals(1, model.getDevices().size(), "precondiciÃ³n: el XML es valido");
 
         storage.fireDeleted();
 
@@ -312,7 +310,7 @@ class HMICommunicationModelIntegrityTest {
         model.upsertDevice(dispositivo("uuid-nuevo", "Compresor extra"));
         model.save();
 
-        assertTrue(estabaVigilando, "precondición: el modelo vigila el archivo");
+        assertTrue(estabaVigilando, "precondiciÃ³n: el modelo vigila el archivo");
         assertEquals(2, model.getDevices().size(),
                 "guardar no debe recargar el modelo sobre una escritura a medias");
     }
@@ -387,28 +385,4 @@ class HMICommunicationModelIntegrityTest {
         }
     }
 
-    /** Almacenamiento que siempre devuelve el mismo texto, sin tocar disco. */
-    private static final class TextoFijo implements CommConfigStorage {
-
-        private final String texto;
-
-        TextoFijo(String texto) {
-            this.texto = texto;
-        }
-
-        @Override
-        public String open() {
-            return texto;
-        }
-
-        @Override
-        public OutputStream create() {
-            return new ByteArrayOutputStream() {
-                @Override
-                public void close() {
-                    // se descarga y se ignora: este test solo lee
-                }
-            };
-        }
-    }
 }

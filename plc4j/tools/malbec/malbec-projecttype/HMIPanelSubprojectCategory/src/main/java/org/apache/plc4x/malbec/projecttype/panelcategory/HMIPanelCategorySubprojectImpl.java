@@ -31,6 +31,7 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreat
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDeviceAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDisplayAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans.HMICommunicationModel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.api.annotations.common.StaticResource;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectInformation;
@@ -46,9 +47,9 @@ import org.openide.nodes.FilterNode;
 import org.openide.nodes.Node;
 import org.openide.util.Exceptions;
 import org.openide.util.ImageUtilities;
-import org.openide.util.Lookup;
 import org.openide.util.lookup.Lookups;
 import org.openide.util.lookup.ProxyLookup;
+import org.openide.util.Lookup;
 
 public class HMIPanelCategorySubprojectImpl implements Project {
 
@@ -185,7 +186,7 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                         new Action[]{
                             new HMICategoryCreateDisplayAction(this.project),                        
                         };
-                    case "comunicacion.xml" ->
+                    case ProjectIds.COMMUNICATION_CONFIG_FILE ->
                         new Action[]{
                             new HMICategoryCreateCommAction(this.project),
                             new HMICategoryCreateDeviceAction(this.project),

@@ -107,9 +107,11 @@ class CategoryNodeFactoryConsolidationTest {
             assertTrue(fuente.contains("position = " + referenciaDePosicion(entrada.getKey())),
                     entrada.getKey().getSimpleName() + " deberia usar "
                             + referenciaDePosicion(entrada.getKey()) + " en la anotacion");
-            assertTrue(fuente.contains("projectType = \"org-apache-plc4x-category\""),
-                    entrada.getKey().getSimpleName() + ": el projectType no puede cambiar, "
-                            + "la factory no se registraria");
+            // En el fuente sale el NOMBRE de la constante, no su valor.
+            assertTrue(fuente.contains("projectType = ProjectIds.CATEGORY_PROJECT_TYPE"),
+                    entrada.getKey().getSimpleName() + ": el projectType debe venir de "
+                            + "ProjectIds, para que cambiarlo en un solo sitio no deje de "
+                            + "registrar estas factories");
             assertTrue(esperado > 0, "posicion invalida");
         }
     }

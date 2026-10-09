@@ -18,8 +18,9 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.nodes;
 
-import org.apache.plc4x.malbec.projecttype.panelcategory.HMICategoryDefinition;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans.HMICommunicationModel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.HMICategoryDefinition;
+import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.api.project.Project;
 import org.netbeans.spi.project.ui.support.NodeFactory;
 import org.netbeans.spi.project.ui.support.NodeFactorySupport;
@@ -36,7 +37,7 @@ import org.openide.filesystems.FileObject;
  * <p>No se apoya en {@code CategoryFilesNodeFactory} porque el contenido de esta categoria no
  * son ficheros sueltos sino los dispositivos del modelo de comunicaciones.
  */
-@NodeFactory.Registration(projectType = "org-apache-plc4x-category", position = 70)
+@NodeFactory.Registration(projectType = ProjectIds.CATEGORY_PROJECT_TYPE, position = 70)
 public class HMICategoryCommunicationNodeFactory implements NodeFactory {
 
     @Override

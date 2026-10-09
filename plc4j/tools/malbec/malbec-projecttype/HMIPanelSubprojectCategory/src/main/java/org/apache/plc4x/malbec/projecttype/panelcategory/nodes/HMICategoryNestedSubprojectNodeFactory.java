@@ -23,6 +23,7 @@ import java.util.List;
 import javax.swing.Action;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectManager;
 import org.netbeans.spi.project.ui.LogicalViewProvider;
@@ -39,10 +40,10 @@ import org.openide.nodes.Children;
 import org.openide.nodes.Node;
 import org.openide.util.Exceptions;
 
-@NodeFactory.Registration(projectType = "org-apache-plc4x-category", position = 200)
+@NodeFactory.Registration(projectType = ProjectIds.CATEGORY_PROJECT_TYPE, position = 200)
 public class HMICategoryNestedSubprojectNodeFactory implements NodeFactory {
 
-    private static final String CATEGORY_FILE = "category.cfg";
+    
 
     @Override
     public NodeList<?> createNodes(Project project) {
@@ -125,7 +126,7 @@ public class HMICategoryNestedSubprojectNodeFactory implements NodeFactory {
         private void refreshKeys() {
             keys.clear();
             for (FileObject child : folder.getChildren()) {
-                if (child.isFolder() && child.getFileObject(CATEGORY_FILE) != null) {
+                if (child.isFolder() && child.getFileObject(ProjectIds.CATEGORY_MARKER_FILE) != null) {
                     keys.add(child);
                 }
             }
@@ -139,7 +140,7 @@ public class HMICategoryNestedSubprojectNodeFactory implements NodeFactory {
 
 //        @Override
 //        public void fileDataCreated(FileEvent fe) {
-//            if (CATEGORY_FILE.equalsIgnoreCase(fe.getFile().getNameExt())) {
+//            if (ProjectIds.CATEGORY_MARKER_FILE.equalsIgnoreCase(fe.getFile().getNameExt())) {
 //                refreshKeys();
 //            }
 //        }

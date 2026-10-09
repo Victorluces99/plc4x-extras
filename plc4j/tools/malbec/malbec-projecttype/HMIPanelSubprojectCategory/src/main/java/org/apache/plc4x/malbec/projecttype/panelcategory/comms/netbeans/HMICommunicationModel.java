@@ -20,25 +20,33 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.event.ChangeListener;
-import org.apache.plc4x.malbec.projecttype.panelcategory.comms.persistence.BootDbRepository;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRepository;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigStorage;
-import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationStore;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationsConfig;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationStore;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.persistence.BootDbRepository;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.api.project.Project;
 import org.openide.util.ChangeSupport;
 
 public final class HMICommunicationModel implements CommunicationStore {
 
-    public static final String CONFIG_FILE = "comunicacion.xml";
+    /**
+     * Nombre del fichero de configuracion de comunicaciones.
+     *
+     * <p>Se mantiene por compatibilidad con {@code NetBeansProjectStorage}, que lo usa.
+     * El valor vive en {@link ProjectIds}; aqui solo se renombra, para no tener dos nombres
+     * distintos del mismo fichero.
+     */
+    public static final String CONFIG_FILE = ProjectIds.COMMUNICATION_CONFIG_FILE;
 
     private static final Logger LOGGER = Logger.getLogger(HMICommunicationModel.class.getName());
 

@@ -21,11 +21,12 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.nodes;
 import javax.swing.Action;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryRuntimeUserManagementAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.HMICategoryDefinition;
+import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.spi.project.ui.support.NodeFactory;
 import org.openide.filesystems.FileObject;
 
 /** Nodos de los ficheros "ADMIN_USER" dentro de su carpeta. */
-@NodeFactory.Registration(projectType = "org-apache-plc4x-category", position = CategoryNodePositions.USUARIOS_RUNTIME)
+@NodeFactory.Registration(projectType = ProjectIds.CATEGORY_PROJECT_TYPE, position = CategoryNodePositions.USUARIOS_RUNTIME)
 public class HMICategoryRuntimeUserManagementNodeFactory extends CategoryFilesNodeFactory {
 
     @Override

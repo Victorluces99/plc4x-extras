@@ -21,11 +21,12 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.nodes;
 import javax.swing.Action;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryTextAndListChartsAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.HMICategoryDefinition;
+import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.spi.project.ui.support.NodeFactory;
 import org.openide.filesystems.FileObject;
 
 /** Nodos de los ficheros "TEXT_GRAPHIC" dentro de su carpeta. */
-@NodeFactory.Registration(projectType = "org-apache-plc4x-category", position = CategoryNodePositions.TEXTOS_Y_GRAFICOS)
+@NodeFactory.Registration(projectType = ProjectIds.CATEGORY_PROJECT_TYPE, position = CategoryNodePositions.TEXTOS_Y_GRAFICOS)
 public class HMICategoryTextAndListChartsNodeFactory extends CategoryFilesNodeFactory {
 
     @Override

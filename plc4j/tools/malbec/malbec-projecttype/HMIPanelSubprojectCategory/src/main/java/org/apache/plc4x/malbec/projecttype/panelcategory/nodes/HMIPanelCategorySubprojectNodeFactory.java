@@ -24,6 +24,7 @@ import java.util.List;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.HMIPanelCategorySubprojectImpl;
+import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectManager;
 import org.netbeans.spi.project.ui.LogicalViewProvider;
@@ -38,10 +39,10 @@ import org.openide.filesystems.FileRenameEvent;
 import org.openide.nodes.Node;
 import org.openide.util.Exceptions;
 
-@NodeFactory.Registration(projectType = "org-apache-plc4x-panel", position = 50)
+@NodeFactory.Registration(projectType = ProjectIds.PANEL_PROJECT_TYPE, position = 50)
 public class HMIPanelCategorySubprojectNodeFactory implements NodeFactory {
 
-    private static final String CATEGORY_FILE = "category.cfg";
+    
 
     @Override
     public NodeList<?> createNodes(Project project) {
@@ -137,7 +138,7 @@ public class HMIPanelCategorySubprojectNodeFactory implements NodeFactory {
 
 //        @Override
 //        public void fileDataCreated(FileEvent fe) {
-//            if (CATEGORY_FILE.equalsIgnoreCase(fe.getFile().getNameExt())) {
+//            if (ProjectIds.CATEGORY_MARKER_FILE.equalsIgnoreCase(fe.getFile().getNameExt())) {
 //                refreshKeys();
 //            }
 //        }

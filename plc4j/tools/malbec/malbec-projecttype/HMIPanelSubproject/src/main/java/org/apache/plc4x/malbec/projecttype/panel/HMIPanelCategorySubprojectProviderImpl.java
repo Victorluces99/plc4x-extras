@@ -21,10 +21,11 @@ package org.apache.plc4x.malbec.projecttype.panel;
 
 
 import java.util.HashSet;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Set;
 import javax.swing.event.ChangeListener;
+import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectManager;
 import org.netbeans.spi.project.SubprojectProvider;
@@ -34,7 +35,7 @@ import org.openide.filesystems.FileObject;
 
 public class HMIPanelCategorySubprojectProviderImpl implements SubprojectProvider {
 
-    public static final String CATEGORY_SUBPROJECT_FILE = "category.cfg";
+    
 
     private static final Logger LOGGER =
             Logger.getLogger(HMIPanelCategorySubprojectProviderImpl.class.getName());
@@ -78,7 +79,7 @@ public class HMIPanelCategorySubprojectProviderImpl implements SubprojectProvide
         }
 
         for (FileObject child : dir.getChildren()) {
-            if (!child.isFolder() || child.getFileObject(CATEGORY_SUBPROJECT_FILE) == null) {
+            if (!child.isFolder() || child.getFileObject(ProjectIds.CATEGORY_MARKER_FILE) == null) {
                 continue;
             }
             try {

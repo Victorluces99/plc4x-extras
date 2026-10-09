@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 
 /**
  * Deteccion del fichero marcador que identifica la categoria de un proyecto (H-05).
@@ -53,7 +54,7 @@ final class DeteccionCategoria {
      * primero que aparezca, igual que antes.
      */
     static final List<String> FICHEROS_MARCADOR = List.of(
-            "template.bob", "comunicacion.xml", "base.oppc", "record.record",
+            "template.bob", ProjectIds.COMMUNICATION_CONFIG_FILE, "base.oppc", "record.record",
             "base.rcp", "base.rpt", "base.scp", "base.wmg", "base.tlc", "base.rtum");
 
     private DeteccionCategoria() {

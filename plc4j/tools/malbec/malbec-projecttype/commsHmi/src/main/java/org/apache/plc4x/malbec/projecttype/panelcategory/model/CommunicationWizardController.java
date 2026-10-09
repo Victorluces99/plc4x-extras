@@ -498,18 +498,31 @@ public class CommunicationWizardController {
         return !state.areasSinGrupo().isEmpty();
     }
 
-    public boolean saveAll() {
+    /**
+     * Guarda grupos, areas, items y PVs del dispositivo seleccionado.
+     *
+     * <p>Devuelve el {@link SaveResult} entero y no un {@code boolean}: el que llama
+     * tiene que poder distinguir un guardado completo de uno a medias, porque los dos
+     * necesitan mensajes distintos. Si esto devolviera {@code isComplete()}, un guardado
+     * en el que no se escribio nada por H-01 se contaria como fallo de la base de datos
+     * y se le diria al usuario que se guardo en comunicacion.xml sin haberlo hecho.
+     *
+     * <p>Sin dispositivo o sin almacen la situacion no es un fallo de escritura: no se
+     * intento nada, y conviene que el mensaje lo diga en vez deechazar una excepcion.
+     */
+    public SaveResult saveAll() {
         if (store == null || state.getSelectedDevice() == null) {
-            return false;
+            return SaveResult.noGuardado(
+                    "no hay ningun dispositivo seleccionado sobre el que guardar");
         }
         CommConfigData config = new CommConfigData(
                 state.getSelectedDevice().getDeviceName(),
                 new ArrayList<>(state.getGroups()),
                 new ArrayList<>(state.getItems()),
                 new ArrayList<>(state.getPvs()));
-            store.upsertComms(state.getSelectedDevice().getUuid(), config);
-            SaveResult resultado = store.save();
+        store.upsertComms(state.getSelectedDevice().getUuid(), config);
+        SaveResult resultado = store.save();
             state.setCambiosSinGuardar(!resultado.isComplete());
-            return resultado.isComplete();
+            return resultado;
     }
 }

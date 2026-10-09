@@ -138,3 +138,18 @@ los accesores el de lectura.
 `fireChange()` se sigue lanzando desde el hilo que guarda, no en el EDT: es lo que
 hacia antes y cambiarlo ahora no se podria comprobar sin el runtime de NetBeans.
 `RequestProcessor` tampoco se ha tocado.
+## T5.6 - guardar y guardar y cerrar en el asistente
+
+Los dos botones hacen ahora el mismo proceso, con distinto final. El aviso depende de
+lo que paso de verdad, y hay tres casos:
+
+- [ ] Guardado completo: "Guardado en comunicacion.xml y en boot.db".
+- [ ] Guardado parcial (XML si, base no): "Guardado parcial", con el aviso de revisar
+      la salida de la aplicacion.
+- [ ] No se guardo nada (por ejemplo, la carga de comunicacion.xml fallo): ahora sale
+      "No se guardo nada: ..." con el motivo, y el dialogo **no se cierra**.
+
+- [ ] Con cambios sin guardar, pulsar Cancelar y elegir "Si, guardar": si el guardado
+      queda a medias, el dialogo deberia seguir abierto, no cerrarse en silencio.
+- [ ] Con cambios sin guardar, pulsar Cancelar y elegir "No": cierra sin guardar.
+- [ ] Pulsar "Guardar" (sin cerrar) deja el dialogo abierto con la lista al dia.

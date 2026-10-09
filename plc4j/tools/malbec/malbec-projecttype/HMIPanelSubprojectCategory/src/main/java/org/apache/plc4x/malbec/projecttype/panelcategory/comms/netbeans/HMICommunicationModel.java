@@ -177,10 +177,6 @@ public final class HMICommunicationModel implements CommunicationStore {
         return reparado;
     }
 
-    public CommunicationsConfig getConfig() {
-        return config;
-    }
-
     /**
      * Error de la ultima carga, si lo hubo (H-01).
      *

@@ -326,6 +326,9 @@ public class StepGroupAreaPanel extends JPanel {
         txtItemTag.setBorder(errores.isEmpty()
                 ? bordeOriginalTag
                 : BorderFactory.createLineBorder(new Color(180, 0, 0), 2));
+        // isShowing() se queda: en un test el panel no esta visible y no tiene por que
+        // aparecer un globo. La proteccion de headless va dentro de mostrarAvisoTag(),
+        // que es donde se tocaba la pantalla de verdad.
         if (!todo.isEmpty() && ratonSobreTag && txtItemTag.isShowing()) {
             mostrarAvisoTag(todo);
         }
@@ -363,7 +366,23 @@ public class StepGroupAreaPanel extends JPanel {
         };
     }
 
+    /**
+     * Muestra el globo de avisos junto al campo de tag.
+     *
+     * <p>Sin pantalla no hay donde pegarlo, y aqui fallan dos llamadas por motivos
+     * distintos. {@code getMaximumWindowBounds()} lanza {@link java.awt.HeadlessException}
+     * directamente, pero antes que eso ya revienta {@code getLocationOnScreen()} con
+     * {@link IllegalComponentStateException} ("component must be showing on the screen"),
+     * porque en un test el campo nunca esta visible. En un CI sin display eso tumba el
+     * test entero con una excepcion que no dice de donde sale.
+     *
+     * <p>En headless no se muestra el globo y se sale: el borde rojo del campo ya avisa
+     * del error, que es la parte que importa, y el texto completo sigue disponible.
+     */
     private void mostrarAvisoTag(List<TagIssue> issues) {
+        if (GraphicsEnvironment.isHeadless()) {
+            return;
+        }
         Point enPantalla = txtItemTag.getLocationOnScreen();
         int anchoCampo = txtItemTag.getWidth();
         int altoCampo = txtItemTag.getHeight();

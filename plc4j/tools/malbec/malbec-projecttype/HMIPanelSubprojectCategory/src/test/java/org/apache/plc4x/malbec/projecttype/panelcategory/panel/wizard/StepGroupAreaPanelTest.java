@@ -18,6 +18,7 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.panel.wizard;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -30,9 +31,12 @@ import javax.swing.border.Border;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardController;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardState;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.NoopCommunicationStore;
+import java.lang.reflect.Method;
+import java.util.List;
 
 class StepGroupAreaPanelTest {
 
@@ -171,6 +175,50 @@ class StepGroupAreaPanelTest {
         panel.getItemTag().setText("%DB1.DBB0[0..9]:BYTE");
         assertEquals(bordeDe(panel), panel.getItemTag().getBorder(),
                 "el aviso tiene que irse al corregir el tag");
+    }
+
+    /**
+     * Sin pantalla, avisar de un tag malo no revienta (T5.7).
+     *
+     * <p>El globo de avisos tiene que colocarse en pantalla, asi que sin display no hay
+     * donde ponerlo. Se invoca el metodo directamente porque en un test el campo nunca
+     * esta visible y {@code avisarTag()} no llegaria hasta el.
+     *
+     * <p>El caso importante es el headless, y solo se afirma ahi: con pantalla el metodo
+     * tampoco se puede probar, porque {@code getLocationOnScreen()} necesita un
+     * componente visible y un panel de test no lo esta. Eso no lo arregla esta guarda, que
+     * solo cubre el entorno sin display, que es el que rompe un CI. Por eso este test
+     * se salta con pantalla en vez de fingir que lo verifica.
+     */
+    @Test
+    @EnabledIfSystemProperty(named = "java.awt.headless", matches = "true")
+    void unAvisoDeTagNoRompeSinPantalla() throws Exception {
+        StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
+        Method mostrarAviso = StepGroupAreaPanel.class
+                .getDeclaredMethod("mostrarAvisoTag", List.class);
+        mostrarAviso.setAccessible(true);
+
+        // Lista vacia a proposito: lo que revienta es entrar al metodo, no tener avisos
+        // que pintar. Asi el test no depende de que TagDiagnostico produzca algo.
+        assertDoesNotThrow(() -> mostrarAviso.invoke(panel, List.of()),
+                "sin pantalla no se puede colocar el globo, pero tampoco debe fallar");
+    }
+
+    /**
+     * Y el diagnostico sigue marcando el error aunque no haya globo.
+     *
+     * <p>La consecuencia de foregoing el globo en headless es que el aviso visible pasa a
+     * ser el borde rojo del campo. Si esto dejara de funcionar, en un CI nadie veria el
+     * error y pasaria desapercibido.
+     */
+    @Test
+    void elErrorDeTagSeSigueMarcandoAunqueNoHayaGlobo() {
+        StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
+
+        panel.getItemTag().setText("%DB1.DBB0[.0.9]:BYTE");
+
+        assertNotEquals(bordeDe(panel), panel.getItemTag().getBorder(),
+                "el borde rojo es el aviso que queda sin pantalla");
     }
 
     private static Border bordeDe(StepGroupAreaPanel panel) {

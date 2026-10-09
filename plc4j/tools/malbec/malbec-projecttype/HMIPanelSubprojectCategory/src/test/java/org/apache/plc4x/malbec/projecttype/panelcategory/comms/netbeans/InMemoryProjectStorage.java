@@ -25,6 +25,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigStorage;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * {@link ProjectStorage} en memoria, para probar {@code HMICommunicationModel} sin
@@ -50,6 +52,8 @@ final class InMemoryProjectStorage implements ProjectStorage {
     private boolean watched;
     private int configWrites;
     private int lecturasFallidas;
+    private CountDownLatch escrituraAlEmpezar;
+    private CountDownLatch escrituraAlTerminar;
 
     InMemoryProjectStorage(String directoryName, File bootDbFolder) {
         this.directoryName = directoryName;
@@ -164,6 +168,19 @@ final class InMemoryProjectStorage implements ProjectStorage {
         }
     }
 
+    /**
+     * Retiene la proxima escritura de {@code comunicacion.xml} hasta que se suelte.
+     *
+     * <p>Sirve para intercalar dos hilos de forma determinista: el guardado se queda
+     * a media escritura mientras el otro hilo intenta recargar. Sin esto, una prueba
+     * de concurrencia depende de la suerte del planificador y unas veces pasa.
+     */
+    InMemoryProjectStorage bloquearEscritura(CountDownLatch alEmpezar, CountDownLatch alTerminar) {
+        this.escrituraAlEmpezar = alEmpezar;
+        this.escrituraAlTerminar = alTerminar;
+        return this;
+    }
+
     private final class AlmacenEnMemoria implements CommConfigStorage {
 
         @Override
@@ -180,6 +197,15 @@ final class InMemoryProjectStorage implements ProjectStorage {
             return new ByteArrayOutputStream() {
                 @Override
                 public void close() {
+                    if (escrituraAlEmpezar != null) {
+                        escrituraAlEmpezar.countDown();
+                        try {
+                            escrituraAlTerminar.await(10, TimeUnit.SECONDS);
+                        } catch (InterruptedException ex) {
+                            Thread.currentThread().interrupt();
+                            throw new IllegalStateException("espera interrumpida", ex);
+                        }
+                    }
                     configWrites++;
                     files.put(HMICommunicationModel.CONFIG_FILE,
                             new String(toByteArray(), StandardCharsets.UTF_8));

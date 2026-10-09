@@ -37,6 +37,8 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.api.project.Project;
 import org.openide.util.ChangeSupport;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.SaveResult;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public final class HMICommunicationModel implements CommunicationStore {
 
@@ -53,6 +55,24 @@ public final class HMICommunicationModel implements CommunicationStore {
 
     private final ProjectStorage storage;
     private final ChangeSupport cs = new ChangeSupport(this);
+
+    /**
+     * Exclusion mutua sobre {@link #config}, {@link #loadError} y {@link #repository}.
+     *
+     * <p>Antes no habia nada, y hacia falta: el watcher de ficheros recarga desde un
+     * hilo y el usuario guarda desde otro, de modo que las dos cosas ocurren a la vez
+     * de verdad. Los tres campos se asignan por separado, asi que una recarga podia
+     * colarse entre la comprobacion de la guarda H-01 y la escritura, y el guardado
+     * podia tomar la configuracion antes de una recarga y reconstruir {@code boot.db}
+     * despues de ella. Los dos ficheros acababan describiendo cosas distintas sin que
+     * nada avise, y el resultado dependia del planificador.
+     *
+     * <p>El bloqueo de escritura cubre el guardado y la recarga enteros, no solo las
+     * asignaciones: la parte interesante es la escritura a disco, que es donde importa
+     * que nadie cambie lo que se esta guardando.
+     */
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
     private CommConfigRepository repository;
     private CommunicationsConfig config;
     private Exception loadError;
@@ -68,7 +88,23 @@ public final class HMICommunicationModel implements CommunicationStore {
         reload();
     }
 
+    /**
+     * Recarga la configuracion desde el almacenamiento.
+     *
+     * <p>Toma el bloqueo de escritura porque reasignar {@code config} mientras otro
+     * hilo guarda es exactamente la carrera que este bloqueo elimina. Es reentrante,
+     * asi queolver a llamar desde dentro no se queda esperando a si mismo.
+     */
     public final void reload() {
+        lock.writeLock().lock();
+        try {
+            recargar();
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    private void recargar() {
         boolean commProject = "Comunicacion".equalsIgnoreCase(storage.directoryName())
                 || storage.has(CONFIG_FILE)
                 || storage.has("comm.merlot");
@@ -131,9 +167,14 @@ public final class HMICommunicationModel implements CommunicationStore {
 
     /** Reestablece el modelo tras borrarse el archivo de configuracion. */
     private void olvidarConfiguracion() {
-        repository = null;
-        config = new CommunicationsConfig();
-        loadError = null;
+        lock.writeLock().lock();
+        try {
+            repository = null;
+            config = new CommunicationsConfig();
+            loadError = null;
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     /**
@@ -197,35 +238,94 @@ public final class HMICommunicationModel implements CommunicationStore {
      *
      * @return el fallo de carga, o vacio si la ultima carga fue correcta
      */
+    /**
+     * Los lectores toman el bloqueo de lectura, para que no vean el modelo a medio
+     * cambiar mientras una recarga lo reasigna.
+     */
     public Optional<Exception> getLoadError() {
-        return Optional.ofNullable(loadError);
+        lock.readLock().lock();
+        try {
+            return Optional.ofNullable(loadError);
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     public List<DeviceConfigData> getDevices() {
-        return config.getDevices();
+        lock.readLock().lock();
+        try {
+            return config.getDevices();
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     public DeviceConfigData findByUuid(String uuid) {
-        return config.findByUuid(uuid);
+        lock.readLock().lock();
+        try {
+            return config.findByUuid(uuid);
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     public CommConfigData getComms(String deviceUuid) {
-        return config.getComms(deviceUuid);
+        lock.readLock().lock();
+        try {
+            return config.getComms(deviceUuid);
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     public void upsertDevice(DeviceConfigData device) {
-        config.upsertDevice(device);
+        lock.writeLock().lock();
+        try {
+            config.upsertDevice(device);
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     public void upsertComms(String deviceUuid, CommConfigData commConfig) {
-        config.upsertComms(deviceUuid, commConfig);
+        lock.writeLock().lock();
+        try {
+            config.upsertComms(deviceUuid, commConfig);
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     public boolean removeDevice(String uuid) {
-        return config.removeDevice(uuid);
+        lock.writeLock().lock();
+        try {
+            return config.removeDevice(uuid);
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
+    /**
+     * Guarda la configuracion y reconstruye {@code boot.db}.
+     *
+     * <p>Toma el bloqueo de escritura durante todo el guardado, incluida la
+     * reconstruccion de la base: leer {@code config} una vez al principio y usarla
+     * despues, sin el bloqueo, permitiria que una recarga la cambiase entre medias y
+     * que el XML y la base acabaran con contenidos distintos.
+     *
+     * <p>El evento de cambio se dispara aqui mismo, en el hilo que guarda, igual que
+     * antes de este refactor. Moverlo al EDT es la parte de T4.6 que no se hace aqui.
+     */
     public SaveResult save() {
+        lock.writeLock().lock();
+        try {
+            return guardar();
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    private SaveResult guardar() {
         if (loadError != null) {
             // H-01: con la carga fallida el modelo puede estar vacio o incompleto.
             // Guardar aqui escribiria eso sobre comunicacion.xml y reconstruiria

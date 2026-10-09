@@ -110,3 +110,31 @@ en dos sitios, y es lo que hay que mirar:
 No se ha tocado ni un hilo: `RequestProcessor`, el `ReadWriteLock` sobre la configuracion
 y mover `fireChange` al EDT siguen pendientes del paso 2. Aqui `save()` sigue siendo
 sincrono y `cs.fireChange()` se sigue llamando desde el hilo que guarda, igual que antes.
+## T4.6 (paso 2) - bloqueo de la configuracion
+
+`HMICommunicationModel` ya no comparte `config`, `loadError` y `repository` sin
+proteccion: el guardado, la recarga y el borrado toman el bloqueo de escritura, y
+los accesores el de lectura.
+
+### Lo que si cubren los tests
+
+- Que una recarga no se cuela en un guardado a medias.
+- Que una lectura espera a que el guardado termine.
+- Que un listener que vuelve a leer el modelo no se cuelga en el mismo hilo.
+
+### Lo que NO cubren los tests (mirar a mano)
+
+- [ ] Guardar un dispositivo mientras se toca `comunicacion.xml` desde fuera: la
+      ventana de NetBeans no debe quedar congelada ni parpadear con datos viejos.
+- [ ] Con dos o mas proyectos de comunicacion abiertos, guardar en uno no debe
+      bloquearel otro.
+- [ ] El aviso de cambio de configuracion sigue apareciendo al guardar, y la
+      lista de dispositivos se refresca sola.
+- [ ] Con la lista de dispositivos abierta y una recarga viniendo del watcher, los
+      nodos no deben desaparecer de forma intermitente.
+
+### Lo que este paso NO cambia
+
+`fireChange()` se sigue lanzando desde el hilo que guarda, no en el EDT: es lo que
+hacia antes y cambiarlo ahora no se podria comprobar sin el runtime de NetBeans.
+`RequestProcessor` tampoco se ha tocado.

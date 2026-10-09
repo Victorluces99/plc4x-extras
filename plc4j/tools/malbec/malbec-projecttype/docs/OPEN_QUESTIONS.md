@@ -341,11 +341,18 @@ al memento existe.
 
 ---
 
-## T2.2 — limpieza de dependencias: BLOQUEADA
+## T2.2 — limpieza de dependencias: PAUSADA
 
-La tarea pide correr `mvn dependency:analyze` y eliminar las dependencias
-"declaradas pero no usadas". **No se puede ejecutar de forma segura en este build, y
-no se ha eliminado ninguna dependencia.**
+**Decision.** La tarea queda en pausa en esta etapa. No se elimina ninguna
+dependencia.
+
+**Motivo aprobado.** Tocar el `malbec/pom.xml` raiz para actualizar
+`maven-dependency-plugin` queda fuera del alcance actual. Y adivinar que
+dependencias del runtime de NetBeans sobran, sin un test de integracion de arranque,
+introduce un riesgo inaceptable de romper la carga por `Lookup` o por `layer.xml`.
+
+El resto de este apartado es la evidencia que sustenta la decision, por si alguien
+quiere retomarla mas adelante.
 
 ### Por que falla la herramienta
 

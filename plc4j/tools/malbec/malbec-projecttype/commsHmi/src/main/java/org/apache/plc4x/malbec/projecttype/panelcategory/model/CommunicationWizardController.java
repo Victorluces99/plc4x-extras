@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationStore;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.SaveResult;
 
 public class CommunicationWizardController {
 
@@ -506,9 +507,9 @@ public class CommunicationWizardController {
                 new ArrayList<>(state.getGroups()),
                 new ArrayList<>(state.getItems()),
                 new ArrayList<>(state.getPvs()));
-        store.upsertComms(state.getSelectedDevice().getUuid(), config);
-        boolean saved = store.save();
-        state.setCambiosSinGuardar(!saved);
-        return saved;
+store.upsertComms(state.getSelectedDevice().getUuid(), config);
+            SaveResult resultado = store.save();
+            state.setCambiosSinGuardar(!resultado.isComplete());
+            return resultado.isComplete();
     }
 }

@@ -36,6 +36,7 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.api.project.Project;
 import org.openide.util.ChangeSupport;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.SaveResult;
 
 public final class HMICommunicationModel implements CommunicationStore {
 
@@ -224,22 +225,27 @@ public final class HMICommunicationModel implements CommunicationStore {
         return config.removeDevice(uuid);
     }
 
-    public boolean save() {
+    public SaveResult save() {
         if (loadError != null) {
             // H-01: con la carga fallida el modelo puede estar vacio o incompleto.
             // Guardar aqui escribiria eso sobre comunicacion.xml y reconstruiria
             // boot.db desde un modelo que nunca se ha podido leer. Se niega, y el
             // motivo queda en el registro.
-            LOGGER.log(Level.SEVERE, "No se guarda nada: la Ãºltima carga de " + CONFIG_FILE
-                    + " fallÃ³, asÃ­ que el modelo no es fiable.", loadError);
-            return false;
+            String motivo = "la carga de " + CONFIG_FILE + " fallo, asi que el modelo en "
+                    + "memoria no es de fiar";
+            LOGGER.log(Level.SEVERE, "No se guarda nada: " + motivo, loadError);
+            return SaveResult.noGuardado(motivo);
         }
         CommConfigStorage configStorage = storage.config();
         if (configStorage == null) {
             try {
                 configStorage = storage.createConfig();
             } catch (IOException ex) {
-                throw new IllegalStateException("No se pudo guardar la configuraciÃ³n de comunicaciones", ex);
+                // Aqui todavia no se ha escrito nada, asi que se puede devolver un
+                // resultado en vez de propagar la excepcion como antes.
+                LOGGER.log(Level.SEVERE, "No se pudo crear el almacen de la configuracion", ex);
+                return SaveResult.noGuardado(
+                        "no se pudo preparar el fichero de configuracion: " + ex.getMessage());
             }
         }
         final CommConfigRepository repo = CommConfigRepositoryLookup.createRepository(configStorage);
@@ -251,21 +257,27 @@ public final class HMICommunicationModel implements CommunicationStore {
                 storage.resumeNotifications();
             }
         } catch (Exception ex) {
-            throw new IllegalStateException("No se pudo guardar la configuraciÃ³n de comunicaciones", ex);
+            LOGGER.log(Level.SEVERE, "No se pudo escribir " + CONFIG_FILE, ex);
+            return SaveResult.noGuardado(
+                    "no se pudo escribir " + CONFIG_FILE + ": " + ex.getMessage());
         }
         repository = repo;
         boolean databaseUpdated;
         try {
             databaseUpdated = BootDbRepository.rebuild(storage.bootDbFolder(), config);
         } catch (Exception ex) {
-            LOGGER.log(Level.WARNING, "Error volcando la configuraciÃ³n a boot.db", ex);
+            LOGGER.log(Level.WARNING, "Error volcando la configuracion a boot.db", ex);
             databaseUpdated = false;
         }
-        if (!databaseUpdated) {
-            LOGGER.warning("boot.db no pudo actualizarse; revise el registro de la aplicaciÃ³n.");
-        }
         cs.fireChange();
-        return databaseUpdated;
+        if (databaseUpdated) {
+            return SaveResult.exito();
+        }
+        // El XML ya esta escrito: no es lo mismo que no haber guardado nada, y quien
+        // llama tiene que poder decirlo.
+        LOGGER.warning("boot.db no pudo actualizarse; revise el registro de la aplicacion.");
+        return SaveResult.parcial(
+                "se escribio " + CONFIG_FILE + " pero no se pudo actualizar boot.db");
     }
 
     public void addChangeListener(ChangeListener cl) {

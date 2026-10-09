@@ -20,8 +20,8 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.nodes;
 
 import java.awt.Frame;
 import javax.swing.JOptionPane;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.SaveResult;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans.HMICommunicationModel;
-import org.openide.util.Exceptions;
 import org.openide.windows.WindowManager;
 
 /**
@@ -69,21 +69,20 @@ final class DeleteDeviceDialog {
             return false;
         }
 
-        boolean baseActualizada;
-        try {
-            baseActualizada = model.save();
-        } catch (RuntimeException ex) {
-            // save() lanza IllegalStateException si falla la escritura del XML, así que sin
-            // este catch el error salía sin avisar. El dispositivo ya está fuera del modelo,
-            // pero persistido sigue como estaba.
-            Exceptions.printStackTrace(ex);
+        // save() ya no lanza por un fallo de escritura: devuelve lo que paso, y aqui
+        // cada caso tiene su aviso porque son tres situaciones distintas para el usuario.
+        SaveResult resultado = model.save();
+
+        if (!resultado.xmlSaved()) {
+            // No se escribio nada: el dispositivo sigue en el fichero, asi que el aviso
+            // no puede insinuar lo contrario.
             JOptionPane.showMessageDialog(ventana,
-                    "No se pudo eliminar '" + nombre + "'.\n\n" + ex.getMessage(),
+                    "No se pudo eliminar '" + nombre + "'.\n\n" + resultado.message(),
                     "Error al eliminar", JOptionPane.ERROR_MESSAGE);
             return false;
         }
 
-        if (!baseActualizada) {
+        if (resultado.isPartial()) {
             JOptionPane.showMessageDialog(ventana,
                     DeviceNodeLabels.mensajeGuardadoParcial(nombre),
                     "Guardado parcial", JOptionPane.WARNING_MESSAGE);
@@ -92,7 +91,7 @@ final class DeleteDeviceDialog {
 
         JOptionPane.showMessageDialog(ventana,
                 DeviceNodeLabels.mensajeBorradoCorrecto(nombre),
-                "Eliminación exitosa", JOptionPane.INFORMATION_MESSAGE);
+                "Eliminaci\u00f3n exitosa", JOptionPane.INFORMATION_MESSAGE);
         return true;
     }
 

@@ -88,3 +88,25 @@ cambioallo quedaria sin comprobar. Anotado para cuando se incluya.
 
 Tambien queda codigo comentado muerto con `System.out` dentro; no se ejecuta, y el test
 de regresion lo admite a proposito, porque lo que K-07 prohibe son llamadas vivas.
+
+## T4.6 (paso 1) - resultado de guardado tipado
+
+`save()` ya no devuelve un `boolean`: devuelve un `SaveResult` que dice por separado si se
+escribio `comunicacion.xml` y si se reconstruyo `boot.db`. Eso cambia lo que ve el usuario
+en dos sitios, y es lo que hay que mirar:
+
+- [ ] Al guardar un dispositivo con la configuracion rota, el aviso dice "No se pudo
+      guardar el dispositivo" y NO dice que se guardo en comunicacion.xml. Antes lo decia
+      aunque no se hubiera escrito nada.
+- [ ] Si el XML se escribe pero `boot.db` no, sigue apareciendo el aviso de "Guardado
+      parcial" con el texto de siempre.
+- [ ] Al borrar un dispositivo, los tres avisos (borrado correcto, guardado parcial y
+      error al eliminar) siguen apareciendo en los mismos casos que antes.
+- [ ] Si el guardado falla al escribir el fichero, el error se ve en un aviso y no solo en
+      la consola. Antes salia como excepcion.
+
+### Lo que este paso NO cambia
+
+No se ha tocado ni un hilo: `RequestProcessor`, el `ReadWriteLock` sobre la configuracion
+y mover `fireChange` al EDT siguen pendientes del paso 2. Aqui `save()` sigue siendo
+sincrono y `cs.fireChange()` se sigue llamando desde el hilo que guarda, igual que antes.

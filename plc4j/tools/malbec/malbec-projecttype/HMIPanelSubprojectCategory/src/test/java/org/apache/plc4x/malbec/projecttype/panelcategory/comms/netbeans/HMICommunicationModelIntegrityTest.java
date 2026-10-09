@@ -205,7 +205,7 @@ class HMICommunicationModelIntegrityTest {
         assertTrue(model.getLoadError().isPresent(),
                 "un XML danado tiene que dejar constancia del fallo");
 
-        assertFalse(model.save(),
+        assertFalse(model.save().xmlSaved(),
                 "H-01: con la carga fallida, guardar tiene que negarse");
 
         assertFalse(new File(tempDir.toFile(), "boot.db").exists(),
@@ -219,7 +219,7 @@ class HMICommunicationModelIntegrityTest {
         InMemoryProjectStorage storage = new InMemoryProjectStorage("llenadora", tempDir.toFile())
                 .withFile(HMICommunicationModel.CONFIG_FILE, XML_ROTO);
         HMICommunicationModel model = new HMICommunicationModel(storage);
-        assertFalse(model.save(), "precondiciÃ³n: con el XML roto no se guarda");
+        assertFalse(model.save().xmlSaved(), "precondiciÃ³n: con el XML roto no se guarda");
 
         storage.withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO);
         storage.fireChanged();
@@ -227,7 +227,7 @@ class HMICommunicationModelIntegrityTest {
         assertTrue(model.getLoadError().isEmpty(),
                 "una carga correcta tiene que limpiar el error anterior");
         assertEquals(1, model.getDevices().size());
-        assertTrue(model.save(),
+        assertTrue(model.save().isComplete(),
                 "H-01: reparado el fichero, guardar vuelve a estar permitido");
         assertTrue(new File(tempDir.toFile(), "boot.db").exists(),
                 "con el modelo cargado, boot.db si se reconstruye");
@@ -245,7 +245,7 @@ class HMICommunicationModelIntegrityTest {
         assertEquals(0, model.getDevices().size(),
                 "precondiciÃ³n: sin lectura no hay dispositivos en memoria");
 
-        assertFalse(model.save(),
+        assertFalse(model.save().xmlSaved(),
                 "H-01: el archivo es escribible, asi que sin guarda se perderian sus datos");
 
         assertEquals(XML_CON_UN_DISPOSITIVO, storage.contentOf(HMICommunicationModel.CONFIG_FILE),

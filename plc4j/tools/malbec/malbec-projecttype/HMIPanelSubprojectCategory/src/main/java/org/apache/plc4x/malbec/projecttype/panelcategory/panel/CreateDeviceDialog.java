@@ -34,10 +34,11 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.KeyStroke;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationStore;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.SaveResult;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans.HMICommunicationModel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.netbeans.api.project.Project;
 import org.openide.filesystems.FileUtil;
-import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 
 public final class CreateDeviceDialog extends JDialog {
 
@@ -119,7 +120,16 @@ public final class CreateDeviceDialog extends JDialog {
         }
 
         store.upsertDevice(data);
-        if (!store.save()) {
+        SaveResult resultado = store.save();
+        if (!resultado.xmlSaved()) {
+            // Antes este mismo aviso decia "se guardó en comunicacion.xml" incluso
+            // cuando no se habia escrito nada, porque el booleano no lo distinguia.
+            JOptionPane.showMessageDialog(this,
+                    "No se pudo guardar el dispositivo:\n\n" + resultado.message(),
+                    "Error al guardar", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (resultado.isPartial()) {
             JOptionPane.showMessageDialog(this,
                     "El dispositivo se guardó en comunicacion.xml pero no se pudo\n"
                     + "actualizar la base de datos. Revisá la consola.",

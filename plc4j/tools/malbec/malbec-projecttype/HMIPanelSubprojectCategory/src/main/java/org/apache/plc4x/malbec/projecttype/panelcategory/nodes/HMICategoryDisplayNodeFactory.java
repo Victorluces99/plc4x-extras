@@ -26,6 +26,7 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryDuplicateDisplayAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryOpenPhoebusAction;
+import org.apache.plc4x.malbec.projecttype.panelcategory.CategoryIcons;
 import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.api.project.Project;
 import org.netbeans.spi.project.ui.support.NodeFactory;
@@ -180,7 +181,7 @@ public class HMICategoryDisplayNodeFactory implements NodeFactory {
             super(dataObject, Children.LEAF);
             this.fileObject = fileObject;
 
-            String iconBase = "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png";
+            String iconBase = CategoryIcons.DEFAULT;
             if (iconBase != null && !iconBase.isEmpty()) {
                 setIconBaseWithExtension(iconBase);
             }

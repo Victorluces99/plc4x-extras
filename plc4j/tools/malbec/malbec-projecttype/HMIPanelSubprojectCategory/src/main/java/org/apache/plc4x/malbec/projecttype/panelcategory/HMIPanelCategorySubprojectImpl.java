@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Optional;
 import javax.swing.Action;
 import javax.swing.Icon;
-import javax.swing.ImageIcon;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateCommAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDeviceAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDisplayAction;
@@ -103,7 +102,7 @@ public class HMIPanelCategorySubprojectImpl implements Project {
 
         @Override
         public Icon getIcon() {
-            return new ImageIcon(ImageUtilities.loadImage(PROJECT_ICON));
+            return ImageUtilities.loadImageIcon(PROJECT_ICON, false);
         }
 
         @Override

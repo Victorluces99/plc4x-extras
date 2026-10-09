@@ -23,6 +23,7 @@ import java.util.List;
 import javax.swing.Action;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import org.apache.plc4x.malbec.projecttype.panelcategory.CategoryIcons;
 import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectManager;
@@ -177,7 +178,7 @@ public class HMICategoryNestedSubprojectNodeFactory implements NodeFactory {
                 super(dataObject, Children.LEAF);
                 this.fileObject = fileObject;
 
-                String iconBase = "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png";
+                String iconBase = CategoryIcons.DEFAULT;
                 if (iconBase != null && !iconBase.isEmpty()) {
                     setIconBaseWithExtension(iconBase);
                 }

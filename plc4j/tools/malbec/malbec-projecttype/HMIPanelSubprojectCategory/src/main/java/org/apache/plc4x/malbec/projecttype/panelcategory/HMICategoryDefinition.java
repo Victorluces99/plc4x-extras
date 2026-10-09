@@ -36,25 +36,25 @@ package org.apache.plc4x.malbec.projecttype.panelcategory;
 public enum HMICategoryDefinition {
 
     IMAGE("image", "Image", null, null,
-            "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+            CategoryIcons.DEFAULT),
     COMUNICATION("communication", "Comunicacion", null, null,
-            "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/comm.png"),
+            CategoryIcons.COMMUNICATION),
     NOTICE_MANAGEMENT("warning-management", "Gestion de Avisos", "wmg", "base.wmg",
-            "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+            CategoryIcons.DEFAULT),
     RECIPE("recipe", "Recetas", "rcp", "base.rcp",
-            "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+            CategoryIcons.DEFAULT),
     HISTORIAL("history", "Historial", "record", "record.record",
-            "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+            CategoryIcons.DEFAULT),
     SCRIPTS("scripts", "Scripts", "scp", "base.scp",
-            "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+            CategoryIcons.DEFAULT),
     REPORT("report", "Informes", "rpt", "base.rpt",
-            "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+            CategoryIcons.DEFAULT),
     TEXT_GRAPHIC("text-and-list-charts", "Texto y Lista de graficos", "tlc", "base.tlc",
-            "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+            CategoryIcons.DEFAULT),
     ADMIN_USER("runtime-user-management", "Administracion de Usuarios runtime", "rtum", "base.rtum",
-            "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
+            CategoryIcons.DEFAULT),
     CONFIG_PANEL("operator-panel-config", "Configuracion de panel de operador", "oppc", "base.oppc",
-            "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png");
+            CategoryIcons.DEFAULT);
 
     private final String id;
     private final String displayName;

@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
-import org.apache.plc4x.malbec.projecttype.panelcategory.stub.NoopCommunicationStore;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.NoopCommunicationStore;
 
 class CreateDevicePanelTest {
 

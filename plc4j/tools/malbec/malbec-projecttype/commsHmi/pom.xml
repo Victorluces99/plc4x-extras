@@ -49,6 +49,20 @@ under the License.
                         <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
                     </archive>
                 </configuration>
+                <executions>
+                    <!--
+                      T3.11. Publica tambien el arbol de pruebas como test-jar para que
+                      HMIPanelSubprojectCategory pueda reutilizar los dobles en vez de
+                      mantener copias. Sin esto, NoopCommunicationStore living en dos
+                      paquetes que podian divergir sin que nada lo notara.
+                    -->
+                    <execution>
+                        <id>test-jar</id>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.xmlbeans</groupId>

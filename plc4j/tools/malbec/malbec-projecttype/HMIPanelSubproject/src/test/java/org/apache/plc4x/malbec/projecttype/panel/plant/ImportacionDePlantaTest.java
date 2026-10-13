@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.plc4x.malbec.projecttype.panel.action;
+package org.apache.plc4x.malbec.projecttype.panel.plant;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,6 +31,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.plc4x.malbec.projecttype.panel.plant.PlantSnapshot.AreaNode;
+import org.apache.plc4x.malbec.projecttype.panel.plant.PlantSnapshot.Variable;
 import org.apache.plc4x.malbec.s88.api.S88Element;
 import org.apache.plc4x.malbec.s88.api.S88Level;
 import org.apache.plc4x.malbec.s88.api.S88Repository;
@@ -38,43 +40,43 @@ import org.apache.plc4x.malbec.s88.api.S88RepositoryProvider;
 import org.apache.plc4x.malbec.s88.api.S88Storage;
 import org.junit.jupiter.api.Test;
 
-public class HMIPanelImportActionTest {
+class ImportacionDePlantaTest {
 
     @Test
     void extensionValida() {
-        assertTrue(HMIPanelImportAction.extensionAdmitida(new File("planta.xml")));
-        assertTrue(HMIPanelImportAction.extensionAdmitida(new File("PLANTA.XML")),
+        assertTrue(FormatosDeImportacion.extensionAdmitida(new File("planta.xml")));
+        assertTrue(FormatosDeImportacion.extensionAdmitida(new File("PLANTA.XML")),
                 "la extension no deberia distinguir mayusculas");
     }
 
     @Test
     void extensionInvalida() {
-        assertFalse(HMIPanelImportAction.extensionAdmitida(new File("planta.txt")));
-        assertFalse(HMIPanelImportAction.extensionAdmitida(new File("planta.csv")));
-        assertFalse(HMIPanelImportAction.extensionAdmitida(new File("planta")),
+        assertFalse(FormatosDeImportacion.extensionAdmitida(new File("planta.txt")));
+        assertFalse(FormatosDeImportacion.extensionAdmitida(new File("planta.csv")));
+        assertFalse(FormatosDeImportacion.extensionAdmitida(new File("planta")),
                 "un archivo sin extension no es una planta");
-        assertFalse(HMIPanelImportAction.extensionAdmitida(new File("planta.")),
+        assertFalse(FormatosDeImportacion.extensionAdmitida(new File("planta.")),
                 "un punto final no cuenta como extension");
     }
 
     @Test
     void soloXmlEstaDeclarado() {
-        assertEquals(List.of("xml"), List.copyOf(HMIPanelImportAction.FORMATOS.keySet()));
-        assertEquals("Modelo de planta (*.xml)", HMIPanelImportAction.FORMATOS.get("xml"));
+        assertEquals(List.of("xml"), List.copyOf(FormatosDeImportacion.FORMATOS.keySet()));
+        assertEquals("Modelo de planta (*.xml)", FormatosDeImportacion.FORMATOS.get("xml"));
     }
 
     @Test
     void elFiltroYLaValidacionCoinciden() {
-        for (String extension : HMIPanelImportAction.FORMATOS.keySet()) {
+        for (String extension : FormatosDeImportacion.FORMATOS.keySet()) {
             File archivo = new File("planta." + extension);
-            assertTrue(HMIPanelImportAction.extensionAdmitida(archivo),
+            assertTrue(FormatosDeImportacion.extensionAdmitida(archivo),
                     "el filtro deja ver ." + extension + " pero la validacion lo rechaza");
         }
     }
 
     @Test
     void elFiltroDelChooserAdmiteSoloXml() {
-        FilenameFilter filtro = HMIPanelImportAction.filtroDeArchivo();
+        FilenameFilter filtro = FormatosDeImportacion.filtroDeArchivo();
         File directorio = new File(".");
 
         assertTrue(filtro.accept(directorio, "planta.xml"));
@@ -85,7 +87,7 @@ public class HMIPanelImportActionTest {
 
     @Test
     void elFiltroDelChooserDejaVerLasCarpetas() {
-        FilenameFilter filtro = HMIPanelImportAction.filtroDeArchivo();
+        FilenameFilter filtro = FormatosDeImportacion.filtroDeArchivo();
 
         assertTrue(filtro.accept(new File("."), "."),
                 "sin esto no se podria navegar a una subcarpeta");
@@ -93,36 +95,36 @@ public class HMIPanelImportActionTest {
 
     @Test
     void formatosAdmitidosSeMuestranParaElUsuario() {
-        assertTrue(HMIPanelImportAction.formatosAdmitidos().contains("(*.xml)"));
+        assertTrue(FormatosDeImportacion.formatosAdmitidos().contains("(*.xml)"));
     }
 
     @Test
     void cadaFormatoDeclaradoLoAceptaAlgunProvider() {
-        assertTrue(HMIPanelImportAction.formatosSinProvider(
+        assertTrue(FormatosDeImportacion.formatosSinProvider(
                         List.of(new ProviderQueSoloAcepta("xml")),
-                        HMIPanelImportAction.FORMATOS.keySet()).isEmpty(),
+                        FormatosDeImportacion.FORMATOS.keySet()).isEmpty(),
                 "xml esta declarado y hay un provider que lo acepta");
     }
 
     @Test
     void unFormatoSinProviderSeDetecta() {
-        assertEquals(Set.of("xml"), HMIPanelImportAction.formatosSinProvider(
+        assertEquals(Set.of("xml"), FormatosDeImportacion.formatosSinProvider(
                 List.of(new ProviderQueSoloAcepta("otro")),
-                HMIPanelImportAction.FORMATOS.keySet()),
+                FormatosDeImportacion.FORMATOS.keySet()),
                 "debe avisar si el provider no acepta el formato declarado");
     }
 
     @Test
     void unProviderQueAceptaVariosFormatosCubreTodos() {
-        assertTrue(HMIPanelImportAction.formatosSinProvider(
+        assertTrue(FormatosDeImportacion.formatosSinProvider(
                 List.of(new ProviderQueSoloAcepta("xml"), new ProviderQueSoloAcepta("axml")),
                 List.of("xml", "axml")).isEmpty());
     }
 
     @Test
     void sinProvidersTodoDeclaradoQuedaSinProvider() {
-        assertEquals(Set.of("xml"), HMIPanelImportAction.formatosSinProvider(
-                List.of(), HMIPanelImportAction.FORMATOS.keySet()));
+        assertEquals(Set.of("xml"), FormatosDeImportacion.formatosSinProvider(
+                List.of(), FormatosDeImportacion.FORMATOS.keySet()));
     }
 
 /**
@@ -145,7 +147,7 @@ void elAvisoDeFormatosDesalineadosNoEstaEnElCaminoDeCadaImportacion() throws Exc
 
     var constructor = fuente.substring(
             fuente.indexOf("public HMIPanelImportAction(FileObject panel)"),
-            fuente.indexOf("static String extensionDe"));
+            fuente.indexOf("@Override"));
     assertTrue(constructor.contains("avisarFormatosDesalineados()"),
             "el aviso debe pedirlo el constructor, una vez al construir la accion");
 
@@ -157,7 +159,7 @@ void elAvisoDeFormatosDesalineadosNoEstaEnElCaminoDeCadaImportacion() throws Exc
 /** El aviso se pide contra el Lookup real y no debe lanzar si no hay providers. */
 @Test
 void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
-    assertDoesNotThrow(HMIPanelImportAction::avisarFormatosDesalineados);
+    assertDoesNotThrow(FormatosDeImportacion::avisarFormatosDesalineados);
 }
 
     private record ProviderQueSoloAcepta(String formato) implements S88RepositoryProvider {
@@ -181,36 +183,35 @@ void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
         cell.addChild(equipo);
         area.addChild(cell);
 
-        LinkedHashMap<String, Object> snapshot =
-                HMIPanelImportAction.collectElement(area);
+        AreaNode snapshot = PlantSnapshot.collectElement(area);
 
-        assertEquals("CELDA1", snapshot.get("id"));
-        assertEquals("area", snapshot.get("tag"));
+        assertEquals("CELDA1", snapshot.id());
+        assertEquals("area", snapshot.tag());
 
-        List<?> hijos = (List<?>) snapshot.get("children");
+        List<AreaNode> hijos = snapshot.children();
         assertEquals(1, hijos.size());
 
-        Map<?, ?> celda = (Map<?, ?>) hijos.get(0);
-        assertEquals("CELDA1_P1", celda.get("id"));
-        assertEquals("processcell", celda.get("tag"));
+        AreaNode celda = hijos.get(0);
+        assertEquals("CELDA1_P1", celda.id());
+        assertEquals("processcell", celda.tag());
 
-        Map<?, ?> tanque = (Map<?, ?>) ((List<?>) celda.get("children")).get(0);
-        assertEquals("TANQUE_1", tanque.get("id"));
-        assertEquals("element", tanque.get("tag"),
+        AreaNode tanque = celda.children().get(0);
+        assertEquals("TANQUE_1", tanque.id());
+        assertEquals("element", tanque.tag(),
                 "UNIT no tiene tag propio y cae en element; ver el javadoc de tagFor()");
     }
 
     @Test
     void tagForCaeEnElementParaLosNivelesQueNoTienenTagPropio() {
-        assertEquals("element", HMIPanelImportAction.tagFor(new S88Element()));
+        assertEquals("element", PlantSnapshot.tagFor(new S88Element()));
         assertEquals("element",
-                HMIPanelImportAction.tagFor(new S88Element().setLevel(S88Level.EQUIPMENTMODULE)));
+                PlantSnapshot.tagFor(new S88Element().setLevel(S88Level.EQUIPMENTMODULE)));
         assertEquals("element",
-                HMIPanelImportAction.tagFor(new S88Element().setLevel(S88Level.NULL)));
+                PlantSnapshot.tagFor(new S88Element().setLevel(S88Level.NULL)));
         assertEquals("area",
-                HMIPanelImportAction.tagFor(new S88Element().setLevel(S88Level.AREA)));
+                PlantSnapshot.tagFor(new S88Element().setLevel(S88Level.AREA)));
         assertEquals("processcell",
-                HMIPanelImportAction.tagFor(new S88Element().setLevel(S88Level.PROCESSCELL)));
+                PlantSnapshot.tagFor(new S88Element().setLevel(S88Level.PROCESSCELL)));
     }
 
     @Test
@@ -233,15 +234,15 @@ void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
         enReports.put("Historico", tipoReporte);
         area.setProperty("Reports", new LinkedHashMap<>(Map.of("Historico", enReports)));
 
-        LinkedHashMap<String, Object> snapshot = HMIPanelImportAction.collectElement(area);
+        AreaNode snapshot = PlantSnapshot.collectElement(area);
 
-        assertEquals(1, ((List<?>) snapshot.get("variables")).size());
-        assertEquals(1, ((List<?>) snapshot.get("parameters")).size());
-        assertEquals(1, ((List<?>) snapshot.get("report")).size());
+        assertEquals(1, snapshot.variables().size());
+        assertEquals(1, snapshot.parameters().size());
+        assertEquals(1, snapshot.report().size());
 
-        Map<?, ?> variable = (Map<?, ?>) ((List<?>) snapshot.get("variables")).get(0);
-        assertEquals("Temperatura", variable.get("name"));
-        assertEquals("REAL", variable.get("type"));
+        Variable variable = snapshot.variables().get(0);
+        assertEquals("Temperatura", variable.name());
+        assertEquals("REAL", variable.type());
     }
 
     @Test
@@ -251,31 +252,31 @@ void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
         sinTipo.put("Otro", "valor");
         nodo.put("VariableSinTipo", sinTipo);
 
-        List<Object> collected = HMIPanelImportAction.collectVariables(nodo);
+        List<Variable> collected = PlantSnapshot.collectVariables(nodo);
 
         assertTrue(collected.isEmpty(), "una variable sin Type no debe entrar en el snapshot");
     }
 
     @Test
     void variableNormalizaElTipoAusente() {
-        assertEquals("", HMIPanelImportAction.variable("Nombre", null).get("type"));
+        assertEquals("", PlantSnapshot.variable("Nombre", null).type());
     }
 
     @Test
     void unAreaSinIdNoRompeElSnapshot() {
-        LinkedHashMap<String, Object> snapshot =
-                HMIPanelImportAction.collectElement(new S88Element().setLevel(S88Level.AREA));
-        assertEquals("", snapshot.get("id"));
-        assertTrue(((List<?>) snapshot.get("variables")).isEmpty(),
+        AreaNode snapshot =
+                PlantSnapshot.collectElement(new S88Element().setLevel(S88Level.AREA));
+        assertEquals("", snapshot.id());
+        assertTrue(snapshot.variables().isEmpty(),
                 "sin propiedades la lista queda vacia, no nula");
-        assertTrue(((List<?>) snapshot.get("children")).isEmpty());
+        assertTrue(snapshot.children().isEmpty());
     }
 
     // ------------------------------------------------------- H-08(a)
 
     @Test
     void sinCarpetaImageLaImportacionEsUnFalloExplicito() {
-        String problema = HMIPanelImportAction.problemaDelDestino(null);
+        String problema = PlantImporter.problemaDelDestino(null);
 
         assertTrue(problema != null && !problema.isBlank(),
                 "H-08(a): sin la carpeta 'image' hay que informar del fallo");
@@ -289,7 +290,7 @@ void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
 
     @Test
     void unIdConTraversalSeRechaza() {
-        String problema = HMIPanelImportAction.problemaDeNombre("../../etc/passwd");
+        String problema = PlantImporter.problemaDeNombre("../../etc/passwd");
 
         assertTrue(problema != null, "H-08(d): '..' no puede usarse como nombre de carpeta");
         assertTrue(problema.contains("fuera del panel"),
@@ -299,7 +300,7 @@ void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
     @Test
     void unIdConSeparadorDeRutaSeRechaza() {
         for (String id : new String[]{"a/b", "a\\b", "a:b", "a*b", "a?b", "a\"b", "a<b", "a>b", "a|b"}) {
-            String problema = HMIPanelImportAction.problemaDeNombre(id);
+            String problema = PlantImporter.problemaDeNombre(id);
 
             assertTrue(problema != null,
                     "H-08(d): el identificador '" + id + "' no puede usarse como carpeta");
@@ -308,29 +309,29 @@ void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
 
     @Test
     void unIdSinTraversalSeRechazaPorLaBarraPunts() {
-        assertTrue(HMIPanelImportAction.problemaDeNombre("..") != null);
-        assertTrue(HMIPanelImportAction.problemaDeNombre("area/../otra") != null);
-        assertTrue(HMIPanelImportAction.problemaDeNombre("a..b") != null);
+        assertTrue(PlantImporter.problemaDeNombre("..") != null);
+        assertTrue(PlantImporter.problemaDeNombre("area/../otra") != null);
+        assertTrue(PlantImporter.problemaDeNombre("a..b") != null);
     }
 
     @Test
     void unIdNuloOVacioSeRechaza() {
-        assertTrue(HMIPanelImportAction.problemaDeNombre(null) != null);
-        assertTrue(HMIPanelImportAction.problemaDeNombre("") != null);
-        assertTrue(HMIPanelImportAction.problemaDeNombre("   ") != null);
+        assertTrue(PlantImporter.problemaDeNombre(null) != null);
+        assertTrue(PlantImporter.problemaDeNombre("") != null);
+        assertTrue(PlantImporter.problemaDeNombre("   ") != null);
     }
 
     @Test
     void unIdNormalSeAcepta() {
         for (String id : new String[]{"Llenadora", "area_1", "Zona-A", "tanque02", "Área Ñ"}) {
-            assertTrue(HMIPanelImportAction.problemaDeNombre(id) == null,
+            assertTrue(PlantImporter.problemaDeNombre(id) == null,
                     "el identificador '" + id + "' es valido y debe aceptarse");
         }
     }
 
     @Test
     void unIdValidoSeRecortaAntesDeComprobar() {
-        assertTrue(HMIPanelImportAction.problemaDeNombre("  Llenadora  ") == null,
+        assertTrue(PlantImporter.problemaDeNombre("  Llenadora  ") == null,
                 "los espacios alrededor se recortan, como ya se hacia con areaId");
     }
 
@@ -342,7 +343,7 @@ void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
         intermedio.addChild(culpable);
         raiz.addChild(intermedio);
 
-        String problema = HMIPanelImportAction.primerNombreInvalido(raiz);
+        String problema = PlantImporter.primerNombreInvalido(raiz);
 
         assertTrue(problema != null && problema.contains("sub/carpeta"),
                 "H-08(d): hay que encontrar el id invalido aunque este anidado: " + problema);
@@ -355,13 +356,13 @@ void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
         hijo.addChild(nodo("Tanque-02"));
         raiz.addChild(hijo);
 
-        assertTrue(HMIPanelImportAction.primerNombreInvalido(raiz) == null);
+        assertTrue(PlantImporter.primerNombreInvalido(raiz) == null);
     }
 
     @Test
     void unArbolVacioNoDaProblema() {
-        assertTrue(HMIPanelImportAction.primerNombreInvalido(null) == null);
-        assertTrue(HMIPanelImportAction.primerNombreInvalido(nodo("SinHijos")) == null);
+        assertTrue(PlantImporter.primerNombreInvalido(null) == null);
+        assertTrue(PlantImporter.primerNombreInvalido(nodo("SinHijos")) == null);
     }
 
     private static S88Element nodo(String id) {

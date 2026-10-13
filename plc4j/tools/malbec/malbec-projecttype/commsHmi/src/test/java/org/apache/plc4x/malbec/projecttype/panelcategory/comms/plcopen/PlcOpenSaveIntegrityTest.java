@@ -30,8 +30,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Properties;
-import java.util.function.BooleanSupplier;
-import java.util.function.Consumer;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRepository;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigStorage;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationsConfig;
@@ -40,23 +38,22 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.junit.jupiter.api.Test;
 
 /**
- * Caracterizacion de H-02: la escritura de {@code comunicacion.xml} trunca el
- * archivo antes de tener el contenido listo.
+ * H-02: la escritura de {@code comunicacion.xml} no puede perder lo anterior.
  *
- * <p>{@code save()} abre el destino con {@code storage.create()} y solo despues
- * serializa. Con un {@code FileObject} real, {@code getOutputStream()} vacia el
- * archivo en ese instante, asi que un fallo a mitad de la serialización deja el
- * archivo vacio o truncado y el contenido anterior perdido.
+ * <p>Antes, {@code save()} pedia el destino con {@code storage.create()} y solo despues
+ * serializaba. Con un {@code FileObject} real, {@code getOutputStream()} vacia el archivo
+ * en ese instante, asi que un fallo a mitad de la serializacion lo dejaba vacio o
+ * truncado y con el se perdian todos los dispositivos que el usuario habia configurado.
  *
- * <p>{@link TruncatingStorage} reproduce ese orden de operaciones, que es lo que
- * hace {@code ProjectFileStorage}. Estos tests describen el fallo actual, no el
- * comportamiento deseado.
+ * <p>Ahora se serializa entero en memoria y se entrega al almacenamiento con un solo
+ * {@code write(byte[])}. Este test comprueba que un fallo al guardar deja el contenido
+ * anterior intacto, que es justo lo que se perdia.
  */
 class PlcOpenSaveIntegrityTest {
 
     @Test
-    void unaEscrituraFallidaDejaElArchivoVacio() throws Exception {
-        TruncatingStorage storage = new TruncatingStorage();
+    void unaEscrituraFallidaDejaElArchivoComoEstaba() throws Exception {
+        AtomicStorage storage = new AtomicStorage();
         CommConfigRepository repo = new PlcOpenCommConfigRepositoryImpl(storage);
 
         repo.save(configCon(1));
@@ -67,30 +64,39 @@ class PlcOpenSaveIntegrityTest {
         assertThrows(Exception.class, () -> repo.save(configCon(20)),
                 "la escritura debe fallar a mitad");
 
-        assertNotEquals(anterior, storage.text(),
-                "H-02: el contenido anterior se pierde; el archivo queda vacio o truncado"
-                        + " porque se trunca antes de serializar");
-        assertFalse(storage.text().contains("PLC_1"),
-                "H-02: ningun resto del contenido anterior sobrevive al fallo");
+        assertEquals(anterior, storage.text(),
+                "H-02: un fallo al guardar no puede cambiar lo que habia escrito");
+        assertTrue(storage.text().contains("PLC_1"),
+                "H-02: el dispositivo de la escritura anterior tiene que seguir ahi");
+        assertFalse(storage.text().contains("PLC_20"),
+                "H-02: el contenido a medias no debe aplicarse");
     }
 
+    /**
+     * El destino no se toca hasta tener el documento entero.
+     *
+     * <p>Con la implementacion anterior, pedir el destino ya lo vaciaba, y solo faltaba
+     * que la serializacion fallara para perderlo. Aqui el almacenamiento registra cada
+     * escritura y se comprueba que nunca recibe una llamada a {@code create()}.
+     */
     @Test
-    void elArchivoSeTruncaEnElMomentoDeAbrirlo() throws Exception {
-        TruncatingStorage storage = new TruncatingStorage();
+    void noSePideElDestinoHastaTenerElDocumentoEntero() throws Exception {
+        AtomicStorage storage = new AtomicStorage();
         CommConfigRepository repo = new PlcOpenCommConfigRepositoryImpl(storage);
-        repo.save(configCon(1));
-        String anterior = storage.text();
 
-        // Solo abrir el destino, sin escribir nada, ya destruye lo anterior.
-        storage.text = "";
+        repo.save(configCon(3));
 
-        assertNotEquals(anterior, storage.text(),
-                "H-02: crear el destino basta para perder el contenido previo");
+        assertEquals(0, storage.vecesCreate,
+                "save() no debe usar create(), que trunca el archivo al abrirlo");
+        assertEquals(1, storage.vecesWrite, "el contenido se entrega de una vez");
+        assertTrue(storage.ultimoContenido.length > 0);
+        assertTrue(new String(storage.ultimoContenido, StandardCharsets.UTF_8).contains("PLC_3"),
+                "lo entregado es el documento completo, no un trozo");
     }
 
     @Test
     void unaEscrituraCorrectaSiReemplazaElContenido() throws Exception {
-        TruncatingStorage storage = new TruncatingStorage();
+        AtomicStorage storage = new AtomicStorage();
         CommConfigRepository repo = new PlcOpenCommConfigRepositoryImpl(storage);
 
         repo.save(configCon(1));
@@ -103,6 +109,24 @@ class PlcOpenSaveIntegrityTest {
         assertEquals(3, ocurrencias(storage.text(), "<configuration "),
                 "el guardado es un reemplazo completo: queda un <configuration> por"
                         + " dispositivo y nada del contenido anterior");
+    }
+
+    /** Tras un fallo, el siguiente guardado correcto funciona con normalidad. */
+    @Test
+    void despuesDeUnFalloSePuedeGuardarOtraVez() throws Exception {
+        AtomicStorage storage = new AtomicStorage();
+        CommConfigRepository repo = new PlcOpenCommConfigRepositoryImpl(storage);
+        repo.save(configCon(1));
+
+        storage.fallarAlEscribir = true;
+        assertThrows(Exception.class, () -> repo.save(configCon(5)));
+        storage.fallarAlEscribir = false;
+
+        repo.save(configCon(2));
+
+        assertEquals(2, ocurrencias(storage.text(), "<configuration "),
+                "el fallo anterior no dejo el almacenamiento en un estado raro");
+        assertFalse(storage.text().contains("PLC_5"));
     }
 
     private static CommunicationsConfig configCon(int numeroDeDispositivos) {
@@ -147,14 +171,19 @@ class PlcOpenSaveIntegrityTest {
     }
 
     /**
-     * Reproduce el orden de operaciones de {@code ProjectFileStorage}: el contenido
-     * anterior se pierde en cuanto se pide el destino, y lo que se haya escrito a
-     * medias se aplica al cerrar, incluso tras una excepcion.
+     * Almacenamiento que reemplaza el contenido de una vez, como debe hacer uno correcto.
+     *
+     * <p>Escribe primero en memoria y solo aplica el resultado si la escritura termina;
+     * si falla, el contenido anterior sigue intacto. Es el comportamiento que ahora
+     * espera la interfaz, y el que implementa {@code ProjectFileStorage} con su lock.
      */
-    private static final class TruncatingStorage implements CommConfigStorage {
+    private static final class AtomicStorage implements CommConfigStorage {
 
         private String text = "";
         private boolean fallarAlEscribir;
+        private int vecesCreate;
+        private int vecesWrite;
+        private byte[] ultimoContenido = new byte[0];
 
         String text() {
             return text;
@@ -167,50 +196,37 @@ class PlcOpenSaveIntegrityTest {
 
         @Override
         public OutputStream create() {
+            vecesCreate++;
+            // create() es la via antigua: trunca de inmediato. Se conserva para que un
+            // test pueda comprobar que save() ya no la usa.
             text = "";
-            return new BufferConFallo(() -> fallarAlEscribir, written -> {
-                text = written;
-            });
-        }
-    }
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            return new OutputStream() {
+                @Override
+                public void write(int b) {
+                    buffer.write(b);
+                }
 
-    /**
-     * Buffer de escritura que puede fallar por falta de espacio. Al cerrarse,
-     * incluso tras una excepcion, aplica lo que haya quedado: es lo que hace un
-     * fichero real cuando la escritura se interrumpe a medias.
-     */
-    private static final class BufferConFallo extends OutputStream {
+                @Override
+                public void write(byte[] b, int off, int len) {
+                    buffer.write(b, off, len);
+                }
 
-        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        private final BooleanSupplier falla;
-        private final Consumer<String> alCerrar;
-
-        BufferConFallo(BooleanSupplier falla, Consumer<String> alCerrar) {
-            this.falla = falla;
-            this.alCerrar = alCerrar;
+                @Override
+                public void close() {
+                    text = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
+                }
+            };
         }
 
         @Override
-        public void write(int b) throws IOException {
-            comprobar();
-            buffer.write(b);
-        }
-
-        @Override
-        public void write(byte[] b, int off, int len) throws IOException {
-            comprobar();
-            buffer.write(b, off, len);
-        }
-
-        @Override
-        public void close() {
-            alCerrar.accept(new String(buffer.toByteArray(), StandardCharsets.UTF_8));
-        }
-
-        private void comprobar() throws IOException {
-            if (falla.getAsBoolean()) {
+        public void write(byte[] contenido) throws IOException {
+            vecesWrite++;
+            ultimoContenido = contenido;
+            if (fallarAlEscribir) {
                 throw new IOException("no hay espacio en el dispositivo");
             }
+            text = new String(contenido, StandardCharsets.UTF_8);
         }
     }
 }

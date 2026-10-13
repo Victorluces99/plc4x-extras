@@ -20,9 +20,9 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.nodes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,24 +31,8 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.HMICategoryDefinition;
 import org.junit.jupiter.api.Test;
 import org.netbeans.spi.project.ui.support.NodeFactory;
 
-/**
- * Las ocho factories de categoria tras T4.2.
- *
- * <p>Lo que estas clases hacen dentro de NetBeans no se puede comprobar sin el IDE: si el
- * arbol se ve igual, si los nodos se refrescan al crear un fichero, si la posicion en el
- * arbol es la de antes. Eso queda pendiente de validacion manual.
- *
- * <p>Lo que si se puede comprobar es justo lo que T4.2 cambia y que nadie veria en el arbol:
- * que cada clase apunte a su categoria y no a la de al lado, y que conserve la posicion que
- * tenia. Una clase con la categoria equivocada seguiria mostrando ficheros, solo que los
- * equivocados, y eso no se percibe hasta que alguien busca un fichero y no aparece.
- *
- * <p>Las posiciones se leen de la anotacion, que es la unica fuente: no hay una constante
- * que pueda desincronizarse de ella.
- */
 class CategoryNodeFactoryConsolidationTest {
 
-    /** Factory -> (categoria, posicion que tenia antes de T4.2). */
     private static final Map<Class<?>, Object[]> ESPERADO = new LinkedHashMap<>();
 
     static {
@@ -97,9 +81,6 @@ class CategoryNodeFactoryConsolidationTest {
 
     @Test
     void cadaFactoryConservaSuPosicionEnElArbol() throws Exception {
-        // La anotacion no se puede leer por reflexion: NetBeans la procesa al compilar y
-        // no queda en el class. Lo que se comprueba es que la anotacion apunte a la
-        // posicion, leyendo el fuente, y que esa posicion sea la de antes de T4.2.
         for (Map.Entry<Class<?>, Object[]> entrada : ESPERADO.entrySet()) {
             int esperado = (Integer) entrada.getValue()[1];
             String fuente = leerFuente(entrada.getKey());
@@ -107,7 +88,6 @@ class CategoryNodeFactoryConsolidationTest {
             assertTrue(fuente.contains("position = " + referenciaDePosicion(entrada.getKey())),
                     entrada.getKey().getSimpleName() + " deberia usar "
                             + referenciaDePosicion(entrada.getKey()) + " en la anotacion");
-            // En el fuente sale el NOMBRE de la constante, no su valor.
             assertTrue(fuente.contains("projectType = ProjectIds.CATEGORY_PROJECT_TYPE"),
                     entrada.getKey().getSimpleName() + ": el projectType debe venir de "
                             + "ProjectIds, para que cambiarlo en un solo sitio no deje de "
@@ -116,7 +96,6 @@ class CategoryNodeFactoryConsolidationTest {
         }
     }
 
-    /** Nombre de la constante de CategoryNodePositions que usa la factory. */
     private static String referenciaDePosicion(Class<?> factory) {
         String fuente = leerFuente(factory);
         java.util.regex.Matcher m = java.util.regex.Pattern
@@ -128,7 +107,6 @@ class CategoryNodeFactoryConsolidationTest {
         return "CategoryNodePositions." + m.group(1);
     }
 
-    /** Localiza el fuente de la clase en el arbol del modulo. */
     private static String leerFuente(Class<?> factory) {
         String nombre = factory.getSimpleName() + ".java";
         String base = System.getProperty("basedir", ".");
@@ -181,8 +159,6 @@ class CategoryNodeFactoryConsolidationTest {
 
     @Test
     void lasFactoriesQueAnadenAccionSiguenAnadiendola() {
-        // Estas tres sobrescriben accionesPropias; el resto no debe hacerlo, para no
-        // anadir separadores o acciones que antes no estaban.
         List<Class<?>> conAccion = List.of(
                 HMICategoryTextAndListChartsNodeFactory.class,
                 HMICategoryRuntimeUserManagementNodeFactory.class,
@@ -215,8 +191,6 @@ class CategoryNodeFactoryConsolidationTest {
 
     @Test
     void lasFactoriesNoConservanLogicaPropia() {
-        // Si alguien reintroduce la copia de la logica dentro de una subclase, el
-        // comportamiento dejaria de venir del enum y estos tests dejarian de proteger.
         for (Class<?> factory : ESPERADO.keySet()) {
             for (Method metodo : factory.getDeclaredMethods()) {
                 if (metodo.isSynthetic() || metodo.isBridge()) {
@@ -236,5 +210,28 @@ class CategoryNodeFactoryConsolidationTest {
                 "categoria() debe devolver la definicion del enum");
         assertTrue(java.lang.reflect.Modifier.isProtected(metodo.getModifiers()),
                 "categoria() es para las subclases, no publico");
+    }
+
+    @Test
+    void lasFactoriesEntreganUnaCopiaYNoLaListaViva() {
+        for (Class<?> factory : List.of(CategoryFilesNodeFactory.class,
+                HMICategoryDisplayNodeFactory.class,
+                HMICategoryNestedSubprojectNodeFactory.class,
+                HMIPanelCategorySubprojectNodeFactory.class)) {
+
+            String fuente = leerFuente(factory);
+            String nombre = factory.getSimpleName();
+
+            assertFalse(fuente.contains("return keys;"),
+                    nombre + " devuelve la lista viva: lo lee NetBeans y la vacia el hilo"
+                            + " del sistema de ficheros");
+            assertTrue(fuente.contains("List.copyOf(keys)"),
+                    nombre + " debe entregar una copia inmutable");
+            assertTrue(fuente.contains("synchronized void refreshKeys()"),
+                    nombre + ".refreshKeys() hace clear() y hay que sincronizarlo");
+            assertTrue(fuente.contains("synchronized List<"),
+                    nombre + ".keys() hay que sincronizarlo: sin eso la copia puede caerse"
+                            + " a mitad de un clear()");
+        }
     }
 }

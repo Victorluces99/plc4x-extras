@@ -39,34 +39,16 @@ final class MemoryTagParser {
     private MemoryTagParser() {
     }
 
-    /**
-     * @param original   el tag tal cual lo escribio el usuario
-     * @param firstByte  primer byte del rango, o -1 si no hay
-     * @param lastByte   ultimo byte del rango, o -1 si no hay
-     * @param cantidad   longitud declarada como {@code TIPO(n)} o {@code TIPO[n]}, o -1
-     * @param hasRange   si el rango venia escrito {@code [a..b]} y no como indice suelto
-     */
     record Partes(String original, String block, String code, int baseByte, int bit,
                   int firstByte, int lastByte, int cantidad, String family, boolean hasRange) {
     }
 
-    /** El tag partido en la parte de direccion y la de tipo, esta ultima {@code null}. */
     private record ConTipo(String direccion, String tipo) {
     }
 
-    /** Direccion ya partida en bloque, codigo y numero. */
     private record Ubicacion(String block, String code, int numero) {
     }
 
-    /**
-     * Entero de un grupo, o -1 si no cabe.
-     *
-     * <p>Un rango como [99999999999] llega hasta aquí mientras el usuario teclea, y
-     * {@code Integer.parseInt} lanzaba. El diagnóstico se recalcula en cada pulsación, así
-     * que la excepción saltaba desde el DocumentListener y no desde el guardado.
-     *
-     * @return el número, o -1 si no es un entero o no cabe en un int
-     */
     private static int parseIntSafe(String grupo) {
         try {
             return Integer.parseInt(grupo);
@@ -117,8 +99,6 @@ final class MemoryTagParser {
             Matcher indice = CORCHETE.matcher(direccionTags);
             if (indice.find()) {
                 String valor = indice.group(1);
-                // Un indice suelto [10] es un byte, no un rango: primero y ultimo
-                // coinciden. Un corchete vacio [] deja el byte como desconocido.
                 firstByte = valor.isEmpty() ? -1 : parseIntSafe(valor);
                 lastByte = firstByte;
                 direccionTags = indice.replaceFirst("");
@@ -162,8 +142,6 @@ final class MemoryTagParser {
         if (soloNum.matches()) {
             return new Ubicacion("", "", parseIntSafe(soloNum.group(1)));
         }
-        // No encaja en ninguna forma reconocida: se guarda tal cual y no tiene
-        // direccion utilizable. El diagnostico lo avisa despues.
         return new Ubicacion(direccion, "", -1);
     }
 

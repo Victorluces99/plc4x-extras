@@ -184,9 +184,6 @@ class MemoryTagTest {
 
     @Test
     void unBloqueSinDireccionNoEsUnaDireccion() {
-        // %DB1[] y %DB1[0..9] se quedan en "DB1" al quitar el corchete, y DB no es
-        // un código de área: es un prefijo de bloque. Un bloque necesita número Y
-        // dirección, del tipo %DB1.DBB0 o %DB1:0.
         assertFalse(MemoryTag.parse("%DB1[]").tieneDireccion(),
                 "un bloque sin dirección no se puede leer del PLC");
         assertFalse(MemoryTag.parse("%DB1[0..9]").tieneDireccion(),
@@ -197,7 +194,6 @@ class MemoryTagTest {
 
     @Test
     void losCodigosDeAreaDelDriverSeAceptan() {
-        // M, I, Q, E con y sin ancho, y los contadores y temporizadores.
         assertEquals("MW", MemoryTag.parse("%MW20").code());
         assertEquals("MD", MemoryTag.parse("%MD100").code());
         assertEquals("IB", MemoryTag.parse("%IB0.0").code());
@@ -459,12 +455,6 @@ class MemoryTagTest {
         assertFalse(grande.solapaCon(null));
     }
 
-    /**
-     * Un número que no cabe en un int no revienta el parser.
-     *
-     * <p>El diagnóstico corre en cada pulsación, así que una excepción aquí saltaba desde
-     * el DocumentListener mientras el usuario tecleaba.
-     */
     @Test
     void unNumeroDemasiadoGrandeNoLanza() {
         assertDoesNotThrow(() -> MemoryTag.parse("%DB1.DBB0[99999999999]:BYTE"));

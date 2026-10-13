@@ -63,8 +63,8 @@ public class HMICategoryNestedSubprojectNodeFactory implements NodeFactory {
         }
 
         @Override
-        public List<FileObject> keys() {
-            return keys;
+        public synchronized List<FileObject> keys() {
+                return List.copyOf(keys);
         }
 
         @Override
@@ -103,16 +103,6 @@ public class HMICategoryNestedSubprojectNodeFactory implements NodeFactory {
             }
         }
 
-//        @Override
-//        public void addNotify() {
-//            folder.addFileChangeListener(this);
-//            refreshKeys();
-//        }
-//
-//        @Override
-//        public void removeNotify() {
-//            folder.removeFileChangeListener(this);
-//        }
         @Override
         public void addNotify() {
             folder.addRecursiveListener(this);
@@ -124,7 +114,7 @@ public class HMICategoryNestedSubprojectNodeFactory implements NodeFactory {
             folder.removeRecursiveListener(this);
         }
 
-        private void refreshKeys() {
+        private synchronized void refreshKeys() {
             keys.clear();
             for (FileObject child : folder.getChildren()) {
                 if (child.isFolder() && child.getFileObject(ProjectIds.CATEGORY_MARKER_FILE) != null) {
@@ -139,12 +129,6 @@ public class HMICategoryNestedSubprojectNodeFactory implements NodeFactory {
             refreshKeys();
         }
 
-//        @Override
-//        public void fileDataCreated(FileEvent fe) {
-//            if (ProjectIds.CATEGORY_MARKER_FILE.equalsIgnoreCase(fe.getFile().getNameExt())) {
-//                refreshKeys();
-//            }
-//        }
         @Override
         public void fileDataCreated(FileEvent fe) {
             refreshKeys();

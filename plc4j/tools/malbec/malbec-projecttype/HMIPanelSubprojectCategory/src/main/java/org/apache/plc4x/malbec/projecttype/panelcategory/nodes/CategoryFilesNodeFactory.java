@@ -41,35 +41,9 @@ import org.openide.nodes.Children;
 import org.openide.nodes.Node;
 import org.openide.util.Exceptions;
 
-/**
- * Base de las factories que muestran los ficheros de una categoria dentro de su carpeta.
- *
- * <p>Cada categoria tenia su propia copia de esta clase, de unas 195 lineas, que se
- * diferenciaba de las demas solo en tres cosas: la categoria, la extension y el fichero
- * oculto. Los dos ultimos ya viven en {@link HMICategoryDefinition} desde T4.1, asi que aqui
- * solo queda la categoria y, en tres casos, una accion propia.
- *
- * <p>Lo que decide que se muestra esta en {@link HMICategoryDefinition#acepta}, que es logica
- * pura y esta probada. Esta clase solo aporta la parte que necesita la plataforma: leer el
- * {@code FileObject}, enterarse de los cambios y construir el {@code Node}.
- *
- * <p>Cada subclase conserva su anotacion {@link NodeFactory.Registration}, porque la posicion
- * en el arbol se declara en la anotacion y no se puede pasar a un superconstructor. Se expone
- * como constante para que un test pueda comprobar que cada categoria sigue donde estaba.
- *
- * <p>No herendan de aqui las factories de Comunicacion y de subproyecto anidado, que tienen
- * otra estructura, ni la de Display, que quedo excluida en T1.12.
- */
 public abstract class CategoryFilesNodeFactory implements NodeFactory {
 
-    /** Categoria cuyas carpetas muestra esta factory. */
     protected abstract HMICategoryDefinition categoria();
-
-    /**
-     * Acciones que esta categoria anade a sus ficheros, antes del separador.
-     *
-     * <p>Por defecto ninguna: la mayoria de categorias solo ofrecen las acciones por defecto.
-     */
     protected Action[] accionesPropias(FileObject archivo) {
         return new Action[0];
     }
@@ -104,8 +78,8 @@ public abstract class CategoryFilesNodeFactory implements NodeFactory {
         }
 
         @Override
-        public List<FileObject> keys() {
-            return keys;
+        public synchronized List<FileObject> keys() {
+                return List.copyOf(keys);
         }
 
         @Override
@@ -147,7 +121,7 @@ public abstract class CategoryFilesNodeFactory implements NodeFactory {
             folder.removeFileChangeListener(this);
         }
 
-        private void refreshKeys() {
+        private synchronized void refreshKeys() {
             keys.clear();
             for (FileObject child : folder.getChildren()) {
                 if (definicion.acepta(child.getNameExt(), child.getExt(), child.isFolder())) {

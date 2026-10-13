@@ -77,12 +77,6 @@ public final class TagDiagnostico {
         return avisos;
     }
 
-    /**
-     * Numbers that do not fit in an int.
- *
-     * <p>The parser survives them, but the tag means nothing: a range of [99999999999]
-     * bytes is not an area, and the user has most likely typed an extra digit.
-     */
     private static void revisarNumeros(String t, List<TagIssue> errores) {
         Matcher m = NUMEROS.matcher(t);
         while (m.find()) {

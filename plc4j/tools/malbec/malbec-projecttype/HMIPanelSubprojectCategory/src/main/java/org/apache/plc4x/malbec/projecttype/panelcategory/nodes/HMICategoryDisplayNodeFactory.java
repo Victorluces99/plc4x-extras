@@ -50,11 +50,6 @@ public class HMICategoryDisplayNodeFactory implements NodeFactory {
     public NodeList<?> createNodes(Project project) {
         FileObject projectDir = project.getProjectDirectory();
 
-        // Solo mostrar si la carpeta se llama "Image"
-//        if (!"Image".equalsIgnoreCase(projectDir.getName())) {
-//            return NodeFactorySupport.fixedNodeList();
-//        }
-
         return new HMICategoryDisplayNodeList(projectDir);
     }
 
@@ -72,9 +67,8 @@ public class HMICategoryDisplayNodeFactory implements NodeFactory {
 
         // 1. Devuelve la lista de llaves (archivos .bob) actual
         @Override
-        public List<FileObject> keys() {
-
-            return keys;
+        public synchronized List<FileObject> keys() {
+            return List.copyOf(keys);
         }
 
         // 2. Transforma cada llave (FileObject) en su Node correspondiente
@@ -122,7 +116,7 @@ public class HMICategoryDisplayNodeFactory implements NodeFactory {
             folder.removeFileChangeListener(this);
         }
 
-        private void refreshKeys() {
+        private synchronized void refreshKeys() {
             keys.clear();
             for (FileObject child : folder.getChildren()) {
                 if (!child.isFolder() && "bob".equalsIgnoreCase(child.getExt())) {

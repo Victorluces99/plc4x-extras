@@ -61,8 +61,8 @@ public class HMIPanelCategorySubprojectNodeFactory implements NodeFactory {
         }
 
         @Override
-        public List<Project> keys() {
-            return keys;
+        public synchronized List<Project> keys() {
+                return List.copyOf(keys);
         }
 
         @Override
@@ -88,16 +88,6 @@ public class HMIPanelCategorySubprojectNodeFactory implements NodeFactory {
             }
         }
 
-//        @Override
-//        public void addNotify() {
-//            dir.addFileChangeListener(this);
-//            refreshKeys();
-//        }
-//
-//        @Override
-//        public void removeNotify() {
-//            dir.removeFileChangeListener(this);
-//        }
         @Override
         public void addNotify() {
             dir.addRecursiveListener(this);
@@ -109,7 +99,7 @@ public class HMIPanelCategorySubprojectNodeFactory implements NodeFactory {
             dir.removeRecursiveListener(this);
         }
 
-        private void refreshKeys() {
+        private synchronized void refreshKeys() {
             FileObject[] children = dir.getChildren();
 
             java.util.Arrays.sort(children, java.util.Comparator.comparing(FileObject::getName));
@@ -136,12 +126,6 @@ public class HMIPanelCategorySubprojectNodeFactory implements NodeFactory {
             refreshKeys();
         }
 
-//        @Override
-//        public void fileDataCreated(FileEvent fe) {
-//            if (ProjectIds.CATEGORY_MARKER_FILE.equalsIgnoreCase(fe.getFile().getNameExt())) {
-//                refreshKeys();
-//            }
-//        }
         @Override
         public void fileDataCreated(FileEvent fe) {
             refreshKeys();

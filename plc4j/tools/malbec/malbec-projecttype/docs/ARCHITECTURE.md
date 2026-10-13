@@ -146,7 +146,7 @@ existen: verifican que quitar la guarda los hace fallar.
 
 Dónde vive: `Comunicacion/boot.db`. Es una base **SQLite**, y no la fuente de verdad: se
 **reconstruye entera** desde `comunicacion.xml` cada vez que se guarda
-(`BootDbRepository.rebuild()`). Cuatro tablas:
+(`BootDbRepository.rebuild()`, que delega en `BootDbWriter`). Cuatro tablas:
 
 | Tabla | Clave | Contenido |
 |---|---|---|
@@ -155,9 +155,15 @@ Dónde vive: `Comunicacion/boot.db`. Es una base **SQLite**, y no la fuente de v
 | `Items` | `ItemUuid` | dispositivo, grupo, nombre, tag, enable, md5 |
 | `PvRecords` | `PvUuId` | nombre, tipo, área, offset, descriptor, scanTime, enables, límites, formatos, md5, ruta S88 |
 
-La reconstrucción hace `DROP TABLE` y `CREATE TABLE` de las cuatro (`BootDbRepository.java`,
-líneas 248-251). **No hay transacción que abarque las cuatro**: una caída a mitad deja la base
-a medias. Está pendiente como H-03.
+La reconstrucción **no toca la base de destino hasta el final**. `BootDbWriter` construye
+el esquema y mete todos los dispositivos en `boot.db.tmp`, con una sola conexión y una sola
+transacción, y solo entonces mueve el resultado encima con `ATOMIC_MOVE`. O sale la base
+nueva completa, o sigue la anterior intacta: no hay estado intermedio en el que
+`comunicacion.xml` y `boot.db` no concuerden.
+
+El `PRAGMA user_version` del fichero lleva la versión del esquema (`BootDbWriter.SCHEMA_VERSION`).
+El `PRAGMA foreign_keys` se pide antes de abrir la transacción, porque SQLite lo ignora
+dentro de ella.
 
 Los valores booleanos se guardan como texto (`"TRUE"` / `"FALSE"`), igual que se muestran en
 las tablas del panel. Es una rareza histórica del formato, no un error.
@@ -219,6 +225,20 @@ actualizado y ejecutar clases viejas, y el resultado habla de un código que ya 
 Los Golden Files de `commsHmi/src/test/resources/golden/` fijan el formato exacto de
 `comunicacion.xml` y de `boot.db`. **No se editan a mano**: si cambian, o cambia el formato a
 propósito y se regeneran explicándolo, o hay un bug.
+
+### Guardar no puede perder lo anterior
+
+Tanto `comunicacion.xml` como `boot.db` se escriben de forma que un fallo a mitad no
+destruye lo que habia:
+
+- `comunicacion.xml`: `save()` serializa entero en memoria y entrega el resultado al
+  almacenamiento con un solo `CommConfigStorage.write(byte[])`. Antes pedia el destino con
+  `create()`, que vacia el fichero al abrirlo, de modo que un fallo durante la serialización
+  dejaba el fichero vacío y perdía todos los dispositivos. `ProjectFileStorage` toma además
+  un `FileLock` antes de escribir, para que dos guardados simultáneos no se pisen.
+- `boot.db`: se construye en `boot.db.tmp` y se mueve al final. Ver la sección 4.
+
+Ambos comportamientos están fijados por tests que fallan contra el código anterior.
 
 ### Lo que los tests NO cubren
 

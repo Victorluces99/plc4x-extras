@@ -75,17 +75,34 @@ public class CommunicationWizardState {
      * comparaban por identidad; como records, {@code equals} es estructural y depende de
      * valores que el usuario esta editando. Buscar por UUID deja el resultado sin ambiguedad
      * sea cual sea la semantica de {@code equals}.
+     *
+     * <p>Un UUID nulo significa "no hay nada en edicion", que es un estado de la
+     * interfaz y no un error: se pregunta por la fila seleccionada antes de que haya
+     * ninguna. Por eso {@link #mismoUuid} tolera el nulo en vez de dejar que reviente
+     * {@code equals}.
      */
     public int indexOfGroup(String uuid) {
-        return buscar(groups, g -> uuid.equals(g.getUuid()));
+        return buscar(groups, g -> mismoUuid(uuid, g.getUuid()));
     }
 
     public int indexOfItem(String uuid) {
-        return buscar(items, i -> uuid.equals(i.getUuid()));
+        return buscar(items, i -> mismoUuid(uuid, i.getUuid()));
     }
 
     public int indexOfPv(String uuid) {
-        return buscar(pvs, p -> uuid.equals(p.getUuid()));
+        return buscar(pvs, p -> mismoUuid(uuid, p.getUuid()));
+    }
+
+    /**
+     * Compara dos UUID sin que ninguno de los dos pueda romperlo.
+     *
+     * <p>Va en un metodo y no repetido en los tres {@code indexOf} porque los tres
+     * tenian el mismo fallo, y porque asi el arreglo se hace en un sitio solo. Que el
+     * UUID buscado sea nulo devuelve {@code false} siempre, que es lo correcto: no hay
+     * ninguna fila cuyo UUID sea "desconocido".
+     */
+    private static boolean mismoUuid(String uuid, String otro) {
+        return uuid != null && uuid.equals(otro);
     }
 
     private static <T> int buscar(List<T> lista, java.util.function.Predicate<T> coincide) {

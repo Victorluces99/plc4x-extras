@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.File;
 import java.io.FilenameFilter;
 import java.nio.file.Files;
@@ -127,19 +126,6 @@ class ImportacionDePlantaTest {
                 List.of(), FormatosDeImportacion.FORMATOS.keySet()));
     }
 
-/**
-     * El aviso de formatos desalineados se pide una vez, al construir la accion.
- *
-     * <p>Antes estaba dentro de {@code importPlant()}, o sea que se consultaba el Lookup en
-     * cada clic en "Importar proyecto". El resultado no cambia durante la sesion, porque
-     * depende de que providers haya registrados, y repetirlo era trabajo tirado en cada
-     * intento.
- *
- * *<p>Esto no se puede comprobar mirando logs: la deduplicacion no esta dentro de
- * {@code avisarFormatosDesalineados()}, que avisa cada vez que se llama, sino en que solo
- * se llama una vez, desde el constructor. Se comprueba por tanto sobre el fuente, que es
- * donde vive la decision.
- */
 @Test
 void elAvisoDeFormatosDesalineadosNoEstaEnElCaminoDeCadaImportacion() throws Exception {
     var fuente = Files.readString(Path.of(
@@ -156,7 +142,6 @@ void elAvisoDeFormatosDesalineadosNoEstaEnElCaminoDeCadaImportacion() throws Exc
             "el aviso no debe volver a salir en cada clic en Importar");
 }
 
-/** El aviso se pide contra el Lookup real y no debe lanzar si no hay providers. */
 @Test
 void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
     assertDoesNotThrow(FormatosDeImportacion::avisarFormatosDesalineados);
@@ -272,8 +257,6 @@ void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
         assertTrue(snapshot.children().isEmpty());
     }
 
-    // ------------------------------------------------------- H-08(a)
-
     @Test
     void sinCarpetaImageLaImportacionEsUnFalloExplicito() {
         String problema = PlantImporter.problemaDelDestino(null);
@@ -285,8 +268,6 @@ void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
         assertTrue(problema.contains("no se ha creado nada"),
                 "el mensaje debe dejar claro que no se ha creado nada: " + problema);
     }
-
-    // ------------------------------------------------------- H-08(d)
 
     @Test
     void unIdConTraversalSeRechaza() {
@@ -367,5 +348,51 @@ void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
 
     private static S88Element nodo(String id) {
         return new S88Element().setId(id);
+    }
+    /**
+     * H-08(c): lo que crea la importacion se deshace si algo falla despues.
+     *
+     * <p>No se puede probar de verdad sin NetBeans arrancado, y aqui no lo hay: FileUtil
+     * no resuelve nada en un surefire normal. Lo que se fija es el cableado, que el
+     * registro de lo creado se pase a reverseChildStack y que deshacer se llame en los
+     * dos caminos que hoy lo dejaban a medias.
+     */
+    @Test
+    void laImportacionDeshaceLoCreadoSiAlgoFallaDespues() throws Exception {
+        String codigo = Files.readString(Path.of("src", "main", "java", "org", "apache",
+                "plc4x", "malbec", "projecttype", "panel", "plant", "PlantImporter.java"));
+
+        assertTrue(codigo.contains("reverseChildStack(child, imageFo, creados)"),
+                "lo que se crea tiene que quedar registrado para poder deshacerlo");
+        assertTrue(codigo.contains("List<FileObject> creados"),
+                "hace falta la lista de lo creado");
+        assertEquals(3, cuentasDe(codigo, "deshacer(creados)"),
+                "los tres fallos posteriores tienen que deshacer: nodos a medias,"
+                        + " carpeta del panel irresoluble y plant-model.xml no escrito");
+    }
+
+    @Test
+    void deshacerBorraAlRevesParaQueLosHijosNoQuedenColgados() throws Exception {
+        String codigo = Files.readString(Path.of("src", "main", "java", "org", "apache",
+                "plc4x", "malbec", "projecttype", "panel", "plant", "PlantImporter.java"));
+        int desde = codigo.indexOf("static void deshacer(");
+
+        assertTrue(desde > 0, "tiene que existir deshacer()");
+        String cuerpo = codigo.substring(desde, codigo.indexOf('}', desde));
+        assertTrue(cuerpo.contains("creados.size() - 1"),
+                "borrar al reves: si se borra la carpeta padre primero, los hijos ya no"
+                        + " estan y su borrado falla");
+        assertTrue(cuerpo.contains("isValid()"),
+                "no hay que borrar lo que el usuario haya borrado por su cuenta");
+    }
+
+    private static int cuentasDe(String codigo, String aguja) {
+        int total = 0;
+        int desde = codigo.indexOf(aguja);
+        while (desde >= 0) {
+            total++;
+            desde = codigo.indexOf(aguja, desde + aguja.length());
+        }
+        return total;
     }
 }

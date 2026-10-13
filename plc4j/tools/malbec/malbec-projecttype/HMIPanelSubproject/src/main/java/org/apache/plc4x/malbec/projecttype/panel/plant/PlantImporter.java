@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.FileInputStream;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -45,15 +46,6 @@ import org.netbeans.api.project.ProjectManager;
 import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileUtil;
 
-/**
- * Importa un modelo de planta en un panel: crea la estructura de carpetas y escribe el
- * {@code plant-model.xml}.
- *
-* <p>Sin Swing. Todo lo que aqui ocurre se puede invocar y comprobar desde un test o desde
- * una herramienta de linea de comandos, y devuelve un {@link ImportResult} en vez de
- * enseñar un dialogo. La accion Swing se limita a pedir el fichero, mostrar la barra de
- * progreso y presentar el resultado.
- */
 public final class PlantImporter {
 
     private static final Logger LOGGER = Logger.getLogger(PlantImporter.class.getName());
@@ -61,18 +53,8 @@ public final class PlantImporter {
     private PlantImporter() {
     }
 
-    /** Caracteres que Windows no admite en un nombre de fichero o carpeta. */
     private static final String INVALIDOS = "/\\:*?\"<>|";
 
-    /**
-     * Importa {@code archivo} dentro del panel {@code panel}.
-     *
-     * <p>No lanza excepciones por fallos previsibles: un modelo ilegible, un id invalido o
-     * un destino que no existe se devuelven como {@link Fallo}, porque son cosas que el
-     * operador tiene que leer en un mensaje, no excepciones que tragar en un log.
-     *
-     * @param panel carpeta del panel, que debe contener la subcarpeta {@code image}
-     */
     public static ImportResult importPlant(File archivo, FileObject panel) {
         S88Repository repositorio;
         try {
@@ -102,8 +84,6 @@ public final class PlantImporter {
             FileUtil.refreshFor(panelFile);
         }
 
-        // H-08(a): antes se pedia la carpeta 'image' y, si no existia, el flujo llegaba
-        // igualmente a "importación exitosa" sin haber creado nada. Ahora es un fallo.
         FileObject imageFo = panel.getFileObject("image");
         String problema = problemaDelDestino(imageFo);
         if (problema != null) {
@@ -113,8 +93,7 @@ public final class PlantImporter {
         }
 
         int fallidos = 0;
-        // H-08(d): se comprueba todo el modelo antes de crear la primera carpeta, para no
-        // dejar estructura a medias en el panel.
+
         String nombreInvalido = primerNombreInvalido(root);
         if (nombreInvalido != null) {
             LOGGER.log(Level.WARNING, "No se importó {0}: {1}",
@@ -122,14 +101,14 @@ public final class PlantImporter {
             return new Fallo(archivo, nombreInvalido);
         }
 
+        List<FileObject> creados = new ArrayList<>();
         if (root.getChildren() != null) {
             for (S88Element child : root.getChildren()) {
-                fallidos += reverseChildStack(child, imageFo);
+                fallidos += reverseChildStack(child, imageFo, creados);
             }
         }
         if (fallidos > 0) {
-            // H-08(b): una importacion parcial no es un exito: se informa de cuantos nodos
-            // quedaron fuera.
+            deshacer(creados);
             return new Fallo(archivo, fallidos + " nodo(s) del modelo no se pudieron crear;"
                     + " la importación está incompleta.");
         }
@@ -137,6 +116,7 @@ public final class PlantImporter {
         try {
             File dir = FileUtil.toFile(panel);
             if (dir == null) {
+                deshacer(creados);
                 return new Fallo(archivo, "no se pudo escribir " + PlantModelXml.FILE_NAME
                         + " en el proyecto.");
             }
@@ -147,6 +127,7 @@ public final class PlantImporter {
             LOGGER.log(Level.INFO, "Snapshot del modelo de planta en: {0}",
                     target.getAbsolutePath());
         } catch (IOException ex) {
+            deshacer(creados);
             LOGGER.log(Level.WARNING, "No se pudo escribir " + PlantModelXml.FILE_NAME, ex);
             return new Fallo(archivo, describe(ex));
         }
@@ -158,14 +139,12 @@ public final class PlantImporter {
         return new Exito(archivo, areaId);
     }
 
-    /**
-     * Crea la estructura de carpetas y ficheros del modelo a partir de {@code root}.
-     *
-     * @return cuantos nodos no se pudieron crear (H-08(b)). Antes el metodo no devolvia
-     *         nada: cada fallo se imprimia y el bucle continuaba, y quien llamaba acababa
-     *         anunciando una importacion successful.
-     */
     public static int reverseChildStack(S88Element root, FileObject baseDir) {
+        return reverseChildStack(root, baseDir, new ArrayList<>());
+    }
+
+    public static int reverseChildStack(S88Element root, FileObject baseDir,
+            List<FileObject> creados) {
         if (root == null || baseDir == null) {
             return 0;
         }
@@ -186,22 +165,21 @@ public final class PlantImporter {
             }
 
             try {
-                // H-08(d): guarda defensiva. El flujo normal ya valida todo el modelo
-                // antes de crear nada, pero este metodo es publico.
+
                 String problema = problemaDeNombre(node.getId());
                 if (problema != null) {
                     fallidos++;
                     LOGGER.log(Level.WARNING, "Nodo rechazado: {0}", problema);
                     continue;
                 }
-                FileObject currentDir = createFolder(node, parentDir);
-                createCfgFile(currentDir);
+                FileObject currentDir = createFolder(node, parentDir, creados);
+                createCfgFile(currentDir, creados);
 
                 LOGGER.fine(() -> "Propiedades en " + node.getId() + ": " + node.getProperties());
                 LOGGER.fine(() -> "check: " + node.isCheck());
                 if (node.isCheck()) {
                     LOGGER.fine(() -> "Creando BOB para: " + node.getId());
-                    createBobFile(node, currentDir);
+                    createBobFile(node, currentDir, creados);
                 }
 
                 List<S88Element> children = node.getChildren();
@@ -220,19 +198,6 @@ public final class PlantImporter {
         return fallidos;
     }
 
-    /**
-     * Comprueba que un nombre de nodo se puede usar como carpeta y como fichero.
-     *
-     * <p>H-08(d): el {@code id} viene del fichero de modelo que elige el usuario y se usaba
-     * tal cual en {@code createFolder}, {@code createData} y {@code getFileObject}. Un id
-     * como {@code ../../evil} escapaba del panel y creaba carpetas fuera, y caracteres como
-     * {@code :} o {@code *} producen rutas invalidas en Windows.
-     *
-     * <p>Se rechaza en lugar de renombrar: renombrar en silencio crearia carpetas con un
-     * nombre que el usuario no reconoce y romperia la correspondencia con el modelo.
-     *
-     * @return el motivo por el que el nombre no vale, o {@code null} si es valido
-     */
     public static String problemaDeNombre(String id) {
         if (id == null || id.isBlank()) {
             return "un nodo del modelo no tiene identificador";
@@ -241,9 +206,7 @@ public final class PlantImporter {
         if (nombre.isEmpty()) {
             return "un nodo del modelo tiene un identificador vacío";
         }
-        // Se comprueba '..' antes que los caracteres invalidos: un identificador como
-        // '../../x' es un intento de salir del panel y merece el aviso mas grave, no el
-        // mensaje generico de 'caracter no valido'.
+
         if (nombre.contains("..")) {
             return "el identificador '" + nombre + "' contiene '..' y podría crear carpetas"
                     + " fuera del panel";
@@ -262,14 +225,6 @@ public final class PlantImporter {
         return null;
     }
 
-    /**
-     * Primer identificador invalido del modelo, buscando en todo el arbol.
-     *
-     * <p>Se recorre antes de crear nada: si se detectara durante la creacion, ya habria
-     * carpetas a medias en el panel.
-     *
-     * @return el motivo del primer id invalido, o {@code null} si todos valen
-     */
     public static String primerNombreInvalido(S88Element root) {
         Deque<S88Element> pendientes = new ArrayDeque<>();
         if (root != null) {
@@ -294,11 +249,6 @@ public final class PlantImporter {
         return null;
     }
 
-    /**
-     * Comprueba que el panel tiene donde crear la estructura del modelo (H-08(a)).
-     *
-     * @return el motivo por el que no se puede importar, o {@code null} si todo va bien
-     */
     public static String problemaDelDestino(FileObject imageFo) {
         if (imageFo == null) {
             return "el panel no tiene la carpeta 'image', que es donde se crea la estructura;"
@@ -322,24 +272,53 @@ public final class PlantImporter {
         return mensaje == null || mensaje.isBlank() ? ex.getClass().getSimpleName() : mensaje;
     }
 
-    private static FileObject createFolder(S88Element node, FileObject parentDir) throws IOException {
+    private static FileObject createFolder(S88Element node, FileObject parentDir,
+            List<FileObject> creados) throws IOException {
         FileObject folder = parentDir.getFileObject(node.getId());
-        return (folder == null) ? parentDir.createFolder(node.getId()) : folder;
+        if (folder != null) {
+            return folder;
+        }
+        FileObject nuevo = parentDir.createFolder(node.getId());
+        creados.add(nuevo);
+        return nuevo;
     }
 
-    private static void createCfgFile(FileObject folder) throws IOException {
+    private static void createCfgFile(FileObject folder, List<FileObject> creados) throws IOException {
         if (folder.getFileObject(ProjectIds.CATEGORY_MARKER_FILE) == null) {
-            folder.createData(ProjectIds.CATEGORY_MARKER_FILE);
+            creados.add(folder.createData(ProjectIds.CATEGORY_MARKER_FILE));
         }
     }
 
-    private static void createBobFile(S88Element node, FileObject folder) throws IOException {
+    private static void createBobFile(S88Element node, FileObject folder,
+            List<FileObject> creados) throws IOException {
         if (folder.getFileObject(node.getId() + ".bob") == null) {
-            folder.createData(node.getId(), "bob");
+            creados.add(folder.createData(node.getId(), "bob"));
         }
     }
 
-    /** El fichero del modelo abierto como {@link S88Storage}. */
+    /**
+     * Borra lo que se creo, del ultimo al primero.
+     *
+     * <p>Al reves porque borrar una carpeta borra recursivamente lo que tenga dentro, y
+     * si se borrara antes el padre, los hijos ya no estarian y su borrado fallaria.
+     *
+     * <p>Solo se deshace lo que esta importacion ha creado. Lo que ya estaba en el panel
+     * se respeta: puede ser de una importacion anterior.
+     */
+    static void deshacer(List<FileObject> creados) {
+        for (int i = creados.size() - 1; i >= 0; i--) {
+            FileObject fo = creados.get(i);
+            try {
+                if (fo.isValid()) {
+                    fo.delete();
+                }
+            } catch (IOException ex) {
+                LOGGER.log(Level.WARNING, "No se pudo deshacer " + fo.getName(), ex);
+            }
+        }
+        creados.clear();
+    }
+
     private record Storage(File file) implements S88Storage {
 
         @Override

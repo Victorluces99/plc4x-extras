@@ -159,11 +159,11 @@ public class HMIPanelImportActionTest {
         Map<?, ?> tanque = (Map<?, ?>) ((List<?>) celda.get("children")).get(0);
         assertEquals("TANQUE_1", tanque.get("id"));
         assertEquals("element", tanque.get("tag"),
-                "UNIT no tiene tag propio y cae en element");
+                "UNIT no tiene tag propio y cae en element; ver el javadoc de tagFor()");
     }
 
     @Test
-    void tagForCaeEnElementSinNivelConocido() {
+    void tagForCaeEnElementParaLosNivelesQueNoTienenTagPropio() {
         assertEquals("element", HMIPanelImportAction.tagFor(new S88Element()));
         assertEquals("element",
                 HMIPanelImportAction.tagFor(new S88Element().setLevel(S88Level.EQUIPMENTMODULE)));

@@ -583,19 +583,40 @@ public class HMIPanelImportAction extends AbstractAction {
         return variable;
     }
 
-    static String tagFor(S88Element node) {
-        if (node.getLevel() == null) {
-            return "element";
-        }
-        return switch (node.getLevel()) {
-            case AREA ->
-                "area";
-            case PROCESSCELL ->
-                "processcell";
-            default ->
-                "element";
-        };
+/**
+ * Nombre del elemento XML con el que se escribe un nodo de {@code plant-model.xml}.
+ *
+ * <p>Solo hay dos nombres propios: {@code area} y {@code processcell}. Los otros dos
+ * niveles del enum ({@code UNIT} y {@code EQUIPMENTMODULE}) caen en {@code element}, y
+ * eso es a proposito, no un olvido.
+ *
+ * <p>El motivo es que <strong>ningun lector distingue esos nombres</strong>. Los tres
+ * sitios que parsean {@code plant-model.xml} - {@code PlantModelReader},
+ * {@code PlantNodeLoader} y el borrado de areas de esta misma clase - buscan
+ * exclusivamente {@code <area>}, y el resto del arbol lo recorren sin mirar la etiqueta.
+ * Darle a cada nivel un nombre propio solo cambiaria el aspecto del fichero generado,
+ * sin que nadaiese mas rapido ni mas correcto.
+ *
+ * <p>Si algun dia hiciera falta distinguirlos, el sitio unico a tocar es este metodo, y
+ * habria que acordarlo antes con quien lea esos ficheros, porque {@code plant-model.xml}
+ * esta en proyectos reales y no solo en el del repositorio.
+ *
+ * @param node el nodo de origen
+ * @return el nombre del elemento a crear
+ */
+static String tagFor(S88Element node) {
+    if (node.getLevel() == null) {
+        return "element";
     }
+    return switch (node.getLevel()) {
+        case AREA ->
+            "area";
+        case PROCESSCELL ->
+            "processcell";
+        default ->
+            "element";
+    };
+}
 
     static List<Object> collectVariables(Object value) {
         List<Object> collected = new ArrayList<>();

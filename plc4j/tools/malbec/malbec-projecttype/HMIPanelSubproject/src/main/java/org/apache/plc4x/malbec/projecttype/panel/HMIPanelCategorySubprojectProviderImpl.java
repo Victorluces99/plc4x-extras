@@ -18,8 +18,6 @@
  */
 package org.apache.plc4x.malbec.projecttype.panel;
 
-
-
 import java.util.HashSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,12 +30,9 @@ import org.netbeans.spi.project.SubprojectProvider;
 
 import org.openide.filesystems.FileObject;
 
-
 public class HMIPanelCategorySubprojectProviderImpl implements SubprojectProvider {
 
-    
-
-    private static final Logger LOGGER =
+private static final Logger LOGGER =
             Logger.getLogger(HMIPanelCategorySubprojectProviderImpl.class.getName());
 
     private Project project;
@@ -52,14 +47,23 @@ public class HMIPanelCategorySubprojectProviderImpl implements SubprojectProvide
         return loadProjects(project.getProjectDirectory());
     }
 
+    /**
+     * No notifica cambios, y es una decision y no un olvido.
+     *
+     * <p>Los subproyectos de categoria son las carpetas que tienen el marcador
+     * {@code category.cfg}, y se leen del disco cada vez que se pregunta. Quien anade o
+     * quita una carpeta lo hace desde fuera y el sistema de ficheros ya avisa por su cuenta,
+     * asi que un aviso aqui solo provocaria repintados del arbol sin motivo.
+     *
+     * <p>Si algun dia la lista pasa a guardarse en memoria, hay que implementar esto.
+     */
     @Override
     public void addChangeListener(ChangeListener cl) {
-       
     }
 
+    /** Ver {@link #addChangeListener(ChangeListener)}: no hay cambios que notificar. */
     @Override
     public void removeChangeListener(ChangeListener cl) {
-
     }
 
     /**

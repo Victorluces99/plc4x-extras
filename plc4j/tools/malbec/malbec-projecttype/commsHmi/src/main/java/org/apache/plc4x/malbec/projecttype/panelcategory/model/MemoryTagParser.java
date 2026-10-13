@@ -21,17 +21,6 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.model;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Desglose de un tag de area (T3.7).
- *
- * <p>Antes el desglose vivia dentro de {@code MemoryTag.parse()} y se apoyaba en dos
- * estructuras sin nombre: un {@code int[2]} para el rango y un {@code String[2]} para
- * separar el tipo del resto. Con dos posiciones y sin nombres, leer el codigo era
- * hacer memoria sobre {@code seleccion[0]}. Aqui cada paso tiene nombre.
- *
- * <p>La clase no cambia el comportamiento: {@code MemoryTag.parse()} delega aqui y sus
- * 38 tests siguen sin tocarse.
- */
 final class MemoryTagParser {
 
     private static final Pattern LONGITUD = Pattern.compile("\\((\\d+)\\)");
@@ -51,8 +40,6 @@ final class MemoryTagParser {
     }
 
     /**
-     * Resultado del desglose, ya con nombre en cada campo.
-     *
      * @param original   el tag tal cual lo escribio el usuario
      * @param firstByte  primer byte del rango, o -1 si no hay
      * @param lastByte   ultimo byte del rango, o -1 si no hay
@@ -71,6 +58,23 @@ final class MemoryTagParser {
     private record Ubicacion(String block, String code, int numero) {
     }
 
+    /**
+     * Entero de un grupo, o -1 si no cabe.
+     *
+     * <p>Un rango como [99999999999] llega hasta aquí mientras el usuario teclea, y
+     * {@code Integer.parseInt} lanzaba. El diagnóstico se recalcula en cada pulsación, así
+     * que la excepción saltaba desde el DocumentListener y no desde el guardado.
+     *
+     * @return el número, o -1 si no es un entero o no cabe en un int
+     */
+    private static int parseIntSafe(String grupo) {
+        try {
+            return Integer.parseInt(grupo);
+        } catch (NumberFormatException ex) {
+            return -1;
+        }
+    }
+
     static Partes parse(String raw) {
         if (raw == null || raw.trim().isEmpty()) {
             return null;
@@ -87,11 +91,11 @@ final class MemoryTagParser {
             tipo = conTipo.tipo();
             Matcher mt = LONGITUD.matcher(tipo);
             if (mt.find()) {
-                cantidad = Integer.parseInt(mt.group(1));
+                cantidad = parseIntSafe(mt.group(1));
             }
             Matcher mc = CORCHETE.matcher(tipo);
             if (mc.find() && !mc.group(1).isEmpty()) {
-                cantidad = Integer.parseInt(mc.group(1));
+                cantidad = parseIntSafe(mc.group(1));
             }
             tipo = tipo.replaceFirst("\\s*\\(\\s*\\d+\\s*\\)", "")
                        .replaceFirst("\\s*\\[\\s*\\d*\\s*]", "")
@@ -105,8 +109,8 @@ final class MemoryTagParser {
 
         Matcher rango = RANGO.matcher(direccionTags);
         if (rango.find()) {
-            firstByte = Integer.parseInt(rango.group(1));
-            lastByte = Integer.parseInt(rango.group(2));
+            firstByte = parseIntSafe(rango.group(1));
+            lastByte = parseIntSafe(rango.group(2));
             direccionTags = rango.replaceFirst("");
             rangoExplicito = true;
         } else {
@@ -115,7 +119,7 @@ final class MemoryTagParser {
                 String valor = indice.group(1);
                 // Un indice suelto [10] es un byte, no un rango: primero y ultimo
                 // coinciden. Un corchete vacio [] deja el byte como desconocido.
-                firstByte = valor.isEmpty() ? -1 : Integer.parseInt(valor);
+                firstByte = valor.isEmpty() ? -1 : parseIntSafe(valor);
                 lastByte = firstByte;
                 direccionTags = indice.replaceFirst("");
             }
@@ -127,7 +131,7 @@ final class MemoryTagParser {
         if (posPunto > 0 && posPunto < direccion.length() - 1) {
             String posibleBit = direccion.substring(posPunto + 1);
             if (posibleBit.matches("[0-7]")) {
-                bit = Integer.parseInt(posibleBit);
+                bit = parseIntSafe(posibleBit);
                 direccion = direccion.substring(0, posPunto);
             }
         }
@@ -142,21 +146,21 @@ final class MemoryTagParser {
         if (dbCodigo.matches()) {
             String code = dbCodigo.group(3).isEmpty() ? "" : "DB" + dbCodigo.group(3).toUpperCase();
             return new Ubicacion(dbCodigo.group(1).toUpperCase() + dbCodigo.group(2),
-                    code, Integer.parseInt(dbCodigo.group(4)));
+                    code, parseIntSafe(dbCodigo.group(4)));
         }
         Matcher dbCorto = DB_CORTO.matcher(direccion);
         if (dbCorto.matches()) {
             return new Ubicacion(dbCorto.group(1).toUpperCase() + dbCorto.group(2),
-                    "", Integer.parseInt(dbCorto.group(3)));
+                    "", parseIntSafe(dbCorto.group(3)));
         }
         Matcher codNum = CODIGO_Y_NUMERO.matcher(direccion);
         if (codNum.matches()) {
             return new Ubicacion("", codNum.group(1).toUpperCase(),
-                    Integer.parseInt(codNum.group(2)));
+                    parseIntSafe(codNum.group(2)));
         }
         Matcher soloNum = SOLO_NUMERO.matcher(direccion);
         if (soloNum.matches()) {
-            return new Ubicacion("", "", Integer.parseInt(soloNum.group(1)));
+            return new Ubicacion("", "", parseIntSafe(soloNum.group(1)));
         }
         // No encaja en ninguna forma reconocida: se guarda tal cual y no tiene
         // direccion utilizable. El diagnostico lo avisa despues.

@@ -20,18 +20,6 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.model;
 
 import java.util.List;
 
-/**
- * Aviso sobre un tag, sin texto y sin presentacion (T3.8).
- *
- * <p>Antes el modelo devolvia {@code List<String>} con el HTML dentro, de modo que la
- * capa de dominio arrastraba etiquetas de salto de linea que solo tienen sentido
- * pintadas. Ahora devuelve un codigo, la gravedad y los datos para interpolar, y quien
- * lo muestra decide comoPresentarlo.
- *
- * @param codigo    identificador estable del problema, para que la UI lo traduce
- * @param gravedad  si impide usar el tag o solo conviene avisar
- * @param args      valores que la plantilla necesita, en orden
- */
 public record TagIssue(String codigo, Gravedad gravedad, List<String> args) {
 
     public enum Gravedad {
@@ -47,6 +35,7 @@ public record TagIssue(String codigo, Gravedad gravedad, List<String> args) {
     public static final String NO_ES_DIRECCION = "tag.no.esDireccion";
     public static final String SIN_TIPOS = "tag.sin.tipos";
     public static final String SIN_TAMANO = "tag.sin.tamano";
+    public static final String NUMERO_DEMASIADO_GRANDE = "tag.numero.demasiadoGrande";
 
     public TagIssue(String codigo, Gravedad gravedad, String... args) {
         this(codigo, gravedad, List.of(args));

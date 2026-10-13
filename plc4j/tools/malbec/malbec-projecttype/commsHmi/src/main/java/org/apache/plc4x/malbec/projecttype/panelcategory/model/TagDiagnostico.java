@@ -24,17 +24,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.TagIssue.Gravedad;
 
-/**
- * Diagnostico de un tag de area, sin presentacion (T3.8).
- *
- * <p>Devuelve problemas como {@link TagIssue}, no como texto con HTML dentro. Quien
- * lo muestra decide como se pinta, de modo que la capa de dominio no depende de Swing
- * ni de etiquetas de salto de linea, que solo tienen sentido en un JLabel.
- *
- * <p>El chequeo de caracteres usa un unico {@code Matcher} sobre toda la cadena. Antes
- * se creaba uno por caracter, lo que en un documentoListener hacia trabajo inutile en
- * cada pulsacion.
- */
 public final class TagDiagnostico {
 
     private static final Pattern CONTENIDO = Pattern.compile("\\[([^\\]]*)\\]");
@@ -42,6 +31,7 @@ public final class TagDiagnostico {
             Pattern.compile("\\s*\\d+\\s*(\\.\\.\\s*\\d+\\s*)?");
     private static final Pattern CARACTERES_RAROS =
             Pattern.compile("[^A-Za-z0-9_.:%\\[\\]()\\-\\s]");
+    private static final Pattern NUMEROS = Pattern.compile("\\d+");
 
     private TagDiagnostico() {
     }
@@ -57,6 +47,7 @@ public final class TagDiagnostico {
         }
         revisarCorchetes(t, errores);
         revisarCaracteres(t, errores);
+        revisarNumeros(t, errores);
 
         MemoryTag m = MemoryTag.parse(t);
         if (m != null && !m.tieneDireccion()) {
@@ -86,6 +77,27 @@ public final class TagDiagnostico {
         return avisos;
     }
 
+    /**
+     * Numbers that do not fit in an int.
+ *
+     * <p>The parser survives them, but the tag means nothing: a range of [99999999999]
+     * bytes is not an area, and the user has most likely typed an extra digit.
+     */
+    private static void revisarNumeros(String t, List<TagIssue> errores) {
+        Matcher m = NUMEROS.matcher(t);
+        while (m.find()) {
+            String numero = m.group();
+            if (numero.length() < 10) {
+                continue;
+            }
+            try {
+                Integer.parseInt(numero);
+            } catch (NumberFormatException ex) {
+                errores.add(new TagIssue(TagIssue.NUMERO_DEMASIADO_GRANDE, Gravedad.ERROR, numero));
+            }
+        }
+    }
+
     private static void revisarCorchetes(String t, List<TagIssue> errores) {
         int abiertos = 0;
         for (int i = 0; i < t.length(); i++) {
@@ -111,10 +123,6 @@ public final class TagDiagnostico {
         }
     }
 
-    /**
-     * Una sola pasada con un unico Matcher. Antes se instanciaba uno por caracter,
-     * que es lo que hacia que esto se notase al escribir.
-     */
     private static void revisarCaracteres(String t, List<TagIssue> errores) {
         Matcher m = CARACTERES_RAROS.matcher(t);
         StringBuilder raros = new StringBuilder();

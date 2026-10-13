@@ -40,20 +40,6 @@ import javax.swing.event.DocumentListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.TagDiagnostico;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.TagIssue;
 
-/**
- * El campo de tag del area de memoria, con su diagnostico.
- *
- * <p>Es un {@code JTextField} de los de siempre, con una cosa anadida: al escribir, se
- * diagnostica el tag y se marca con borde rojo si esta mal. El globo con el texto entero
- * sale al pasar el raton por encima.
- *
- * <p>Es subclase y no un envoltorio a proposito: el formulario lo coloca en su rejilla
- * como cualquier otro campo, y las pruebas lo leen como {@code JTextField}. Con un
- * envoltorio habria que tocar las dos cosas.
- *
- * <p>Lo del globo necesita pantalla, asi que en un entorno sin display se sale antes de
- * tocarla: el borde rojo sigue puesto, que es el aviso que importa, y el CI no se cae.
- */
 final class TagField extends JTextField {
 
     private static final long serialVersionUID = 1L;
@@ -107,20 +93,12 @@ final class TagField extends JTextField {
         setBorder(errores.isEmpty()
                 ? bordeOriginal
                 : BorderFactory.createLineBorder(new Color(180, 0, 0), 2));
-        // isShowing() se queda: en un test el campo no esta visible y no tiene por que
-        // aparecer un globo. La proteccion de headless va dentro de mostrarAvisoTag(),
-        // que es donde se toca la pantalla de verdad.
+
         if (!todo.isEmpty() && ratonSobreTag && isShowing()) {
             mostrarAvisoTag(todo);
         }
     }
 
-    /**
-     * Traduce los codigos de {@link TagIssue} al texto que ve el usuario.
-     *
-     * <p>Las plantillas viven aqui, no en el modelo: el diagnostico no sabe nada de
-     * Swing ni de como se maquetan los parrafos (T3.8).
-     */
     private static String mensajeDe(TagIssue issue) {
         List<String> a = issue.args();
         return switch (issue.codigo()) {
@@ -143,22 +121,12 @@ final class TagField extends JTextField {
             case TagIssue.SIN_TAMANO -> "No se sabe el tamaño del área, así que no se le podrá"
                     + " añadir ninguna variable. Añada un rango al tag, del tipo [0..9],"
                     + " o un tipo tras los dos puntos, del tipo :INT.";
+            case TagIssue.NUMERO_DEMASIADO_GRANDE -> "El número «" + a.get(0) + "» es"
+                    + " demasiado grande: no cabe en un entero. Seguramente sobre un dígito.";
             default -> issue.codigo();
         };
     }
 
-    /**
-     * Muestra el globo de avisos junto al campo.
-     *
-     * <p>Sin pantalla no hay donde pegarlo, y aqui fallan dos llamadas por motivos
-     * distintos. {@code getMaximumWindowBounds()} lanza {@link java.awt.HeadlessException}
-     * directamente, pero antes que eso ya revienta {@code getLocationOnScreen()} con
-     * {@link IllegalComponentStateException} ("component must be showing on the screen"),
-     * porque en un test el campo nunca esta visible. En un CI sin display eso tumba el
-     * test entero con una excepcion que no dice de donde sale.
-     *
-     * <p>En headless no se muestra el globo y se sale: el borde rojo ya avisa del error.
-     */
     private void mostrarAvisoTag(List<TagIssue> issues) {
         if (GraphicsEnvironment.isHeadless()) {
             return;

@@ -215,7 +215,7 @@ public final class HMICommunicationModel implements CommunicationStore {
             p.put("model", device.getModel());
             p.put("protocol", device.getProtocol());
             p.put("deviceName", device.getDeviceName());
-            p.put("deviceKey", device.getDeviceKey());
+            p.put("deviceKey", device.getDeviceKey() == null ? "" : device.getDeviceKey());
             p.put("description", device.getDescription());
             p.put("uuid", uuid);
             p.put("enable", device.isEnabled());
@@ -376,8 +376,9 @@ public final class HMICommunicationModel implements CommunicationStore {
         // El XML ya esta escrito: no es lo mismo que no haber guardado nada, y quien
         // llama tiene que poder decirlo.
         LOGGER.warning("boot.db no pudo actualizarse; revise el registro de la aplicacion.");
-        return SaveResult.parcial(
-                "se escribio " + CONFIG_FILE + " pero no se pudo actualizar boot.db");
+        String motivo = BootDbRepository.motivoDelUltimoFallo();
+        return SaveResult.parcial("se escribio " + CONFIG_FILE + " pero no se pudo actualizar boot.db"
+                + (motivo == null || motivo.isBlank() ? "" : ": " + motivo));
     }
 
     public void addChangeListener(ChangeListener cl) {

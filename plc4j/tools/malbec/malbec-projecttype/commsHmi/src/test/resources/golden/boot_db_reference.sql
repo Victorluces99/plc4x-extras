@@ -1,6 +1,6 @@
 CREATE TABLE Devices (DeviceUuId, DriverName, DeviceKey, DeviceUrl, DeviceName, DeviceDescription, DeviceEnable, Md5);
-INSERT INTO Devices VALUES ('dev-plc-0001', 'S7', 'key-dev-plc-0001', 'ipa=10.0.0.1,port=102', 'PLC_Principal', 'PLC principal de la linea de embolsado', 'TRUE', 'md5_device_hash');
-INSERT INTO Devices VALUES ('dev-vfd-0002', 'Modbus', 'key-dev-vfd-0002', 'ip=192.168.1.20,unitId=1', 'VFD Bomba A <<1>>', 'Variador de la bomba de trasvase "A"', 'TRUE', 'md5_device_hash');
+INSERT INTO Devices VALUES ('dev-plc-0001', 'S7', 'key-dev-plc-0001', 'ipa=10.0.0.1,port=102', 'PLC_Principal', 'PLC principal de la linea de embolsado', 'TRUE', '');
+INSERT INTO Devices VALUES ('dev-vfd-0002', 'Modbus', 'key-dev-vfd-0002', 'ip=192.168.1.20,unitId=1', 'VFD Bomba A <<1>>', 'Variador de la bomba de trasvase "A"', 'TRUE', '');
 CREATE TABLE Groups (GroupUuid, DeviceUuid, GroupName, GroupDescription, GroupScantime, GroupEnable, Md5);
 INSERT INTO Groups VALUES ('g-plc-1', 'dev-plc-0001', 'Escaneo Rapido', 'Grupo de alta frecuencia', '500', 'TRUE', 'b3f1a0c2d4e5');
 INSERT INTO Groups VALUES ('g-plc-2', 'dev-plc-0001', 'Lento', 'Grupo de baja frecuencia', '2000', 'FALSE', 'c4a2b1d3e5f6');

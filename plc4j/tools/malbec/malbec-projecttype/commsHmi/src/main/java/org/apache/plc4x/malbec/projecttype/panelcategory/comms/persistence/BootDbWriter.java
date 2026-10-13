@@ -33,25 +33,10 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.Communication
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 
-/**
- * Escribe un {@code boot.db} completo desde cero, de forma atomica.
- *
- * <p>H-03: antes, {@code rebuild()} hacia {@code DROP TABLE} de las cuatro tablas sobre la
- * base de destino, reconectaba para recrearlas y luego insertaba dispositivo por
- * dispositivo, cada uno con su propia conexion y su propia transaccion. Un fallo a mitad
- * dejaba la base con parte del contenido, y la anterior ya estaba destruida, mientras
- * {@code comunicacion.xml} ya se habia guardado con la configuracion nueva. El runtime se
- * encontraba entonces con una configuracion y una base de datos que no correspondian.
- *
- * <p>Ahora se construye la base entera en un temporal, con una sola conexion y una sola
- * transaccion, y al final se mueve encima del destino. O sale la base nueva completa, o
- * sigue la anterior intacta. No hay estado intermedio.
- */
+
 final class BootDbWriter {
 
     private static final Logger LOGGER = Logger.getLogger(BootDbWriter.class.getName());
-
-    /** Version del esquema, guardada en el PRAGMA user_version del propio fichero. */
     static final int SCHEMA_VERSION = 1;
 
     private static final String[] SQL_CREATE_TABLES = {
@@ -63,16 +48,17 @@ final class BootDbWriter {
 
     private final File destino;
 
+    /** Por que fallo el ultimo write(), para poder decírselo al operador. */
+    private String ultimoMotivo;
+
     BootDbWriter(File destino) {
         this.destino = destino;
     }
 
-    /**
-     * Construye la base en un temporal y la mueve al destino solo si ha salido bien.
-     *
-     * @return {@code true} si el destino ha quedado con la base nueva; {@code false} si
-     *         algo fallo, en cuyo caso el destino no se ha tocado
-     */
+    String motivoDelFallo() {
+        return ultimoMotivo;
+    }
+
     boolean write(CommunicationsConfig config) throws SQLException {
         File temporal = new File(destino.getParentFile(), destino.getName() + ".tmp");
         borrarTemporal(temporal);
@@ -82,6 +68,7 @@ final class BootDbWriter {
         } catch (SQLException | RuntimeException ex) {
             // El temporal se va: un fallo aqui no debe dejar nada a medias junto al panel.
             borrarTemporal(temporal);
+            ultimoMotivo = ex.getMessage();
             LOGGER.log(Level.SEVERE, "No se pudo construir " + temporal.getName()
                     + "; se conserva el boot.db anterior", ex);
             return false;
@@ -103,23 +90,24 @@ final class BootDbWriter {
                         StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException failure) {
                 borrarTemporal(temporal);
+                ultimoMotivo = "no se pudo reemplazar " + destino.getName() + ": " + failure.getMessage();
                 LOGGER.log(Level.SEVERE, "No se pudo reemplazar " + destino.getName(), failure);
                 return false;
             }
         } catch (IOException ex) {
             borrarTemporal(temporal);
+            ultimoMotivo = "no se pudo reemplazar " + destino.getName() + ": " + ex.getMessage();
             LOGGER.log(Level.SEVERE, "No se pudo reemplazar " + destino.getName(), ex);
             return false;
         }
+        ultimoMotivo = null;
         return true;
     }
 
-    /** Crea el esquema y mete todos los dispositivos en una sola transaccion. */
     private void construirTemporal(File temporal, CommunicationsConfig config) throws SQLException {
         String url = "jdbc:sqlite:" + temporal;
         try (Connection conn = DriverManager.getConnection(url)) {
-            // El PRAGMA se pide con la conexion en autocommit: dentro de una transaccion
-            // SQLite lo ignora, y con el las claves foraneas no se comprueban.
+
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("PRAGMA foreign_keys=ON");
             }
@@ -143,6 +131,10 @@ final class BootDbWriter {
                                 + "' tiene el área '" + areaInvalida
                                 + "' sin grupo de escaneo");
                     }
+                    String faltaClave = BootDbRepository.problemaDeClave(device);
+                    if (faltaClave != null) {
+                        throw new SQLException(faltaClave);
+                    }
                     BootDbRepository.insertarDispositivo(conn, device, comms);
                 }
                 try (Statement stmt = conn.createStatement()) {
@@ -156,13 +148,6 @@ final class BootDbWriter {
         }
     }
 
-    /**
-     * Borra el temporal y los ficheros de acompanamiento de SQLite.
-     *
-     * <p>Si el temporal de una ejecucion anterior se queda con contenido de mas, el
-     * {@code CREATE TABLE} falla porque las tablas ya existen, y el fallo seria de una
-     * base ajena.
-     */
     private void borrarTemporal(File temporal) {
         for (String sufijo : new String[]{"", "-wal", "-shm", "-journal"}) {
             try {

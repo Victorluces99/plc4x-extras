@@ -165,6 +165,25 @@ El `PRAGMA user_version` del fichero lleva la versión del esquema (`BootDbWrite
 El `PRAGMA foreign_keys` se pide antes de abrir la transacción, porque SQLite lo ignora
 dentro de ella.
 
+### Lo que no se inventa en `boot.db`
+
+Todo lo que se escribe sale del modelo o se deja vacío. En concreto:
+
+- **Ningún `Md5` es inventado.** `Devices` no tiene hash en el modelo, así que su `Md5`
+  va vacío, y el asistente deja vacíos también los de grupo, área y PV. Los md5 que ya
+  vengan de un `comunicacion.xml` existente se respetan. Nadie lee esta columna en
+  runtime; se decidió dejarla vacía hasta que se sepa si se va a usar.
+- **La clave del dispositivo es obligatoria.** Si `deviceKey` falta o está en blanco, el
+  dispositivo no se escribe y el guardado falla nombrando el cuál. Antes se rellenaba con
+  una clave fija que el runtime recibía de verdad.
+- **No existe la vía sin dispositivo.** El overload `insertDeviceConfig(ruta, comms)` se
+  eliminó porque rellenaba driver, url, clave y descripción con literales, y no lo
+  llamaba nadie de producción.
+
+Cuando el guardado falla, `HMICommunicationModel` mete el motivo en `SaveResult.parcial()`,
+así que el diálogo dice qué dispositivo hay que arreglar en vez de un "no se pudo
+actualizar `boot.db`" sin más.
+
 Los valores booleanos se guardan como texto (`"TRUE"` / `"FALSE"`), igual que se muestran en
 las tablas del panel. Es una rareza histórica del formato, no un error.
 

@@ -71,7 +71,7 @@ public final class BootDbRepository {
         s5time, s7date s7time s7tod s7dat s7counter s7di s7ai s7ao s7valve
         s7vlv s7avlv s7motor boolean byte double float int long short
         string ubyte uint ulong ushort
-    */
+     */
     static final String SQL_CREATE_TABLE_PVRECORDS
             = "CREATE TABLE IF NOT EXISTS PvRecords("
             + "PvUuId TEXT NOT NULL PRIMARY KEY,"
@@ -109,9 +109,8 @@ public final class BootDbRepository {
         File carpeta = new File(rutaCarpeta);
         File archivoDB = new File(carpeta, "boot.db");
         String url = "jdbc:sqlite:" + archivoDB;
-        
-        try (Connection conn = DriverManager.getConnection(url);
-           Statement stmt = conn.createStatement()) {    
+
+        try (Connection conn = DriverManager.getConnection(url); Statement stmt = conn.createStatement()) {
             if (conn != null) {
                 stmt.execute(SQL_CREATE_TABLE_DEVICES);
                 stmt.execute(SQL_CREATE_TABLE_GROUPS);
@@ -124,12 +123,8 @@ public final class BootDbRepository {
             return false;
         }
     }
-    
-    public static boolean insertDeviceConfig(String rutaCarpeta, CommConfigData config) {
-        return insertDeviceConfig(rutaCarpeta, null, config);
-    }
 
-public static boolean insertDeviceConfig(String rutaCarpeta, DeviceConfigData device, CommConfigData comms) {
+    public static boolean insertDeviceConfig(String rutaCarpeta, DeviceConfigData device, CommConfigData comms) {
         File archivoDB = new File(rutaCarpeta, "boot.db");
         String url = "jdbc:sqlite:" + archivoDB;
 
@@ -139,7 +134,12 @@ public static boolean insertDeviceConfig(String rutaCarpeta, DeviceConfigData de
                 LOGGER.log(Level.WARNING,
                         "No se guardó el dispositivo '{0}': el área '{1}' no tiene grupo de escaneo.",
                         new Object[]{device != null ? device.getDeviceName() : "",
-                                areaInvalida});
+                            areaInvalida});
+                return false;
+            }
+            String faltaClave = problemaDeClave(device);
+            if (faltaClave != null) {
+                LOGGER.log(Level.WARNING, "No se guardó el dispositivo: {0}", faltaClave);
                 return false;
             }
             conn.setAutoCommit(false);
@@ -159,32 +159,40 @@ public static boolean insertDeviceConfig(String rutaCarpeta, DeviceConfigData de
     }
 
     /**
-     * Inscribe un dispositivo y su configuracion en la conexion dada.
+     * Motivo por el que un dispositivo no se puede escribir, o {@code null} si vale.
      *
-     * <p>No abre ni cierra la conexion y no confirma nada: quien llama decide si todo eso
-     * va en una transaccion o en varias. Eso es lo que permite que
-     * {@link BootDbWriter} meta el modelo entero en una sola transaccion.
-     *
-     * @throws SQLException si alguna sentencia falla
+     * <p>La clave no se sustituye por un valor inventado: si falta, el dispositivo no se
+     * guarda. Antes se rellenaba con una clave fija y el runtime la recibía de verdad.
      */
+    static String problemaDeClave(DeviceConfigData device) {
+        if (device == null) {
+            return "no hay ficha de dispositivo que guardar.";
+        }
+        String clave = device.getDeviceKey();
+        if (clave == null || clave.isBlank()) {
+            return "el dispositivo '" + device.getDeviceName() + "' no tiene clave."
+                    + " Edítelo y rellene el campo Key antes de guardar.";
+        }
+        return null;
+    }
+
     static void insertarDispositivo(Connection conn, DeviceConfigData device, CommConfigData comms)
             throws SQLException {
 
         String deviceUuid = (device != null && device.getUuid() != null && !device.getUuid().isEmpty())
                 ? device.getUuid() : UUID.randomUUID().toString();
         String deviceName = (device != null) ? device.getDeviceName() : (comms != null ? comms.getDeviceName() : "");
-        String driverName = (device != null) ? device.getProtocol() : "DefaultDriver";
-        String deviceDescription = (device != null) ? device.getDescription() : "Dispositivo guardado desde DeviceManager";
-
         try (PreparedStatement pstmt = conn.prepareStatement(SQL_INSERT_DEVICE)) {
             pstmt.setString(1, deviceUuid);
-            pstmt.setString(2, driverName);
-            pstmt.setString(3, device != null && device.getDeviceKey() != null ? device.getDeviceKey() : "Key123");
-            pstmt.setString(4, device != null ? device.getSpecificParameters() : "tcp://localhost:502");
+            pstmt.setString(2, device != null ? device.getProtocol() : null);
+            pstmt.setString(3, device != null ? device.getDeviceKey() : null);
+            pstmt.setString(4, device != null ? device.getSpecificParameters() : null);
             pstmt.setString(5, deviceName);
-            pstmt.setString(6, deviceDescription);
+            pstmt.setString(6, device != null ? device.getDescription() : null);
             pstmt.setString(7, (device != null && !device.isEnabled()) ? "FALSE" : "TRUE");
-            pstmt.setString(8, "md5_device_hash");
+            // El dispositivo no tiene md5 en el modelo. Se deja vacio hasta que se decida
+            // si la columna se usa; nada la lee hoy.
+            pstmt.setString(8, "");
             pstmt.executeUpdate();
         }
 
@@ -262,19 +270,28 @@ public static boolean insertDeviceConfig(String rutaCarpeta, DeviceConfigData de
         if (!dbFolder.isDirectory()) {
             return false;
         }
-        // H-03: delegar en BootDbWriter, que construye la base entera en un temporal con
-        // una sola transaccion y solo mueve el resultado encima de la anterior. Antes,
-        // este metodo hacia DROP TABLE sobre la base de destino y luego insertaba
-        // dispositivo por dispositivo con una conexion distinta cada vez; un fallo a
-        // mitad dejaba boot.db a medias, o vacio, mientras comunicacion.xml ya estaba
-        // guardado con la configuracion nueva.
+
         try {
-            return new BootDbWriter(new File(dbFolder, "boot.db")).write(config);
+            BootDbWriter writer = new BootDbWriter(new File(dbFolder, "boot.db"));
+            boolean ok = writer.write(config);
+            ULTIMO_MOTIVO = ok ? null : writer.motivoDelFallo();
+            return ok;
         } catch (SQLException ex) {
             LOGGER.log(Level.SEVERE, "Error reconstruyendo boot.db", ex);
+            ULTIMO_MOTIVO = ex.getMessage();
             return false;
         }
     }
+
+    /**
+     * Por que fallo el ultimo rebuild, para poder decírselo al operador en vez de un
+     * "no se pudo actualizar boot.db" sin más. {@code null} si el ultimo salió bien.
+     */
+    public static String motivoDelUltimoFallo() {
+        return ULTIMO_MOTIVO;
+    }
+
+    private static volatile String ULTIMO_MOTIVO;
 
     private BootDbRepository() {
     }

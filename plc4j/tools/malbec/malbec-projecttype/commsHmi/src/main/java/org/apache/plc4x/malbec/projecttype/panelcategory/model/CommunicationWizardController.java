@@ -29,9 +29,9 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.SaveResult;
 
 public class CommunicationWizardController {
 
-    private static final String MD5_GROUP = "md5_group_hash";
-    private static final String MD5_ITEM = "md5_item_hash";
-    private static final String MD5_PV = "md5_pv_hash";
+    // El asistente no calcula hashes. Se deja vacio hasta que se decida si la columna
+    // Md5 se usa; los md5 que ya vienen de un comunicacion.xml existente se respetan.
+    private static final String MD5_PENDIENTE = "";
 
     private final CommunicationStore store;
     private final CommunicationWizardState state;
@@ -71,7 +71,7 @@ public class CommunicationWizardController {
 
     public void addGroup(String uuid, String name, String desc, String scan, boolean enable) {
         state.getGroups().add(
-                new CommConfigData.GroupConfig(uuid, name, desc, scan, enable, MD5_GROUP));
+                new CommConfigData.GroupConfig(uuid, name, desc, scan, enable, MD5_PENDIENTE));
         state.setCambiosSinGuardar(true);
     }
 
@@ -112,7 +112,7 @@ public class CommunicationWizardController {
 
     public void addItem(String uuid, String name, String desc, String tag, boolean enable, String groupUuid) {
         state.getItems().add(new CommConfigData.ItemConfig(
-                uuid, name, desc, tag, enable, MD5_ITEM, groupUuid));
+                uuid, name, desc, tag, enable, MD5_PENDIENTE, groupUuid));
         state.setCambiosSinGuardar(true);
         cacheTags.clear();
     }
@@ -192,33 +192,17 @@ public class CommunicationWizardController {
     }
 
     public static String pvMd5() {
-        return MD5_PV;
+        return MD5_PENDIENTE;
     }
 
     public static String groupMd5() {
-        return MD5_GROUP;
+        return MD5_PENDIENTE;
     }
 
-    // --- layout de memoria de un ÃƒÂ¡rea ---------------------------------------
-
-    /**
-     * Parseo de tag con memoria (T3.7).
-     *
-     * <p>Se indexa por el texto del tag, no por el UUID del ÃƒÂ¡rea. La clave correcta
-     * es el propio tag: {@code MemoryTag} es inmutable, asÃƒÂ­ que el mismo texto da
-     * siempre el mismo resultado y no hay forma de que la cache se quede obsoleta.
-     * Indexar por UUID obligaria a invalidar en cada cambio de tag, y el UUID no
-     * cambia cuando el usuario corrige el texto.
-     *
-     * <p>Se limpia al anadir, editar o borrar un ÃƒÂ¡rea para que no crezca con cada
-     * pulsaciÃƒÂ³n.
-     */
     private MemoryTag parseTag(String tag) {
         if (tag == null) {
             return null;
         }
-        // computeIfAbsent no guarda null, que es justo lo que queremos para un tag
-        // que no se puede desglosar: se vuelve a intentar, pero no se acumula.
         return cacheTags.computeIfAbsent(tag, MemoryTag::parse);
     }
 
@@ -484,8 +468,6 @@ public class CommunicationWizardController {
         }
         return usedKeys;
     }
-
-    // --- validaciÃƒÂ³n y persistencia ------------------------------------------
     public List<String> areasSinGrupoNames() {
         List<String> nombres = new ArrayList<>();
         for (CommConfigData.ItemConfig i : state.areasSinGrupo()) {
@@ -498,18 +480,6 @@ public class CommunicationWizardController {
         return !state.areasSinGrupo().isEmpty();
     }
 
-    /**
-     * Guarda grupos, areas, items y PVs del dispositivo seleccionado.
-     *
-     * <p>Devuelve el {@link SaveResult} entero y no un {@code boolean}: el que llama
-     * tiene que poder distinguir un guardado completo de uno a medias, porque los dos
-     * necesitan mensajes distintos. Si esto devolviera {@code isComplete()}, un guardado
-     * en el que no se escribio nada por H-01 se contaria como fallo de la base de datos
-     * y se le diria al usuario que se guardo en comunicacion.xml sin haberlo hecho.
-     *
-     * <p>Sin dispositivo o sin almacen la situacion no es un fallo de escritura: no se
-     * intento nada, y conviene que el mensaje lo diga en vez deechazar una excepcion.
-     */
     public SaveResult saveAll() {
         if (store == null || state.getSelectedDevice() == null) {
             return SaveResult.noGuardado(

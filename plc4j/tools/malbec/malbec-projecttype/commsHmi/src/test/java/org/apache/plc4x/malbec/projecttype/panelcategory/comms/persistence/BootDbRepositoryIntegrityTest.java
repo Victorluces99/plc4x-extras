@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.File;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -37,31 +36,11 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Caracterizacion de H-03 y H-04: como queda {@code boot.db} cuando algo falla a
- * mitad, y que valores se inventan al insertar.
- *
- * <p>Estos tests describen el comportamiento <em>actual</em>, que es incorrecto.
- * estan aqui para que quede fijada la forma exacta del fallo antes de arreglarlo,
- * no como especificacion. Cuando se corrija H-03 o H-04, el fallo debe observarse
- * aqui: o bien los tests pasan con el comportamiento nuevo, o bien se reescriben
- * como tests del comportamiento correcto. Ajustar la asercion para que vuelva a
- * cuadrar con el fallo seria perder justo lo que estos tests protegen.
- */
 class BootDbRepositoryIntegrityTest {
 
     @TempDir
     Path tempDir;
-
-    // ---------------------------------------------------------------- H-03
-
-    /**
-     * Un fallo en un dispositivo no deja {@code boot.db} a medias.
-     *
-     * <p>La base se construye entera en un temporal y se mueve al final. Un dispositivo
-     * invalido hace que todo el guardado falle y el temporal se borre, sin tocar la base
-     * de destino.
-     */
+    
     @Test
     void unFalloEnElSegundoDispositivoNoDejaBootDbAPartial() throws Exception {
         CommunicationsConfig config = new CommunicationsConfig();
@@ -81,14 +60,6 @@ class BootDbRepositoryIntegrityTest {
                 "el temporal de la base debe recogerse, no quedarse junto al panel");
     }
 
-    /**
-     * Un fallo deja la base anterior como estaba.
-     *
-     * <p>Este era el fallo mas caro de H-03: {@code rebuild()} hacia {@code DROP TABLE}
-     * sobre la base de destino antes de insertar nada, asi que un fallo posterior dejaba
-     * {@code boot.db} vacio mientras {@code comunicacion.xml} ya estaba guardado con la
-     * configuracion nueva. El runtime se encontraba con una cosa y otra.
-     */
     @Test
     void unFalloDeInsertarConservaLaBaseAnterior() throws Exception {
         // Primero una base buena.
@@ -155,8 +126,64 @@ class BootDbRepositoryIntegrityTest {
 
     // ---------------------------------------------------------------- H-04
 
-    @Test
-    void unaClaveDeDispositivoNulaSeRellenaConKey123() throws Exception {
+/**
+ * El {@code Md5} del dispositivo se escribe vacío.
+ *
+ * <p>El modelo no tiene md5 para el dispositivo y no se calcula ninguno, así que antes se
+ * ponía el literal "md5_device_hash". Nada lee esta columna en runtime; queda vacía
+ * hasta que se decida si se usa.
+ */
+@Test
+void elMd5DelDispositivoSeEscribeVacio() throws Exception {
+        CommunicationsConfig config = new CommunicationsConfig();
+        config.addDevice(dispositivo("uuid-1", "PLC_Uno", true));
+        config.upsertComms("uuid-1", commsConGrupo("g-1", "it-1", "pv-1"));
+
+        assertTrue(BootDbRepository.rebuild(tempDir.toFile(), config));
+
+        assertEquals("", valorDeDispositivo("uuid-1", "Md5"),
+                "no hay hash del dispositivo que escribir, así que no se escribe ninguno");
+    }
+
+/** No queda ninguno de los valores inventados en el codigo que escribe la base. */
+@Test
+void elCodigoYaNoTieneValoresInventados() throws Exception {
+        for (String fichero : new String[]{
+                "commsHmi/src/main/java/org/apache/plc4x/malbec/projecttype/panelcategory/comms"
+                        + "/persistence/BootDbRepository.java",
+                "commsHmi/src/main/java/org/apache/plc4x/malbec/projecttype/panelcategory/comms"
+                        + "/persistence/BootDbWriter.java",
+                "commsHmi/src/main/java/org/apache/plc4x/malbec/projecttype/panelcategory/model"
+                        + "/CommunicationWizardController.java"}) {
+            java.nio.file.Path ruta = java.nio.file.Path.of("..", fichero);
+            if (!java.nio.file.Files.exists(ruta)) {
+                ruta = java.nio.file.Path.of(fichero);
+            }
+            String fuente = java.nio.file.Files.readString(ruta);
+            for (String inventado : new String[]{
+                    "md5_device_hash", "md5_group_hash", "md5_item_hash", "md5_pv_hash", "Key123",
+                    "DefaultDriver", "tcp://localhost:502",
+                    "Dispositivo guardado desde DeviceManager"}) {
+                assertFalse(fuente.contains(inventado),
+                        "H-04: '" + inventado + "' sigue apareciendo en " + ruta.getFileName());
+            }
+        }
+    }
+
+    /**
+ * Un dispositivo sin clave no se guarda, y no se le inventa una.
+ *
+ * <p>Antes se sustituía por "Key123" y el runtime recibía esa clave de verdad, que no
+ * corresponde a ninguna instalación. Ahora el guardado falla y la base anterior queda
+ * como estaba.
+ */
+@Test
+void unDispositivoSinClaveNoSeGuardaYNoSeLeInventaUna() throws Exception {
+        CommunicationsConfig buena = new CommunicationsConfig();
+        buena.addDevice(dispositivo("uuid-ok", "PLC_Bueno", true));
+        buena.upsertComms("uuid-ok", commsConGrupo("g-ok", "it-ok", "pv-ok"));
+        assertTrue(BootDbRepository.rebuild(tempDir.toFile(), buena));
+
         Properties p = new Properties();
         p.put("brand", "Siemens");
         p.put("model", "S7-1500");
@@ -170,34 +197,38 @@ class BootDbRepositoryIntegrityTest {
         // deviceKey ausente a proposito
 
         CommunicationsConfig config = new CommunicationsConfig();
+        config.addDevice(dispositivo("uuid-ok", "PLC_Bueno", true));
+        config.upsertComms("uuid-ok", commsConGrupo("g-ok", "it-ok", "pv-ok"));
         config.addDevice(new DeviceConfigData(p));
         config.upsertComms("uuid-sin-clave", commsConGrupo("g-1", "it-1", "pv-1"));
 
-        assertTrue(BootDbRepository.rebuild(tempDir.toFile(), config));
+        assertFalse(BootDbRepository.rebuild(tempDir.toFile(), config),
+                "un dispositivo sin clave tiene que hacer fallar el guardado");
 
-        assertEquals("Key123", valorDeDispositivo("uuid-sin-clave", "DeviceKey"),
-                "H-04: una clave ausente se sustituye por un valor inventado");
+        assertEquals(1, contarDispositivos(),
+                "la base anterior se conserva tal cual");
+        assertTrue(BootDbRepository.motivoDelUltimoFallo().contains("Sin clave"),
+                "el motivo debe nombrar el dispositivo: "
+                        + BootDbRepository.motivoDelUltimoFallo());
     }
 
+    /** Una clave en blanco es lo mismo que no tenerla: tampoco se sustituye. */
     @Test
-    void sinDispositivoSeInventanTodosLosCampos() throws Exception {
-        assertTrue(BootDbRepository.createDB(tempDir.toFile().getAbsolutePath()));
+    void unaClaveEnBlancoTampocoSeSustituye() throws Exception {
+        Properties p = new Properties();
+        p.put("protocol", "S7");
+        p.put("deviceName", "Con clave vacia");
+        p.put("uuid", "uuid-vacia");
+        p.put("deviceKey", "   ");
+        p.put("enable", true);
+        p.put("specificParameters", "ipa=10.0.0.1");
 
-        // El overload de dos argumentos es el que no tiene dispositivo, y por tanto
-        // el que rellena driver, url, clave y descripcion con valores fijos.
-        boolean ok = BootDbRepository.insertDeviceConfig(tempDir.toFile().getAbsolutePath(),
-                commsConGrupo("g-1", "it-1", "pv-1"));
+        CommunicationsConfig config = new CommunicationsConfig();
+        config.addDevice(new DeviceConfigData(p));
+        config.upsertComms("uuid-vacia", commsConGrupo("g-1", "it-1", "pv-1"));
 
-        assertTrue(ok);
-        assertEquals("DefaultDriver", valorUnicoDe("Devices", "DriverName"),
-                "H-04: el driver no es el del proyecto, es un literal");
-        assertEquals("Key123", valorUnicoDe("Devices", "DeviceKey"),
-                "H-04: la clave no viene de ninguna parte");
-        assertEquals("tcp://localhost:502", valorUnicoDe("Devices", "DeviceUrl"),
-                "H-04: la URL no corresponde a la instalacion");
-        assertEquals("Dispositivo guardado desde DeviceManager",
-                valorUnicoDe("Devices", "DeviceDescription"),
-                "H-04: la descripcion es un texto fijo, no la del usuario");
+        assertFalse(BootDbRepository.rebuild(tempDir.toFile(), config),
+                "una clave en blanco es una clave que falta");
     }
 
     @Test
@@ -221,38 +252,12 @@ class BootDbRepositoryIntegrityTest {
         assertEquals("S7", valorDeDispositivo("uuid-sin-param", "DriverName"),
                 "con dispositivo el driver sale del protocolo, no de un literal");
     }
-
-    @Test
-    void unaClaveVaciaSeRespetaPeroUnaNulaSeSustituye() throws Exception {
-        Properties p = new Properties();
-        p.put("protocol", "S7");
-        p.put("deviceName", "Con clave vacia");
-        p.put("uuid", "uuid-vacia");
-        p.put("deviceKey", "");
-        p.put("enable", true);
-        p.put("specificParameters", "ipa=10.0.0.1");
-
-        CommunicationsConfig config = new CommunicationsConfig();
-        config.addDevice(new DeviceConfigData(p));
-        config.upsertComms("uuid-vacia", commsConGrupo("g-1", "it-1", "pv-1"));
-
-        assertTrue(BootDbRepository.rebuild(tempDir.toFile(), config));
-        assertEquals("", valorDeDispositivo("uuid-vacia", "DeviceKey"),
-                "una clave vacia se respeta: el runtime recibe una clave vacia, no Key123");
-    }
-
-    @Test
-    void elMd5DelDispositivoEsUnLiteralIgnorandoElDelModelo() throws Exception {
-        CommunicationsConfig config = new CommunicationsConfig();
-        config.addDevice(dispositivo("uuid-1", "PLC_Uno", true));
-        config.upsertComms("uuid-1", commsConGrupo("g-1", "it-1", "pv-1"));
-
-        assertTrue(BootDbRepository.rebuild(tempDir.toFile(), config));
-
-        assertEquals("md5_device_hash", valorDeDispositivo("uuid-1", "Md5"),
-                "H-04: el Md5 del dispositivo es un literal, no un hash del contenido");
-    }
-
+/**
+     * Los grupos, áreas y PVs siguen llevando el md5 que trae el modelo.
+     *
+     * <p>Solo los literales fijos desaparecieron; lo que venga de un
+     * {@code comunicacion.xml} existente no se toca.
+     */
     @Test
     void losMd5DeGrupoAreaYPvSiVienenDelModelo() throws Exception {
         CommunicationsConfig config = new CommunicationsConfig();

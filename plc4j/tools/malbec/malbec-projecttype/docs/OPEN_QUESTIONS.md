@@ -83,17 +83,15 @@ El golden `boot_db_reference.sql` lo deja fijo.
 **Opciones.** 1. Es correcto, `boot.db` solo necesita lo de ejecucion.
 2. Anadir columnas (cambia el esquema, prohibido en este plan).
 
-### N-2. `Devices.Md5` es un literal, los demas si llevan el md5 real
+### N-2. `Devices.Md5` y el resto de md5 inventados
 
-**Pregunta.** Se debe calcular el md5 del dispositivo como ya se hace con grupos,
-areas y PVs?
+**Resuelto.** El asistente no calcula hashes y el modelo no trae uno para el
+dispositivo, asi que ya no se escribe ningun valor inventado: la columna Md5 se
+deja vacia en `Devices` y los md5 que crea el asistente van vacios tambien.
+Los md5 que ya vienen de un `comunicacion.xml` existente se respetan sin tocar.
 
-**Como se verifico.** `BootDbRepository.java:149` hace
-`pstmt.setString(8, "md5_device_hash")`, mientras las lineas 163, 178 y 203 usan
-`g.getMd5()`, `item.getMd5()` y `pv.getMd5()`.
-
-**Opciones.** 1. Dejarlo, es un placeholder conocido. 2. Calcularlo en T1.5.
-
+Ningun consumidor en runtime lee la columna; hoy solo se muestra como texto en la
+tabla de PVs. Si algun dia se decide usarla, habra que calcular el hash de verdad.
 ### N-3. Los booleanos se guardan como texto en SQLite
 
 **Pregunta.** Es intencionado que `DeviceEnable`, `GroupEnable`, `ItemEnable`,

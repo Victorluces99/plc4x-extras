@@ -55,33 +55,42 @@ class BootDbRepositoryIntegrityTest {
 
     // ---------------------------------------------------------------- H-03
 
+    /**
+     * Un fallo en un dispositivo no deja {@code boot.db} a medias.
+     *
+     * <p>La base se construye entera en un temporal y se mueve al final. Un dispositivo
+     * invalido hace que todo el guardado falle y el temporal se borre, sin tocar la base
+     * de destino.
+     */
     @Test
-    void unFalloEnElSegundoDispositivoDejaBootDbAPartial() throws Exception {
+    void unFalloEnElSegundoDispositivoNoDejaBootDbAPartial() throws Exception {
         CommunicationsConfig config = new CommunicationsConfig();
         config.addDevice(dispositivo("uuid-ok", "PLC_Bueno", true));
         config.upsertComms("uuid-ok", commsConGrupo("g-ok", "it-ok", "pv-ok"));
 
-        // Este dispositivo es invalido: su area no tiene grupo de escaneo, asi que
-        // insertDeviceConfig lo rechaza.
+        // Este dispositivo es invalido: su area no tiene grupo de escaneo.
         config.addDevice(dispositivo("uuid-malo", "PLC_Malo", true));
         config.upsertComms("uuid-malo", commsSinGrupo("it-malo", "pv-malo"));
 
         boolean ok = BootDbRepository.rebuild(tempDir.toFile(), config);
 
-        assertFalse(ok,
-                "precondicion: rebuild debe informar del fallo");
-        assertEquals(1, contarDispositivos(),
-                "H-03: el fallo deja el primer dispositivo escrito y el segundo no");
-        assertTrue(existeDispositivo("uuid-ok"),
-                "el dispositivo valido queda en la base");
-        assertFalse(existeDispositivo("uuid-malo"),
-                "el invalido se rechaza");
-        assertEquals(1, contar("Items"),
-                "H-03: la base queda a medias, con parte del contenido y parte no");
+        assertFalse(ok, "un dispositivo invalido hace fallar el guardado");
+        assertFalse(new File(tempDir.toFile(), "boot.db").exists(),
+                "no habia boot.db antes, y un guardado fallido no debe dejar uno a medias");
+        assertEquals(0, contarTemporales(),
+                "el temporal de la base debe recogerse, no quedarse junto al panel");
     }
 
+    /**
+     * Un fallo deja la base anterior como estaba.
+     *
+     * <p>Este era el fallo mas caro de H-03: {@code rebuild()} hacia {@code DROP TABLE}
+     * sobre la base de destino antes de insertar nada, asi que un fallo posterior dejaba
+     * {@code boot.db} vacio mientras {@code comunicacion.xml} ya estaba guardado con la
+     * configuracion nueva. El runtime se encontraba con una cosa y otra.
+     */
     @Test
-    void unFalloDeInsertarNoRevierteElDropDeLasTablas() throws Exception {
+    void unFalloDeInsertarConservaLaBaseAnterior() throws Exception {
         // Primero una base buena.
         CommunicationsConfig buena = new CommunicationsConfig();
         buena.addDevice(dispositivo("uuid-1", "PLC_Uno", true));
@@ -95,9 +104,53 @@ class BootDbRepositoryIntegrityTest {
         mala.upsertComms("uuid-2", commsSinGrupo("it-2", "pv-2"));
         assertFalse(BootDbRepository.rebuild(tempDir.toFile(), mala));
 
-        assertEquals(0, contarDispositivos(),
-                "H-03: el DROP TABLE no tiene transaccion global, asi que el fallo de"
-                        + " insercion deja la base anterior destruida y vacia");
+        assertEquals(1, contarDispositivos(),
+                "H-03: la base anterior tiene que seguir ahi, no quedar destruida");
+        assertTrue(existeDispositivo("uuid-1"),
+                "H-03: el dispositivo que ya estaba sigue en la base");
+        assertFalse(existeDispositivo("uuid-2"),
+                "H-03: el dispositivo que fallo no debe colarse en la base anterior");
+    }
+
+    /** Dos guardados seguidos: el segundo reemplaza al primero sin dejar restos del anterior. */
+    @Test
+    void unGuardadoCorrectoSustituyeEnteroAlAnterior() throws Exception {
+        CommunicationsConfig primera = new CommunicationsConfig();
+        primera.addDevice(dispositivo("uuid-1", "PLC_Uno", true));
+        primera.upsertComms("uuid-1", commsConGrupo("g-1", "it-1", "pv-1"));
+        assertTrue(BootDbRepository.rebuild(tempDir.toFile(), primera));
+
+        CommunicationsConfig segunda = new CommunicationsConfig();
+        segunda.addDevice(dispositivo("uuid-2", "PLC_Dos", true));
+        segunda.upsertComms("uuid-2", commsConGrupo("g-2", "it-2", "pv-2"));
+        assertTrue(BootDbRepository.rebuild(tempDir.toFile(), segunda));
+
+        assertEquals(1, contarDispositivos(), "la base nueva no hereda la anterior");
+        assertFalse(existeDispositivo("uuid-1"));
+        assertTrue(existeDispositivo("uuid-2"));
+    }
+
+    /** La base escrita lleva la version del esquema en el PRAGMA user_version. */
+    @Test
+    void laBaseEscribeLaVersionDelEsquema() throws Exception {
+        CommunicationsConfig config = new CommunicationsConfig();
+        config.addDevice(dispositivo("uuid-1", "PLC_Uno", true));
+        config.upsertComms("uuid-1", commsConGrupo("g-1", "it-1", "pv-1"));
+        assertTrue(BootDbRepository.rebuild(tempDir.toFile(), config));
+
+        try (Connection conn = conexion(); Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("PRAGMA user_version")) {
+            rs.next();
+            assertEquals(BootDbWriter.SCHEMA_VERSION, rs.getInt(1),
+                    "la base debe decir que version de esquema es");
+        }
+    }
+
+    /** Cuantos ficheros temporales de boot.db quedan junto al panel. */
+    private int contarTemporales() {
+        File[] archivos = tempDir.toFile().listFiles(
+                (dir, nombre) -> nombre.startsWith("boot.db.") || nombre.startsWith("boot.db-"));
+        return archivos == null ? 0 : archivos.length;
     }
 
     // ---------------------------------------------------------------- H-04

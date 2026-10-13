@@ -1,0 +1,176 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.plc4x.malbec.projecttype.panelcategory.comms.persistence;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationsConfig;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
+
+/**
+ * Escribe un {@code boot.db} completo desde cero, de forma atomica.
+ *
+ * <p>H-03: antes, {@code rebuild()} hacia {@code DROP TABLE} de las cuatro tablas sobre la
+ * base de destino, reconectaba para recrearlas y luego insertaba dispositivo por
+ * dispositivo, cada uno con su propia conexion y su propia transaccion. Un fallo a mitad
+ * dejaba la base con parte del contenido, y la anterior ya estaba destruida, mientras
+ * {@code comunicacion.xml} ya se habia guardado con la configuracion nueva. El runtime se
+ * encontraba entonces con una configuracion y una base de datos que no correspondian.
+ *
+ * <p>Ahora se construye la base entera en un temporal, con una sola conexion y una sola
+ * transaccion, y al final se mueve encima del destino. O sale la base nueva completa, o
+ * sigue la anterior intacta. No hay estado intermedio.
+ */
+final class BootDbWriter {
+
+    private static final Logger LOGGER = Logger.getLogger(BootDbWriter.class.getName());
+
+    /** Version del esquema, guardada en el PRAGMA user_version del propio fichero. */
+    static final int SCHEMA_VERSION = 1;
+
+    private static final String[] SQL_CREATE_TABLES = {
+        BootDbRepository.SQL_CREATE_TABLE_DEVICES,
+        BootDbRepository.SQL_CREATE_TABLE_GROUPS,
+        BootDbRepository.SQL_CREATE_TABLE_ITEMS,
+        BootDbRepository.SQL_CREATE_TABLE_PVRECORDS
+    };
+
+    private final File destino;
+
+    BootDbWriter(File destino) {
+        this.destino = destino;
+    }
+
+    /**
+     * Construye la base en un temporal y la mueve al destino solo si ha salido bien.
+     *
+     * @return {@code true} si el destino ha quedado con la base nueva; {@code false} si
+     *         algo fallo, en cuyo caso el destino no se ha tocado
+     */
+    boolean write(CommunicationsConfig config) throws SQLException {
+        File temporal = new File(destino.getParentFile(), destino.getName() + ".tmp");
+        borrarTemporal(temporal);
+
+        try {
+            construirTemporal(temporal, config);
+        } catch (SQLException | RuntimeException ex) {
+            // El temporal se va: un fallo aqui no debe dejar nada a medias junto al panel.
+            borrarTemporal(temporal);
+            LOGGER.log(Level.SEVERE, "No se pudo construir " + temporal.getName()
+                    + "; se conserva el boot.db anterior", ex);
+            return false;
+        }
+
+        try {
+            // La conexion esta cerrada a proposito antes de mover: SQLite puede dejar el
+            // temporal pillado en Windows si se mueve con el fichero abierto.
+            Files.move(temporal.toPath(), destino.toPath(),
+                    StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException ex) {
+            // Algunos sistemas de ficheros no dan soporte; el contenido ya esta escrito y
+            // verificado, asi que un reemplazo normal sigue siendo mejor que nada.
+            LOGGER.log(Level.WARNING,
+                    "El sistema de ficheros no permite mover atómicamente boot.db;"
+                            + " se reemplaza directamente", ex);
+            try {
+                Files.move(temporal.toPath(), destino.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException failure) {
+                borrarTemporal(temporal);
+                LOGGER.log(Level.SEVERE, "No se pudo reemplazar " + destino.getName(), failure);
+                return false;
+            }
+        } catch (IOException ex) {
+            borrarTemporal(temporal);
+            LOGGER.log(Level.SEVERE, "No se pudo reemplazar " + destino.getName(), ex);
+            return false;
+        }
+        return true;
+    }
+
+    /** Crea el esquema y mete todos los dispositivos en una sola transaccion. */
+    private void construirTemporal(File temporal, CommunicationsConfig config) throws SQLException {
+        String url = "jdbc:sqlite:" + temporal;
+        try (Connection conn = DriverManager.getConnection(url)) {
+            // El PRAGMA se pide con la conexion en autocommit: dentro de una transaccion
+            // SQLite lo ignora, y con el las claves foraneas no se comprueban.
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("PRAGMA foreign_keys=ON");
+            }
+
+            conn.setAutoCommit(false);
+            try {
+                try (Statement stmt = conn.createStatement()) {
+                    for (String sql : SQL_CREATE_TABLES) {
+                        stmt.execute(sql);
+                    }
+                }
+                for (DeviceConfigData device : config.getDevices()) {
+                    CommConfigData comms = config.getComms(device.getUuid());
+                    // La misma comprobacion que hace insertDeviceConfig. Sin ella, un area
+                    // sin grupo de escaneo se colaba en la base: al separarse el insertado
+                    // del dispositivo de la validacion, esta se habia quedado fuera.
+                    String areaInvalida = BootDbRepository.primerAreaSinGrupo(comms);
+                    if (areaInvalida != null) {
+                        throw new SQLException("el dispositivo '"
+                                + (device != null ? device.getDeviceName() : "?")
+                                + "' tiene el área '" + areaInvalida
+                                + "' sin grupo de escaneo");
+                    }
+                    BootDbRepository.insertarDispositivo(conn, device, comms);
+                }
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("PRAGMA user_version=" + SCHEMA_VERSION);
+                }
+                conn.commit();
+            } catch (SQLException | RuntimeException ex) {
+                conn.rollback();
+                throw ex;
+            }
+        }
+    }
+
+    /**
+     * Borra el temporal y los ficheros de acompanamiento de SQLite.
+     *
+     * <p>Si el temporal de una ejecucion anterior se queda con contenido de mas, el
+     * {@code CREATE TABLE} falla porque las tablas ya existen, y el fallo seria de una
+     * base ajena.
+     */
+    private void borrarTemporal(File temporal) {
+        for (String sufijo : new String[]{"", "-wal", "-shm", "-journal"}) {
+            try {
+                Files.deleteIfExists(new File(temporal.getParentFile(),
+                        temporal.getName() + sufijo).toPath());
+            } catch (IOException ex) {
+                LOGGER.log(Level.WARNING, "No se pudo borrar el temporal de boot.db", ex);
+            }
+        }
+    }
+}

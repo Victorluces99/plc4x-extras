@@ -18,12 +18,15 @@
  */
 package org.apache.plc4x.malbec.projecttype.panel.action;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.FilenameFilter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -121,6 +124,41 @@ public class HMIPanelImportActionTest {
         assertEquals(Set.of("xml"), HMIPanelImportAction.formatosSinProvider(
                 List.of(), HMIPanelImportAction.FORMATOS.keySet()));
     }
+
+/**
+     * El aviso de formatos desalineados se pide una vez, al construir la accion.
+ *
+     * <p>Antes estaba dentro de {@code importPlant()}, o sea que se consultaba el Lookup en
+     * cada clic en "Importar proyecto". El resultado no cambia durante la sesion, porque
+     * depende de que providers haya registrados, y repetirlo era trabajo tirado en cada
+     * intento.
+ *
+ * *<p>Esto no se puede comprobar mirando logs: la deduplicacion no esta dentro de
+ * {@code avisarFormatosDesalineados()}, que avisa cada vez que se llama, sino en que solo
+ * se llama una vez, desde el constructor. Se comprueba por tanto sobre el fuente, que es
+ * donde vive la decision.
+ */
+@Test
+void elAvisoDeFormatosDesalineadosNoEstaEnElCaminoDeCadaImportacion() throws Exception {
+    var fuente = Files.readString(Path.of(
+            "src/main/java/org/apache/plc4x/malbec/projecttype/panel/action/HMIPanelImportAction.java"));
+
+    var constructor = fuente.substring(
+            fuente.indexOf("public HMIPanelImportAction(FileObject panel)"),
+            fuente.indexOf("static String extensionDe"));
+    assertTrue(constructor.contains("avisarFormatosDesalineados()"),
+            "el aviso debe pedirlo el constructor, una vez al construir la accion");
+
+    var importPlant = fuente.substring(fuente.indexOf("private void importPlant()"));
+    assertFalse(importPlant.contains("avisarFormatosDesalineados()"),
+            "el aviso no debe volver a salir en cada clic en Importar");
+}
+
+/** El aviso se pide contra el Lookup real y no debe lanzar si no hay providers. */
+@Test
+void elAvisoDeFormatosDesalineadosSePuedeLlamarSinProvider() {
+    assertDoesNotThrow(HMIPanelImportAction::avisarFormatosDesalineados);
+}
 
     private record ProviderQueSoloAcepta(String formato) implements S88RepositoryProvider {
 

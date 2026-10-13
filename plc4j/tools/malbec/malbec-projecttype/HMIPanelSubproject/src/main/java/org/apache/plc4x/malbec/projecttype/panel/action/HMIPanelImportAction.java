@@ -92,6 +92,7 @@ public class HMIPanelImportAction extends AbstractAction {
     public HMIPanelImportAction(FileObject panel) {
         super("Importar proyecto");
         this.panel = panel;
+        avisarFormatosDesalineados();
     }
 
     static String extensionDe(File archivo) {
@@ -153,8 +154,6 @@ public class HMIPanelImportAction extends AbstractAction {
     }
 
     private void importPlant() {
-        avisarFormatosDesalineados();
-
         FileDialog chooser =
                 new FileDialog(WindowManager.getDefault().getMainWindow(),
                         "Seleccionar modelo de planta", FileDialog.LOAD);

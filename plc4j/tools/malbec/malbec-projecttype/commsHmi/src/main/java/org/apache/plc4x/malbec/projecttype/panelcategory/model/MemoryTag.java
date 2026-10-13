@@ -45,11 +45,6 @@ public final class MemoryTag {
         this.hasRange = hasRange;
     }
 
-    /**
-     * Desglosa el tag. El trabajo esta en {@link MemoryTagParser}; aqui solo se
-     * construye el resultado. Se devuelve {@code null} si el tag no tiene nada que
-     * desglosar, y el llamante lo trata como «sin direccion».
-     */
     public static MemoryTag parse(String raw) {
         MemoryTagParser.Partes partes = MemoryTagParser.parse(raw);
         if (partes == null) {
@@ -100,8 +95,9 @@ public final class MemoryTag {
         return lastByte;
     }
 
+    /** false solo si hay rango escrito y va de mayor a menor: -1 significa "no hay rango". */
     public boolean rangoValido() {
-        return firstByte >= 0 && lastByte >= 0 && lastByte >= firstByte;
+        return lastByte < 0 || lastByte >= firstByte;
     }
 
     public int byteCapacity() {

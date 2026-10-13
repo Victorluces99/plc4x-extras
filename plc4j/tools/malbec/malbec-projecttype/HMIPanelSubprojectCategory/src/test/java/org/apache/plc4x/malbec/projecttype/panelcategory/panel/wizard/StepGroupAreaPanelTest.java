@@ -284,4 +284,76 @@ class StepGroupAreaPanelTest {
         panel.getItemTag().setText(tag);
         assertEquals(tag, panel.getItemTag().getText());
     }
+
+    /**
+     * Los tags de la tabla de sintaxis de PLC4X se aceptan.
+     *
+     * <p>Regresión: sin rango, firstByte y lastByte valen -1, y la comprobacion los
+     * tomaba por un rango al revés. Bloqueaba casi todos los tags válidos, incluidos
+     * los que el propio texto de ayuda del panel ofrece como ejemplo.
+     */
+    @Test
+    void losTagsDeSintaxisDePlc4xSeAceptan() {
+        StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
+        for (String tag : new String[]{
+                "%DB1.DBX0.0:BOOL", "%DB10.DBW20:INT", "%I0.0:BOOL", "%MD100:DINT",
+                "%DB1.DBB0[0..9]:BYTE", "%DB5:10:INT", "%DB1.DBB0:STRING(80)", "%DB1.DBB0:STRING"}) {
+            assertNull(panel.problemaDelTag(tag, null),
+                    "«" + tag + "» es un tag válido de PLC4X y no debe rechazarse");
+        }
+    }
+
+    @Test
+    void lasMarcasDeBitSeAceptan() {
+        StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
+        for (String tag : new String[]{"%Q0.1:BOOL", "%M100.0:BOOL", "%IB0.0"}) {
+            assertNull(panel.problemaDelTag(tag, null), "«" + tag + "» no debe rechazarse");
+        }
+    }
+
+    /** Un rango realmente al revés sí es un error y se sigue rechazando. */
+    @Test
+    void unRangoAlRevesSeRechaza() {
+        StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
+
+        String problema = panel.problemaDelTag("%DB21.DBB0[1848..0]:BYTE", null);
+
+        assertNotNull(problema, "[1848..0] va al revés y hay que rechazarlo");
+        assertTrue(problema.contains("al revés"), "el mensaje debe explicarlo: " + problema);
+        assertFalse(problema.contains("-1"),
+                "el mensaje no debe falar de -1, que es el centinela de 'sin rango'");
+    }
+
+    /** Dos áreas sin rango no se rechazan solo por no tener rango. */
+    @Test
+    void dosAreasSinRangoSeAceptan() {
+        StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
+
+        assertNull(panel.problemaDelTag("%DB1.DBB0:BYTE", null));
+        assertNull(panel.problemaDelTag("%DB1.DBL4:REAL", null));
+    }
+
+    /** El mensaje de solape debe hablar de bytes, no del centinela -1. */
+    @Test
+    void elMensajeDeSolapeNoHablaDelCentinela() {
+        StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
+        assertNull(panel.problemaDelTag("%DB1.DBB0[0..3]:BYTE", null));
+
+        String problema = panel.problemaDelTag("%DB1.DBB0[2..5]:BYTE", null);
+
+        if (problema != null) {
+            assertFalse(problema.contains("-1"),
+                    "un mensaje para el usuario no debe enseñar el centinela: " + problema);
+        }
+    }
+
+    @Test
+    void unTagVacioSeRechazaConEjemplos() {
+        StepGroupAreaPanel panel = panelConUnGrupoYUnArea();
+
+        String problema = panel.problemaDelTag("", null);
+
+        assertNotNull(problema, "un tag vacío no se puede guardar");
+        assertTrue(problema.contains("%DB231"), "debe ofrecer un ejemplo: " + problema);
+    }
 }

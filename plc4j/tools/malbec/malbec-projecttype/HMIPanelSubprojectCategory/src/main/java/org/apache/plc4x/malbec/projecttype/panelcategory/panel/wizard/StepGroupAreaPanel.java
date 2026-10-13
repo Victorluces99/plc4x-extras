@@ -359,7 +359,7 @@ public class StepGroupAreaPanel extends JPanel {
     }
 
     // --- items ---------------------------------------------------------------
-    private String problemaDelTag(String tag, String uuidEnEdicion) {
+    String problemaDelTag(String tag, String uuidEnEdicion) {
         if (tag.isEmpty()) {
             return "Indique el tag del área. Por ejemplo: "
                     + "%DB231.DBB0[0..1848]:BOOL, DB1.DBX0.0, %MW66:WORD, MW2 "

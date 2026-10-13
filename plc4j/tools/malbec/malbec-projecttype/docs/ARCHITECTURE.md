@@ -50,7 +50,7 @@ HMIPanelSubproject
 |---|---|---|
 | `commsHmi` | El modelo de datos (`CommConfigData`, `DeviceConfigData`, `CommConfigData.PvConfig`), los repositorios de XML y SQLite, los constructores de panel por protocolo, `SaveResult`, `PanelBuilderRegistry`, `TagDiagnostico` | — |
 | `HMIPanelSubprojectCategory` | Los nodos del árbol de categorías, el modelo `HMICommunicationModel` y sus guardas de concurrencia, los diálogos (asistente de comunicación, alta de dispositivo) | `commsHmi` |
-| `HMIPanelSubproject` | El nodo raíz del panel, la importación desde S88, la exportación a ZIP | `HMIPanelSubprojectCategory` |
+| `HMIPanelSubproject` | El nodo raíz del panel, la exportación a ZIP y, en el paquete `...panel.plant`, la importación desde S88 | `HMIPanelSubprojectCategory` |
 | `ConfigPhoebus` | Ajuste de la ruta del ejecutable de Phoebe | — |
 
 ### Reglas
@@ -190,7 +190,7 @@ con el modelo de planta un nivel por encima, en la carpeta que agrupa las máqui
 
 ### Niveles del S88 y sus nombres XML
 
-`HMIPanelImportAction.tagFor()` decide el nombre del elemento. Solo hay dos nombres propios:
+`PlantSnapshot.tagFor()` decide el nombre del elemento. Solo hay dos nombres propios:
 
 | Nivel de `S88Level` | Elemento escrito |
 |---|---|

@@ -52,6 +52,8 @@ import org.openide.util.Lookup;
 
 public class HMIPanelCategorySubprojectImpl implements Project {
 
+    private static final java.util.logging.Logger ExceptionsLOGGER =
+            java.util.logging.Logger.getLogger(HMICategoryCreateCommAction.class.getName());
     private final FileObject fo;
     private final ProjectState ps;
     private Lookup lkp;
@@ -76,9 +78,19 @@ public class HMIPanelCategorySubprojectImpl implements Project {
             try {
                 services.add(new HMICommunicationModel(this));
             } catch (Throwable t) {
+                // Omitir el modelo es lo correcto para no tumbar el arbol de proyectos,
+                // pero callarse el motivo no lo es: asi este fallo era invisible y se
+                // manifests como "el dialogo no abre" sin ninguna pista. El mensaje va al
+                // registro de NetBeans, que es donde se mira cuando algo no aparece.
                 Exceptions.attachMessage(t,
                         "El modelo de comunicaciones no pudo inicializarse; "
                         + "se omite del Lookup para no bloquear el árbol de proyectos.");
+                ExceptionsLOGGER.log(
+                        java.util.logging.Level.SEVERE,
+                        "No se pudo crear el modelo de comunicaciones del proyecto "
+                                + getProjectDirectory().getName()
+                                + "; el asistente de comunicación quedará sin funcionar.",
+                        t);
             }
             lkp = Lookups.fixed(services.toArray());
         }

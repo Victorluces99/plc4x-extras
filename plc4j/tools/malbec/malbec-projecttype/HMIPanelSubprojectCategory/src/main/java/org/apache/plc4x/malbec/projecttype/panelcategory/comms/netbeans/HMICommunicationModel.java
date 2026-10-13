@@ -25,6 +25,7 @@ import java.util.logging.Logger;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
+import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRepository;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigStorage;
@@ -42,37 +43,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public final class HMICommunicationModel implements CommunicationStore {
 
-    /**
-     * Nombre del fichero de configuracion de comunicaciones.
-     *
-     * <p>Se mantiene por compatibilidad con {@code NetBeansProjectStorage}, que lo usa.
-     * El valor vive en {@link ProjectIds}; aqui solo se renombra, para no tener dos nombres
-     * distintos del mismo fichero.
-     */
     public static final String CONFIG_FILE = ProjectIds.COMMUNICATION_CONFIG_FILE;
-
     private static final Logger LOGGER = Logger.getLogger(HMICommunicationModel.class.getName());
-
     private final ProjectStorage storage;
     private final ChangeSupport cs = new ChangeSupport(this);
-
-    /**
-     * Exclusion mutua sobre {@link #config}, {@link #loadError} y {@link #repository}.
-     *
-     * <p>Antes no habia nada, y hacia falta: el watcher de ficheros recarga desde un
-     * hilo y el usuario guarda desde otro, de modo que las dos cosas ocurren a la vez
-     * de verdad. Los tres campos se asignan por separado, asi que una recarga podia
-     * colarse entre la comprobacion de la guarda H-01 y la escritura, y el guardado
-     * podia tomar la configuracion antes de una recarga y reconstruir {@code boot.db}
-     * despues de ella. Los dos ficheros acababan describiendo cosas distintas sin que
-     * nada avise, y el resultado dependia del planificador.
-     *
-     * <p>El bloqueo de escritura cubre el guardado y la recarga enteros, no solo las
-     * asignaciones: la parte interesante es la escritura a disco, que es donde importa
-     * que nadie cambie lo que se esta guardando.
-     */
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-
     private CommConfigRepository repository;
     private CommunicationsConfig config;
     private Exception loadError;
@@ -88,13 +63,6 @@ public final class HMICommunicationModel implements CommunicationStore {
         reload();
     }
 
-    /**
-     * Recarga la configuracion desde el almacenamiento.
-     *
-     * <p>Toma el bloqueo de escritura porque reasignar {@code config} mientras otro
-     * hilo guarda es exactamente la carrera que este bloqueo elimina. Es reentrante,
-     * asi queolver a llamar desde dentro no se queda esperando a si mismo.
-     */
     public final void reload() {
         lock.writeLock().lock();
         try {
@@ -111,7 +79,7 @@ public final class HMICommunicationModel implements CommunicationStore {
         if (!commProject) {
             olvidarConfiguracion();
             loadError = null;
-            cs.fireChange();
+            avisarCambio();
             return;
         }
 
@@ -126,13 +94,11 @@ public final class HMICommunicationModel implements CommunicationStore {
             }
         }
         if (configStorage == null) {
-            // No se pudo ni leer ni crear el archivo. Sin archivo no hay nada que
-            // cargar, y guardar aqui escribiria un modelo vacio sobre boot.db.
             loadError = new IOException("no se pudo crear " + CONFIG_FILE
                     + " en el proyecto " + storage.directoryName());
             config = new CommunicationsConfig();
             LOGGER.log(Level.SEVERE, loadError.getMessage());
-            cs.fireChange();
+            avisarCambio();
             return;
         }
 
@@ -142,19 +108,14 @@ public final class HMICommunicationModel implements CommunicationStore {
         try {
             carga = new CommConfigLoader(repository).load();
         } catch (Exception ex) {
-            // H-01: el fallo ya no se traga. Antes se sustituid la configuracion
-            // por una vacia sin decir nada, de modo que un archivo ilegible se veia
-            // como «no hay dispositivos» y un guardado posterior podia escribir
-            // encima un modelo que nunca se habia leido.
-            // Ahora se conserva lo que habia, se registra el error y queda disponible
-            // para que la interfaz avise. No se guarda nada en este estado.
+
             loadError = ex;
             if (config == null) {
                 config = new CommunicationsConfig();
             }
             LOGGER.log(Level.SEVERE, "No se pudo cargar " + CONFIG_FILE
                     + "; se conserva la configuración anterior.", ex);
-            cs.fireChange();
+            avisarCambio();
             return;
         }
         loadError = null;
@@ -162,10 +123,9 @@ public final class HMICommunicationModel implements CommunicationStore {
         if (created || carga.uuidReparados()) {
             escribir(repository, created);
         }
-        cs.fireChange();
+        avisarCambio();
     }
 
-    /** Reestablece el modelo tras borrarse el archivo de configuracion. */
     private void olvidarConfiguracion() {
         lock.writeLock().lock();
         try {
@@ -177,17 +137,12 @@ public final class HMICommunicationModel implements CommunicationStore {
         }
     }
 
-    /**
-     * Reescribe {@code comunicacion.xml} sin disparar una recarga sobre una
-     * escritura a medias.
-     */
     private void escribir(CommConfigRepository destino, boolean archivoNuevo) {
         storage.pauseNotifications();
         try {
             destino.save(config);
         } catch (Exception ex) {
             if (archivoNuevo) {
-                // El archivo vacio se materializara en el primer save() real.
                 LOGGER.log(Level.FINE, "Se dejara para el primer guardado: " + ex.getMessage());
             } else {
                 LOGGER.log(Level.WARNING,
@@ -228,20 +183,6 @@ public final class HMICommunicationModel implements CommunicationStore {
         return reparado;
     }
 
-    /**
-     * Error de la ultima carga, si lo hubo (H-01).
-     *
-     * <p>La interfaz debe consultarlo para avisar al usuario. Mientras siga
-     * presente, {@link #save()} se niega a escribir: el modelo puede contener solo
-     * parte de la informacion o estar vacio, y volcar eso a {@code boot.db}
-     * destruiria datos que siguen intactos en el fichero.
-     *
-     * @return el fallo de carga, o vacio si la ultima carga fue correcta
-     */
-    /**
-     * Los lectores toman el bloqueo de lectura, para que no vean el modelo a medio
-     * cambiar mientras una recarga lo reasigna.
-     */
     public Optional<Exception> getLoadError() {
         lock.readLock().lock();
         try {
@@ -305,17 +246,6 @@ public final class HMICommunicationModel implements CommunicationStore {
         }
     }
 
-    /**
-     * Guarda la configuracion y reconstruye {@code boot.db}.
-     *
-     * <p>Toma el bloqueo de escritura durante todo el guardado, incluida la
-     * reconstruccion de la base: leer {@code config} una vez al principio y usarla
-     * despues, sin el bloqueo, permitiria que una recarga la cambiase entre medias y
-     * que el XML y la base acabaran con contenidos distintos.
-     *
-     * <p>El evento de cambio se dispara aqui mismo, en el hilo que guarda, igual que
-     * antes de este refactor. Moverlo al EDT es la parte de T4.6 que no se hace aqui.
-     */
     public SaveResult save() {
         lock.writeLock().lock();
         try {
@@ -327,10 +257,6 @@ public final class HMICommunicationModel implements CommunicationStore {
 
     private SaveResult guardar() {
         if (loadError != null) {
-            // H-01: con la carga fallida el modelo puede estar vacio o incompleto.
-            // Guardar aqui escribiria eso sobre comunicacion.xml y reconstruiria
-            // boot.db desde un modelo que nunca se ha podido leer. Se niega, y el
-            // motivo queda en el registro.
             String motivo = "la carga de " + CONFIG_FILE + " fallo, asi que el modelo en "
                     + "memoria no es de fiar";
             LOGGER.log(Level.SEVERE, "No se guarda nada: " + motivo, loadError);
@@ -341,8 +267,6 @@ public final class HMICommunicationModel implements CommunicationStore {
             try {
                 configStorage = storage.createConfig();
             } catch (IOException ex) {
-                // Aqui todavia no se ha escrito nada, asi que se puede devolver un
-                // resultado en vez de propagar la excepcion como antes.
                 LOGGER.log(Level.SEVERE, "No se pudo crear el almacen de la configuracion", ex);
                 return SaveResult.noGuardado(
                         "no se pudo preparar el fichero de configuracion: " + ex.getMessage());
@@ -369,16 +293,22 @@ public final class HMICommunicationModel implements CommunicationStore {
             LOGGER.log(Level.WARNING, "Error volcando la configuracion a boot.db", ex);
             databaseUpdated = false;
         }
-        cs.fireChange();
+        avisarCambio();
         if (databaseUpdated) {
             return SaveResult.exito();
         }
-        // El XML ya esta escrito: no es lo mismo que no haber guardado nada, y quien
-        // llama tiene que poder decirlo.
         LOGGER.warning("boot.db no pudo actualizarse; revise el registro de la aplicacion.");
         String motivo = BootDbRepository.motivoDelUltimoFallo();
         return SaveResult.parcial("se escribio " + CONFIG_FILE + " pero no se pudo actualizar boot.db"
                 + (motivo == null || motivo.isBlank() ? "" : ": " + motivo));
+    }
+
+    private void avisarCambio() {
+        if (SwingUtilities.isEventDispatchThread()) {
+            cs.fireChange();
+            return;
+        }
+        SwingUtilities.invokeLater(cs::fireChange);
     }
 
     public void addChangeListener(ChangeListener cl) {

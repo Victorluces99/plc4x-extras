@@ -57,4 +57,20 @@ class GuardadoFueraDelEdtTest {
         assertTrue(codigo.contains("btnOk.setEnabled(true)"),
                 "los botones tienen que volver a estar disponibles despues");
     }
+
+    @Test
+    void losListenersSeAvisanSiempreEnElHiloDeSwing() throws Exception {
+        java.nio.file.Path fuente = java.nio.file.Path.of("..", "HMIPanelSubprojectCategory",
+                "src", "main", "java", "org", "apache", "plc4x", "malbec", "projecttype",
+                "panelcategory", "comms", "netbeans", "HMICommunicationModel.java");
+        String codigo = Files.readString(fuente);
+
+        assertFalse(codigo.contains("cs.fireChange();")
+                        && codigo.indexOf("cs.fireChange();") < codigo.indexOf("avisarCambio()"),
+                "el aviso tiene que pasar por el reenvio");
+        assertTrue(codigo.contains("SwingUtilities.invokeLater(cs::fireChange)"),
+                "llamar desde el hilo del watchdog repinta el arbol desde ese hilo");
+        assertTrue(codigo.contains("isEventDispatchThread()"),
+                "si ya estamos en el EDT, reenviar seria un retardo tonto");
+    }
 }

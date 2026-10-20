@@ -18,28 +18,13 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.action;
 
-
-import java.awt.event.ActionEvent;
-import java.io.IOException;
-import javax.swing.AbstractAction;
-import javax.swing.Action;
-import org.netbeans.api.project.Project;
-import org.openide.DialogDescriptor;
-import org.openide.DialogDisplayer;
 import org.openide.filesystems.FileObject;
-import org.openide.util.ContextAwareAction;
-import org.openide.util.Exceptions;
-import org.openide.util.Lookup;
 
-public class HMICategoryRuntimeUserManagementAction extends AbstractAction{
-    private final FileObject fileObject;
+public class HMICategoryRuntimeUserManagementAction extends AbstractNotImplementedAction {
+
+    private static final long serialVersionUID = 1L;
 
     public HMICategoryRuntimeUserManagementAction(FileObject fileObject) {
-        super("Editar RunTime User Management");
-        this.fileObject = fileObject;
+        super("Editar usuarios runtime", fileObject);
     }
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        System.out.println("Acción ejecutada sobre: " + fileObject.getNameExt());
-    }   
 }

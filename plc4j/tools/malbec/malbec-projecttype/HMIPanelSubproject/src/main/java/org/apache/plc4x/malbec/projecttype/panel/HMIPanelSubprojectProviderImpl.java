@@ -29,7 +29,6 @@ import org.netbeans.spi.project.SubprojectProvider;
 import org.openide.filesystems.FileObject;
 import org.openide.util.Exceptions;
 
-
 public class HMIPanelSubprojectProviderImpl implements SubprojectProvider{
     
     public static final String PANEL_SUBPROJECT_DIRECTORY = "panel";
@@ -52,7 +51,7 @@ public class HMIPanelSubprojectProviderImpl implements SubprojectProvider{
     public void removeChangeListener(ChangeListener cl) {
     }
 
-    private Set loadProjects(FileObject dir) {
+    private Set<Project> loadProjects(FileObject dir) {
         Set<Project> result = new LinkedHashSet<>();
 
         for (FileObject child : dir.getChildren()) {

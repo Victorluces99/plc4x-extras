@@ -18,26 +18,43 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.model;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 public enum DataType {
 
     BOOLEAN("boolean", 1, true, true),
     BYTE("byte", 1, false, true),
-    UBYTE("ubyte", 1, false, true),
     WORD("word", 2, false, true),
-    SHORT("short", 2, false, true),
-    USHORT("ushort", 2, false, true),
+    DWORD("dword", 4, false, true),
+    SINT("sint", 1, false, true),
+    USINT("usint", 1, false, true),
     INT("int", 4, false, true),
     UINT("uint", 4, false, true),
+    DINT("dint", 4, false, true),
+    UDINT("udint", 4, false, true),
+    LINT("lint", 8, false, true),
+    ULINT("ulint", 8, false, true),
+    REAL("real", 4, false, true),
+    LREAL("lreal", 8, false, true),
+    // Legacy types (kept for backward compatibility)
+    UBYTE("ubyte", 1, false, true),
+    SHORT("short", 2, false, true),
+    USHORT("ushort", 2, false, true),
     FLOAT("float", 4, false, true),
     LONG("long", 8, false, true),
     ULONG("ulong", 8, false, true),
     DOUBLE("double", 8, false, true),
 
-    /** Tamaño variable: no admite cálculo de offset. */
+    /** Tamaño variable: no admite cálculo de offset por ahora (esperar por definir). */
     STRING("string", 0, false, false),
-
+    TIME("time", 4, false, true),
+    DATE("date", 2, false, true),
+    TIME_OF_DAY("tod", 4, false, true),
+    DATE_AND_TIME("dt", 8, false, true),
     S5TIME("s5time", 0, false, false),
     S7DATE("s7date", 0, false, false),
     S7TIME("s7time", 0, false, false),
@@ -55,13 +72,34 @@ public enum DataType {
     private final String name;
     private final int byteSize;
     private final boolean bitAddressed;
-    private final boolean habilitado;
+    private final boolean enabled;
 
-    DataType(String name, int byteSize, boolean bitAddressed, boolean habilitado) {
+
+    private static final Set<String> ESPECIFICOS_DE_SIEMENS = Set.of(
+            "S5TIME", "S7DATE", "S7TIME", "S7TOD", "S7DAT", "S7COUNTER", "S7DI", "S7AI",
+            "S7AO", "S7VALVE", "S7VLV", "S7AVLV", "S7MOTOR");
+    private static final Map<String, DataType> POR_NOMBRE = new HashMap<>();
+    private static final Map<String, DataType> POR_NOMBRE_SIN_MAYUSCULAS = new HashMap<>();
+    private static final String CONCATENATED_NAMES;
+
+    static {
+        StringBuilder text = new StringBuilder();
+        for (DataType t : values()) {
+            POR_NOMBRE.put(t.name, t);
+            POR_NOMBRE_SIN_MAYUSCULAS.put(t.name.toUpperCase(Locale.ROOT), t);
+            if (text.length() > 0) {
+                text.append(", ");
+            }
+            text.append(t.name);
+        }
+        CONCATENATED_NAMES = text.toString();
+    }
+
+    DataType(String name, int byteSize, boolean bitAddressed, boolean enabled) {
         this.name = name;
         this.byteSize = byteSize;
         this.bitAddressed = bitAddressed;
-        this.habilitado = habilitado;
+        this.enabled = enabled;
     }
 
     public String label() {
@@ -76,8 +114,11 @@ public enum DataType {
         return bitAddressed;
     }
 
-    public boolean habilitado() {
-        return habilitado;
+    public boolean isEnabled() {
+        return enabled;
+    }
+    public boolean isProtocolSpecific() {
+        return ESPECIFICOS_DE_SIEMENS.contains(name());
     }
 
     public int slotBits() {
@@ -88,38 +129,22 @@ public enum DataType {
         if (name == null || name.isEmpty()) {
             return null;
         }
-        for (DataType t : values()) {
-            if (t.name.equals(name)) {
-                return t;
-            }
-        }
-        return null;
+        return POR_NOMBRE.get(name);
     }
 
     public static DataType findIgnoreCase(String name) {
         if (name == null || name.isEmpty()) {
             return null;
         }
-        for (DataType t : values()) {
-            if (t.name.equalsIgnoreCase(name)) {
-                return t;
-            }
-        }
-        return null;
+        return POR_NOMBRE_SIN_MAYUSCULAS.get(name.toUpperCase(Locale.ROOT));
     }
 
-    public static String nombres() {
-        StringBuilder texto = new StringBuilder();
-        for (DataType t : values()) {
-            if (texto.length() > 0) {
-                texto.append(", ");
-            }
-            texto.append(t.name);
-        }
-        return texto.toString();
+    /** Nombres de todos los tipos, separados por coma. Se calcula una sola vez. */
+    public static String names() {
+        return CONCATENATED_NAMES;
     }
 
-    public static List<DataType> candidatos(String familia, int bitsArea) {
+    public static List<DataType> candidates(String familia, int bitsArea) {
         if (familia == null) {
             return List.of();
         }
@@ -133,7 +158,7 @@ public enum DataType {
                 case 64 -> List.of(LONG, ULONG);
                 default -> List.of();
             };
-            case "REAL" -> esReal(bitsArea) ? List.of(FLOAT, DOUBLE) : List.of();
+            case "REAL" -> isReal(bitsArea) ? List.of(FLOAT, DOUBLE) : List.of();
             case "BOOL" -> bitsArea == 1 || bitsArea == 8 ? List.of(BOOLEAN) : List.of();
             case "INT", "UINT" -> List.of(SHORT, USHORT);
             case "DINT", "UDINT", "DWORD" -> List.of(INT, UINT);
@@ -149,15 +174,15 @@ public enum DataType {
         };
     }
     
-    private static boolean esReal(int bitsArea) {
+    private static boolean isReal(int bitsArea) {
         return bitsArea == 0 || bitsArea >= 32;
     }
 
-    public static int bitsDeTipo(String nombre) {
-        if (nombre == null) {
+    public static int bitsOfType(String name) {
+        if (name == null) {
             return 0;
         }
-        return switch (nombre.toUpperCase()) {
+        return switch (name.toUpperCase()) {
             case "BOOL" -> 1;
             case "BYTE", "SINT", "USINT", "CHAR" -> 8;
             case "WORD", "INT", "UINT", "WCHAR" -> 16;

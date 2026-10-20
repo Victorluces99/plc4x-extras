@@ -39,21 +39,20 @@ public interface DeviceDynamicPanelBuilder {
     String[] getTransportOptions();
 
     LinkedHashMap<String, String> getParameterDefaults();
+    
+    ValidationResult validateParameter(String key, String value);
 
     default LinkedHashMap<String, String> getParameterDefaults(String transport) {
         return getParameterDefaults();
     }
 
-
     default String getHostLabel() {
         return "Host/IP:";
     }
 
-
     default boolean isPortApplicable() {
         return true;
     }
-
 
     default void retainParameters(Set<String> validKeys) {
     }
@@ -64,24 +63,23 @@ public interface DeviceDynamicPanelBuilder {
 
     void clearParameters();
 
-
     LinkedHashMap<String, String> getParameters();
 
     String getSpecificParametersAsString();
 
     static String assembleUrl(String protocol, String transport, String host, String port,
-                              LinkedHashMap<String, String> params) {
+            LinkedHashMap<String, String> params) {
         return assembleUrl(protocol, transport, host, port, params, true);
     }
 
     static String assembleUrl(String protocol, String transport, String host, String port,
-                              LinkedHashMap<String, String> params, boolean includePort) {
+            LinkedHashMap<String, String> params, boolean includePort) {
         StringBuilder sb = new StringBuilder();
         sb.append(protocol == null ? "" : protocol);
         if (transport != null && !transport.trim().isEmpty()) {
             sb.append(":").append(transport);
         }
-        sb.append("://").append(host == null ? "" : host);
+        sb.append("://").append(hostInBrackets(host == null ? "" : host));
         if (includePort && port != null && !port.trim().isEmpty()) {
             sb.append(":").append(port.trim());
         }
@@ -96,9 +94,25 @@ public interface DeviceDynamicPanelBuilder {
                 if (i++ > 0) {
                     sb.append("&");
                 }
-                sb.append(e.getKey()).append("=").append(e.getValue());
+                // Los valores se codifican para que un '&' o un '=' dentro de ellos no
+                // rompa el formato. Un valor sin caracteres reservados se escribe igual
+                // que antes, asi que las URLs existentes no cambian.
+                sb.append(UrlDisassembler.codificar(e.getKey()))
+                        .append("=")
+                        .append(UrlDisassembler.codificar(e.getValue() == null ? "" : e.getValue()));
             }
         }
         return sb.toString();
+    }
+
+    private static String hostInBrackets(String host) {
+        String limpio = host.trim();
+        if (limpio.startsWith("[") && limpio.endsWith("]")) {
+            return limpio;
+        }
+        if (!limpio.contains(":")) {
+            return limpio;
+        }
+        return "[" + limpio + "]";
     }
 }

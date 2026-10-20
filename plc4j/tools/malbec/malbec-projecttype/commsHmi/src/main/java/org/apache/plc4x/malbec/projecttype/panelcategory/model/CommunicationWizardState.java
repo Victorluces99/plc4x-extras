@@ -19,9 +19,7 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.model;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 
@@ -31,7 +29,6 @@ public class CommunicationWizardState {
     private final List<CommConfigData.GroupConfig> groups = new ArrayList<>();
     private final List<CommConfigData.ItemConfig> items = new ArrayList<>();
     private final List<CommConfigData.PvConfig> pvs = new ArrayList<>();
-    private final Map<String, String> itemsGroup = new HashMap<>();
     private boolean cambiosSinGuardar = false;
     private boolean missingGroupsWarned = false;
     
@@ -39,7 +36,6 @@ public class CommunicationWizardState {
         groups.clear();
         items.clear();
         pvs.clear();
-        itemsGroup.clear();
         cambiosSinGuardar = false;
         missingGroupsWarned = false;
 
@@ -49,11 +45,6 @@ public class CommunicationWizardState {
             }
             if (comms.getItems() != null) {
                 items.addAll(comms.getItems());
-                for (CommConfigData.ItemConfig i : items) {
-                    if (i.getGroupUuid() != null && !i.getGroupUuid().isEmpty()) {
-                        itemsGroup.put(i.getUuid(), i.getGroupUuid());
-                    }
-                }
             }
             if (comms.getPvs() != null) {
                 pvs.addAll(comms.getPvs());
@@ -62,55 +53,67 @@ public class CommunicationWizardState {
     }
 
     public CommConfigData.GroupConfig groupByUuid(String uuid) {
-        if (uuid == null) {
-            return null;
-        }
-        for (CommConfigData.GroupConfig g : groups) {
-            if (g.getUuid().equals(uuid)) {
-                return g;
-            }
-        }
-        return null;
+        int idx = indexOfGroup(uuid);
+        return idx < 0 ? null : groups.get(idx);
     }
 
     public CommConfigData.ItemConfig itemByUuid(String uuid) {
-        if (uuid == null) {
-            return null;
-        }
-        for (CommConfigData.ItemConfig i : items) {
-            if (uuid.equals(i.getUuid())) {
-                return i;
-            }
-        }
-        return null;
+        int idx = indexOfItem(uuid);
+        return idx < 0 ? null : items.get(idx);
+    }
+
+    public CommConfigData.ItemConfig itemByName(String name) {
+        int idx = indexOfItemByName(name);
+        return idx < 0 ? null : items.get(idx);
     }
 
     public CommConfigData.PvConfig pvByUuid(String uuid) {
-        if (uuid == null) {
-            return null;
-        }
-        for (CommConfigData.PvConfig pv : pvs) {
-            if (uuid.equals(pv.getUuid())) {
-                return pv;
+        int idx = indexOfPv(uuid);
+        return idx < 0 ? null : pvs.get(idx);
+    }
+    public int indexOfGroup(String uuid) {
+        return find(groups, g -> sameUuid(uuid, g.getUuid()));
+    }
+
+    public int indexOfItem(String uuid) {
+        return find(items, i -> sameUuid(uuid, i.getUuid()));
+    }
+
+    public int indexOfItemByName(String name) {
+        return find(items, i -> name != null && name.equals(i.getName()));
+    }
+
+    public int indexOfPv(String uuid) {
+        return find(pvs, p -> sameUuid(uuid, p.getUuid()));
+    }
+
+    private static boolean sameUuid(String uuid, String otro) {
+        return uuid != null && uuid.equals(otro);
+    }
+
+    private static <T> int find(List<T> lista, java.util.function.Predicate<T> coincide) {
+        for (int i = 0; i < lista.size(); i++) {
+            if (coincide.test(lista.get(i))) {
+                return i;
             }
         }
-        return null;
+        return -1;
     }
 
     public String groupNameOf(String itemUuid) {
-        String groupUuid = itemsGroup.get(itemUuid);
-        if (groupUuid == null) {
+        CommConfigData.ItemConfig item = itemByUuid(itemUuid);
+        if (item == null || item.getGroupUuid() == null || item.getGroupUuid().isEmpty()) {
             return "";
         }
         for (CommConfigData.GroupConfig g : groups) {
-            if (g.getUuid().equals(groupUuid)) {
+            if (g.getUuid().equals(item.getGroupUuid())) {
                 return g.getName();
             }
         }
         return "";
     }
 
-    public List<CommConfigData.ItemConfig> areasSinGrupo() {
+    public List<CommConfigData.ItemConfig> areasWithoutGroup() {
         List<CommConfigData.ItemConfig> sinGrupo = new ArrayList<>();
         for (CommConfigData.ItemConfig i : items) {
             if (groupNameOf(i.getUuid()).isEmpty()) {
@@ -120,13 +123,13 @@ public class CommunicationWizardState {
         return sinGrupo;
     }
 
-    public List<CommConfigData.PvConfig> pvsOfArea(String areaUuid) {
+    public List<CommConfigData.PvConfig> pvsOfArea(String areaName) {
         List<CommConfigData.PvConfig> result = new ArrayList<>();
-        if (areaUuid == null) {
+        if (areaName == null) {
             return result;
         }
         for (CommConfigData.PvConfig pv : pvs) {
-            if (areaUuid.equals(pv.getId())) {
+            if (areaName.equals(pv.getAreaName())) {
                 result.add(pv);
             }
         }
@@ -153,15 +156,13 @@ public class CommunicationWizardState {
         return pvs;
     }
 
-    public Map<String, String> getItemsGroup() {
-        return itemsGroup;
-    }
+    
 
-    public boolean isCambiosSinGuardar() {
+    public boolean hasUnsavedChanges() {
         return cambiosSinGuardar;
     }
 
-    public void setCambiosSinGuardar(boolean cambiosSinGuardar) {
+    public void setUnsavedChanges(boolean cambiosSinGuardar) {
         this.cambiosSinGuardar = cambiosSinGuardar;
     }
 

@@ -19,19 +19,11 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.panel.wizard;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
-import java.awt.Dimension;
 import java.awt.GridBagConstraints;
-import java.awt.GraphicsEnvironment;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -40,44 +32,28 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
-import javax.swing.Popup;
-import javax.swing.PopupFactory;
-import javax.swing.border.Border;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DataType;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.MemoryTag;
-import org.apache.plc4x.malbec.projecttype.panelcategory.model.TagDiagnostico;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardController;
 
 public class StepGroupAreaPanel extends JPanel {
-
-    private static final String SIN_GRUPO = "SIN GRUPO";
-
-    private static final PopupFactory FACTORIA_AVISOS = new PopupFactory();
     private final CommunicationWizardController controller;
-    private final NonEditableTableModel groupModel = new NonEditableTableModel(new String[]{
-        "Nombre", "Descripción", "Scantime (ms)", "Enable", "UUID"});
-    private final JTable tbGroups = new JTable(groupModel);
-    private final NonEditableTableModel itemModel = new NonEditableTableModel(new String[]{
-        "Nombre", "Descripción", "Tag", "Tipo", "Libre", "Grupo", "Enable", "UUID"});
-    private final JTable tbItems = new JTable(itemModel);
+    private final GroupAreaTables tables;
     private final JTextField txtGroupName =
-            WizardUi.textoLimitado(14, WizardUi.MAX_NOMBRE);
+            WizardUi.limitedText(14, WizardUi.MAX_NOMBRE);
     private final JTextField txtGroupDescription =
-            WizardUi.textoLimitado(14, WizardUi.MAX_DESCRIPCION);
+            WizardUi.limitedText(14, WizardUi.MAX_DESCRIPCION);
     private final JComboBox<String> cbGroupScantime = new JComboBox<>();
     private final JCheckBox chkGroupEnable = new JCheckBox("Enable", true);
     private final JTextField txtItemName =
-            WizardUi.textoLimitado(14, WizardUi.MAX_NOMBRE);
+            WizardUi.limitedText(14, WizardUi.MAX_NOMBRE);
     private final JTextField txtItemDescription =
-            WizardUi.textoLimitado(14, WizardUi.MAX_DESCRIPCION);
-    private final JTextField txtItemTag = new JTextField(14);
+            WizardUi.limitedText(14, WizardUi.MAX_DESCRIPCION);
+    private final TagField txtItemTag = new TagField(14);
     private final JComboBox<CommConfigData.GroupConfig> cbItemGroup = new JComboBox<>();
     private final JCheckBox chkItemEnable = new JCheckBox("Enable", true);
     private final JButton btnAddGroup = new JButton("Añadir");
@@ -94,15 +70,12 @@ public class StepGroupAreaPanel extends JPanel {
     private String editItemUuid;
     private String editGroupUuid;
     private Runnable onItemsChanged;
-    private boolean groupColumnsSized;
-    private boolean itemColumnsSized;
-    private boolean rebuildingTables;
-    private Border bordeOriginalTag;
-    private Popup popupTag;
-    private boolean ratonSobreTag;
 
     public StepGroupAreaPanel(CommunicationWizardController controller) {
         this.controller = controller;
+        this.tables = new GroupAreaTables(controller);
+        tables.setOnGroupSelected(this::onGroupRowSelected);
+        tables.setOnItemSelected(this::onItemRowSelected);
         buildUi();
         refresh();
     }
@@ -115,65 +88,6 @@ public class StepGroupAreaPanel extends JPanel {
         cbGroupScantime.setSelectedIndex(-1);
 
         WizardUi.fixComboWidth(cbItemGroup, 300);
-        WizardUi.fixComboWidth(cbGroupScantime, 110);
-
-        bordeOriginalTag = txtItemTag.getBorder();
-        txtItemTag.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                ratonSobreTag = true;
-                avisarTag();
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                ratonSobreTag = false;
-                ocultarAvisoTag();
-            }
-        });
-        txtItemTag.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                avisarTag();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                avisarTag();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                avisarTag();
-            }
-        });
-
-        tbGroups.setIntercellSpacing(new Dimension(6, 2));
-        tbItems.setIntercellSpacing(new Dimension(6, 2));
-        WizardUi.configColumns(tbItems);
-        WizardUi.configColumns(tbGroups);
-        
-        JScrollPane groupScroll = new JScrollPane(tbGroups);
-        WizardUi.limitTableSpace(groupScroll, 700, 240);
-        WizardUi.rellenarAnchoVisible(tbGroups);
-
-        JScrollPane itemScroll = new JScrollPane(tbItems);
-        WizardUi.limitTableSpace(itemScroll, 700, 240);
-        WizardUi.rellenarAnchoVisible(tbItems);
-
-        JPanel groupTable = new JPanel(new BorderLayout(0, 4));
-        groupTable.setBorder(BorderFactory.createTitledBorder("Grupos de escaneo"));
-        groupTable.add(groupScroll, BorderLayout.CENTER);
-
-        JPanel itemTable = new JPanel(new BorderLayout(0, 4));
-        itemTable.setBorder(BorderFactory.createTitledBorder("Áreas de memoria"));
-        itemTable.add(itemScroll, BorderLayout.CENTER);
-
-        JSplitPane tableSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, groupTable, itemTable);
-        tableSplit.setResizeWeight(0.5);
-        tableSplit.setDividerLocation(0.5);
-        tableSplit.setContinuousLayout(true);
-
         JPanel forms = WizardUi.formGrid();
         GridBagConstraints g = WizardUi.formConstraints();
 
@@ -242,17 +156,6 @@ public class StepGroupAreaPanel extends JPanel {
         g.fill = GridBagConstraints.HORIZONTAL;
         g.anchor = GridBagConstraints.WEST;
 
-        tbGroups.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting() && !rebuildingTables) {
-                onGroupRowSelected();
-            }
-        });
-        tbItems.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting() && !rebuildingTables) {
-                onItemRowSelected();
-            }
-        });
-
         cbItemGroup.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value,
@@ -269,17 +172,17 @@ public class StepGroupAreaPanel extends JPanel {
         btnAddGroup.addActionListener(e -> addGroup());
         btnUpdateGroup.addActionListener(e -> updateGroup());
         btnDeleteGroup.addActionListener(e -> deleteGroup());
-        btnCancelGroup.addActionListener(e -> salirDeEdicionGrupo());
+        btnCancelGroup.addActionListener(e -> exitGroupEdit());
 
         btnAddItem.addActionListener(e -> addItem());
         btnUpdateItem.addActionListener(e -> updateItem());
         btnDeleteItem.addActionListener(e -> deleteItem());
-        btnCancelItem.addActionListener(e -> salirDeEdicionItem());
+        btnCancelItem.addActionListener(e -> exitItemEdit());
 
         JPanel north = new JPanel(new BorderLayout(0, 4));
         north.add(forms, BorderLayout.CENTER);
 
-        JSplitPane areaSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, north, tableSplit);
+        JSplitPane areaSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, north, tables);
         areaSplit.setResizeWeight(0.35);
         areaSplit.setDividerLocation(250);
         areaSplit.setContinuousLayout(true);
@@ -289,11 +192,11 @@ public class StepGroupAreaPanel extends JPanel {
     }
 
     JTable getGroupTable() {
-        return tbGroups;
+        return tables.groupsTable();
     }
 
     JTable getItemTable() {
-        return tbItems;
+        return tables.itemsTable();
     }
 
     JTextField getGroupName() {
@@ -316,115 +219,12 @@ public class StepGroupAreaPanel extends JPanel {
         return txtItemTag;
     }
 
-    private void avisarTag() {
-        ocultarAvisoTag();
-        List<String> errores = TagDiagnostico.errores(txtItemTag.getText());
-        List<String> avisos = TagDiagnostico.avisos(txtItemTag.getText());
-        List<String> todo = new ArrayList<>(errores);
-        todo.addAll(avisos);
-        txtItemTag.setBorder(errores.isEmpty()
-                ? bordeOriginalTag
-                : BorderFactory.createLineBorder(new Color(180, 0, 0), 2));
-        if (!todo.isEmpty() && ratonSobreTag && txtItemTag.isShowing()) {
-            mostrarAvisoTag(todo);
-        }
-    }
-
-    private void mostrarAvisoTag(List<String> mensajes) {
-        Point enPantalla = txtItemTag.getLocationOnScreen();
-        int anchoCampo = txtItemTag.getWidth();
-        int altoCampo = txtItemTag.getHeight();
-        int ancho = Math.max(240, Math.min(320, anchoCampo - 20));
-
-        JLabel etiqueta = new JLabel("<html><body style='width:" + (ancho - 16) + "px'>"
-                + String.join("<br><br>", mensajes) + "</body></html>");
-        etiqueta.setFont(txtItemTag.getFont());
-
-        JPanel caja = new JPanel(new BorderLayout());
-        caja.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(180, 0, 0)),
-                BorderFactory.createEmptyBorder(6, 8, 6, 8)));
-        caja.setBackground(new Color(255, 250, 235));
-        caja.add(etiqueta, BorderLayout.CENTER);
-
-        Rectangle pantalla = GraphicsEnvironment
-                .getLocalGraphicsEnvironment().getMaximumWindowBounds();
-        int alto = caja.getPreferredSize().height;
-        int y = enPantalla.y + altoCampo + 2;
-        if (y + alto + 8 > pantalla.y + pantalla.height) {
-            y = enPantalla.y - alto;
-        }
-        popupTag = FACTORIA_AVISOS.getPopup(txtItemTag, caja, enPantalla.x, y);
-        popupTag.show();
-    }
-
-    private void ocultarAvisoTag() {
-        if (popupTag != null) {
-            popupTag.hide();
-            popupTag = null;
-        }
-    }
-
-    
-
     public void refresh() {
-        rebuildTables();
+        tables.refresh();
         refreshGroupCombo();
         refreshItemFormState();
         refreshGroupFormState();
         warnMissingGroups();
-    }
-
-    private void rebuildTables() {
-        rebuildingTables = true;
-        try {
-            groupModel.setRowCount(0);
-            for (CommConfigData.GroupConfig g : controller.getState().getGroups()) {
-                groupModel.addRow(new Object[]{
-                    g.getName(), g.getDescription(), g.getScantime(),
-                    g.isEnable() ? "TRUE" : "FALSE", g.getUuid()
-                });
-            }
-            itemModel.setRowCount(0);
-            for (CommConfigData.ItemConfig i : controller.getState().getItems()) {
-                String groupName = controller.getState().groupNameOf(i.getUuid());
-                itemModel.addRow(new Object[]{
-                    i.getName(), i.getDescription(), i.getTag(),
-                    tipoDelArea(i), capacidadDe(i),
-                    groupName.isEmpty() ? SIN_GRUPO : groupName,
-                    i.isEnable() ? "TRUE" : "FALSE", i.getUuid()
-                });
-            }
-        } finally {
-            rebuildingTables = false;
-        }
-        if (!groupColumnsSized && groupModel.getRowCount() > 0) {
-            WizardUi.sizeColumnsToContent(tbGroups, 90, 260);
-            groupColumnsSized = true;
-        }
-        if (!itemColumnsSized && itemModel.getRowCount() > 0) {
-            WizardUi.sizeColumnsToContent(tbItems, 90, 260);
-            itemColumnsSized = true;
-        }
-        WizardUi.rellenarAnchoVisible(tbGroups);
-        WizardUi.rellenarAnchoVisible(tbItems);
-    }
-
-    private String tipoDelArea(CommConfigData.ItemConfig item) {
-        DataType type = controller.lockedType(item.getUuid());
-        if (type == null) {
-            return "—";
-        }
-        return type.bitAddressed() ? type.label() + " (1 bit)" : type.label();
-    }
-
-    private String capacidadDe(CommConfigData.ItemConfig item) {
-        MemoryTag tag = MemoryTag.parse(item.getTag());
-        if (tag == null) {
-            return "sin tag";
-        }
-        int bytes = tag.byteCapacity();
-        return bytes > 0 ? bytes + " bytes" : "sin límite";
     }
 
     private void refreshItemFormState() {
@@ -490,14 +290,14 @@ public class StepGroupAreaPanel extends JPanel {
         }
         controller.addGroup(UUID.randomUUID().toString(), name,
                 txtGroupDescription.getText().trim(), scantime, chkGroupEnable.isSelected());
-        limpiarFormularioGrupo();
+        clearGroupForm();
         refresh();
     }
 
     private void onGroupRowSelected() {
-        int row = tbGroups.getSelectedRow();
+        int row = tables.groupsTable().getSelectedRow();
         if (row < 0 || row >= controller.getState().getGroups().size()) {
-            salirDeEdicionGrupo();
+            exitGroupEdit();
             return;
         }
         CommConfigData.GroupConfig group = controller.getState().getGroups().get(row);
@@ -510,14 +310,14 @@ public class StepGroupAreaPanel extends JPanel {
         refreshGroupFormState();
     }
 
-    private void salirDeEdicionGrupo() {
+    private void exitGroupEdit() {
         editGroupUuid = null;
-        tbGroups.clearSelection();
-        limpiarFormularioGrupo();
+        tables.groupsTable().clearSelection();
+        clearGroupForm();
         refreshGroupFormState();
     }
 
-    private void limpiarFormularioGrupo() {
+    private void clearGroupForm() {
         txtGroupName.setText("");
         txtGroupDescription.setText("");
         cbGroupScantime.setSelectedIndex(-1);
@@ -527,20 +327,20 @@ public class StepGroupAreaPanel extends JPanel {
 
     private void updateGroup() {
         if (controller.getState().groupByUuid(editGroupUuid) == null) {
-            salirDeEdicionGrupo();
+            exitGroupEdit();
             return;
         }
         String scantime = (String) cbGroupScantime.getSelectedItem();
         controller.updateGroup(editGroupUuid, txtGroupDescription.getText().trim(),
                 scantime, chkGroupEnable.isSelected());
-        salirDeEdicionGrupo();
+        exitGroupEdit();
         refresh();
     }
 
     private void deleteGroup() {
         CommConfigData.GroupConfig group = controller.getState().groupByUuid(editGroupUuid);
         if (group == null) {
-            salirDeEdicionGrupo();
+            exitGroupEdit();
             return;
         }
         List<String> areasDelGrupo = controller.deleteGroup(group.getUuid());
@@ -554,12 +354,12 @@ public class StepGroupAreaPanel extends JPanel {
                     "No se puede eliminar", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        salirDeEdicionGrupo();
+        exitGroupEdit();
         refresh();
     }
 
     // --- items ---------------------------------------------------------------
-    private String problemaDelTag(String tag, String uuidEnEdicion) {
+    String tagProblem(String tag, String uuidEnEdicion) {
         if (tag.isEmpty()) {
             return "Indique el tag del área. Por ejemplo: "
                     + "%DB231.DBB0[0..1848]:BOOL, DB1.DBX0.0, %MW66:WORD, MW2 "
@@ -567,14 +367,14 @@ public class StepGroupAreaPanel extends JPanel {
                     + "El símbolo % sólo hace falta con direccionamiento absoluto "
                     + "en S7-1200; con tags optimizados, S7 clásico, Modbus u OPC UA "
                     + "no se pone. El rango [0..9] y el tipo son opcionales.\n\n"
-                    + "Tipos admitidos: " + DataType.nombres() + ".";
+                    + "Tipos admitidos: " + DataType.names() + ".";
         }
         MemoryTag t = MemoryTag.parse(tag);
-        if (t != null && !t.rangoValido()) {
+        if (t != null && !t.validRange()) {
             return "El rango del tag '" + tag + "' va al revés: empieza en "
                     + t.firstByte() + " y acaba en " + t.lastByte() + ".";
         }
-        CommConfigData.ItemConfig mismoTag = controller.areaConMismoTag(tag, uuidEnEdicion);
+        CommConfigData.ItemConfig mismoTag = controller.areaWithSameTag(tag, uuidEnEdicion);
         if (mismoTag != null) {
             return "El tag '" + tag + "' ya lo usa el área '" + mismoTag.getName() + "'.\n\n"
                     + "Es un tag sin dirección, así que no se puede comprobar si se"
@@ -582,7 +382,7 @@ public class StepGroupAreaPanel extends JPanel {
                     + "Si de verdad son areas distintas, dótalos de una dirección con"
                     + " rango, del tipo %DB22.DBB0[0..10], y el panel lo comprobará.";
         }
-        CommConfigData.ItemConfig choca = controller.areaQueChoca(tag, uuidEnEdicion);
+        CommConfigData.ItemConfig choca = controller.overlappingArea(tag, uuidEnEdicion);
         if (choca != null) {
             MemoryTag otro = MemoryTag.parse(choca.getTag());
                 return "El tag '" + tag + "' ocupa los bytes " + t.startByteEffective()
@@ -613,7 +413,7 @@ public class StepGroupAreaPanel extends JPanel {
                     "Campo incompleto", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        String problemaTag = problemaDelTag(txtItemTag.getText().trim(), null);
+        String problemaTag = tagProblem(txtItemTag.getText().trim(), null);
         if (problemaTag != null) {
             JOptionPane.showMessageDialog(this, problemaTag,
                     "Tag no válido", JOptionPane.WARNING_MESSAGE);
@@ -622,15 +422,15 @@ public class StepGroupAreaPanel extends JPanel {
         controller.addItem(UUID.randomUUID().toString(), name,
                 txtItemDescription.getText().trim(), txtItemTag.getText().trim(),
                 chkItemEnable.isSelected(), group.getUuid());
-        limpiarFormularioItem();
+        clearItemForm();
         refresh();
-        avisarItemsChanged();
+        warnItemsChanged();
     }
     
     private void onItemRowSelected() {
-        int row = tbItems.getSelectedRow();
+        int row = tables.itemsTable().getSelectedRow();
         if (row < 0 || row >= controller.getState().getItems().size()) {
-            salirDeEdicionItem();
+            exitItemEdit();
             return;
         }
         CommConfigData.ItemConfig item = controller.getState().getItems().get(row);
@@ -647,14 +447,14 @@ public class StepGroupAreaPanel extends JPanel {
         refreshItemFormState();
     }
 
-    private void salirDeEdicionItem() {
+    private void exitItemEdit() {
         editItemUuid = null;
-        tbItems.clearSelection();
-        limpiarFormularioItem();
+        tables.itemsTable().clearSelection();
+        clearItemForm();
         refreshItemFormState();
     }
 
-    private void limpiarFormularioItem() {
+    private void clearItemForm() {
         txtItemName.setText("");
         txtItemDescription.setText("");
         txtItemTag.setText("");
@@ -664,10 +464,10 @@ public class StepGroupAreaPanel extends JPanel {
 
     private void updateItem() {
         if (controller.getState().itemByUuid(editItemUuid) == null) {
-            salirDeEdicionItem();
+            exitItemEdit();
             return;
         }
-        String problemaTag = problemaDelTag(txtItemTag.getText().trim(), editItemUuid);
+        String problemaTag = tagProblem(txtItemTag.getText().trim(), editItemUuid);
         if (problemaTag != null) {
             JOptionPane.showMessageDialog(this, problemaTag,
                     "Tag no válido", JOptionPane.WARNING_MESSAGE);
@@ -675,19 +475,19 @@ public class StepGroupAreaPanel extends JPanel {
         }
         controller.updateItem(editItemUuid, txtItemDescription.getText().trim(),
                 txtItemTag.getText().trim(), chkItemEnable.isSelected());
-        salirDeEdicionItem();
+        exitItemEdit();
         refresh();
-        avisarItemsChanged();
+        warnItemsChanged();
     }
 
     private void deleteItem() {
         CommConfigData.ItemConfig item = controller.getState().itemByUuid(editItemUuid);
         if (item == null) {
-            salirDeEdicionItem();
+            exitItemEdit();
             return;
         }
         List<String> variables = new ArrayList<>();
-        for (CommConfigData.PvConfig pv : controller.getState().pvsOfArea(item.getUuid())) {
+        for (CommConfigData.PvConfig pv : controller.getState().pvsOfArea(item.getName())) {
             variables.add(pv.getName());
         }
         if (!variables.isEmpty()) {
@@ -703,16 +503,16 @@ public class StepGroupAreaPanel extends JPanel {
             }
         }
         controller.deleteItem(item.getUuid());
-        salirDeEdicionItem();
+        exitItemEdit();
         refresh();
-        avisarItemsChanged();
+        warnItemsChanged();
     }
 
     private void warnMissingGroups() {
         if (controller.getState().isMissingGroupsWarned()) {
             return;
         }
-        List<String> sinGrupo = controller.areasSinGrupoNames();
+        List<String> sinGrupo = controller.areasWithoutGroupNames();
         if (sinGrupo.isEmpty()) {
             return;
         }
@@ -730,8 +530,8 @@ public class StepGroupAreaPanel extends JPanel {
     }
 
     public void onDeviceChanged() {
-        salirDeEdicionGrupo();
-        salirDeEdicionItem();
+        exitGroupEdit();
+        exitItemEdit();
         refresh();
     }
 
@@ -739,7 +539,7 @@ public class StepGroupAreaPanel extends JPanel {
         onItemsChanged = listener;
     }
 
-    private void avisarItemsChanged() {
+    private void warnItemsChanged() {
         if (onItemsChanged != null) {
             onItemsChanged.run();
         }

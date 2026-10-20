@@ -18,21 +18,13 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.action;
 
-import java.awt.event.ActionEvent;
-import javax.swing.AbstractAction;
 import org.openide.filesystems.FileObject;
 
-//OPC = Operator Panel Configuration.
-public class HMICategoryOPCAction extends AbstractAction{
-    private final FileObject fileObject;
+public class HMICategoryOPCAction extends AbstractNotImplementedAction {
+
+    private static final long serialVersionUID = 1L;
 
     public HMICategoryOPCAction(FileObject fileObject) {
-        super("Editar panel de operador");
-        this.fileObject = fileObject;
+        super("Editar panel de operador", fileObject);
     }
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        System.out.println("Acción ejecutada sobre: " + fileObject.getNameExt());
-    }
-    
 }

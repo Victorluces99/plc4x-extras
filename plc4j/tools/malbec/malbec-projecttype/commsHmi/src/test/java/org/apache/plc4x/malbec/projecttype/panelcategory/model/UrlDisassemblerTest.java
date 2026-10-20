@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 class UrlDisassemblerTest {
 
     @Test
-    void separaProtocoloYTransporte() {
+    void splitsProtocolAndTransport() {
         UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7:cotp://192.168.0.10:102");
         assertEquals("s7", partes.protocol());
         assertEquals("cotp", partes.transport());
@@ -38,7 +38,7 @@ class UrlDisassemblerTest {
     }
 
     @Test
-    void sinTransporteNiPuerto() {
+    void withoutTransportNorPort() {
         UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7://192.168.0.10");
         assertEquals("s7", partes.protocol());
         assertEquals("", partes.transport());
@@ -47,7 +47,7 @@ class UrlDisassemblerTest {
     }
 
     @Test
-    void conservaElOrdenDeLosParametros() {
+    void keepsTheParameterOrder() {
         UrlDisassembler.Partes partes =
                 UrlDisassembler.disassemble("eip://10.0.0.5:44818?path=1&slot=0");
         assertEquals("10.0.0.5", partes.host());
@@ -74,16 +74,16 @@ class UrlDisassemblerTest {
     }
 
     @Test
-    void elViajeDeIdaYVueltaConservaLaUrl() {
-        assertViajeIdaYVuelta("s7:cotp://192.168.0.10:102?controller-type=S7_1500&pdu-size=512");
-        assertViajeIdaYVuelta("s7://192.168.0.10");
-        assertViajeIdaYVuelta("eip://10.0.0.5:44818?path=1&slot=0");
-        assertViajeIdaYVuelta("modbus-tcp://10.0.0.9:502?unit-identifier=3");
-        assertViajeIdaYVuelta("modbus-rtu://COM3");
-        assertViajeIdaYVuelta("modbus-rtu:///dev/ttyUSB0");
+    void roundTripKeepsTheUrl() {
+        assertRoundTrip("s7:cotp://192.168.0.10:102?controller-type=S7_1500&pdu-size=512");
+        assertRoundTrip("s7://192.168.0.10");
+        assertRoundTrip("eip://10.0.0.5:44818?path=1&slot=0");
+        assertRoundTrip("modbus-tcp://10.0.0.9:502?unit-identifier=3");
+        assertRoundTrip("modbus-rtu://COM3");
+        assertRoundTrip("modbus-rtu:///dev/ttyUSB0");
     }
 
-    private void assertViajeIdaYVuelta(String original) {
+    private void assertRoundTrip(String original) {
         UrlDisassembler.Partes partes = UrlDisassembler.disassemble(original);
         assertTrue(partes != null, "no se pudo desensamblar: " + original);
         String reconstruida = DeviceDynamicPanelBuilder.assembleUrl(
@@ -91,5 +91,100 @@ class UrlDisassemblerTest {
                 partes.port(), new LinkedHashMap<>(partes.params()));
         assertEquals(original, reconstruida,
                 "desensamblar y volver a armar tiene que devolver la misma URL");
+    }
+
+    // ------------------------------------------------------- T3.10: IPv6
+
+    @Test
+    void leeUnaIpv6ConPuerto() {
+        UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7://[fe80::1c2d]:102");
+
+        assertEquals("fe80::1c2d", partes.host(),
+                "los corchetes son solo notacion y no forman parte de la direccion");
+        assertEquals("102", partes.port());
+    }
+
+    @Test
+    void leeUnaIpv6SinPuerto() {
+        UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7://[::1]");
+
+        assertEquals("::1", partes.host(),
+                "sin puerto, los dos puntos de '::1' no pueden interpretarse como separador");
+        assertEquals("", partes.port());
+    }
+
+    @Test
+    void ipv6RoundTrips() {
+        assertRoundTrip("s7://[fe80::1c2d]:102");
+        assertRoundTrip("s7://[::1]");
+        assertRoundTrip("eip://[2001:db8::a]:44818?path=1");
+    }
+
+    @Test
+    void normalHostIsNotWrappedInBrackets() {
+        String url = DeviceDynamicPanelBuilder.assembleUrl(
+                "s7", "cotp", "192.168.0.10", "102", new LinkedHashMap<>());
+
+        assertEquals("s7:cotp://192.168.0.10:102", url,
+                "T3.10: solo se envuelven los hosts con dos puntos, que son los IPv6");
+    }
+
+    @Test
+    void unclosedBracketDoesNotBreakParsing() {
+        UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7://[fe80::1c2d");
+
+        assertTrue(partes != null);
+        assertEquals("[fe80::1c2d", partes.host(),
+                "malformado, se conserva el texto en vez de cortar la direccion");
+        assertEquals("", partes.port());
+    }
+
+    // ------------------------------------------------------- T3.10: codificacion
+
+    @Test
+    void valueWithReservedCharsDoesNotBreakFormat() {
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        params.put("comentario", "a&b=c");
+
+        String url = DeviceDynamicPanelBuilder.assembleUrl("s7", "", "10.0.0.1", "102", params);
+        UrlDisassembler.Partes partes = UrlDisassembler.disassemble(url);
+
+        assertEquals(1, partes.params().size(),
+                "un '&' sin codificar partia los parametros en dos");
+        assertEquals("a&b=c", partes.params().get("comentario"));
+    }
+
+    @Test
+    void codificaYDecodificaSimetricamente() {
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        params.put("ruta", "C:\\maquina\\linea 1");
+        params.put("acentos", "presión");
+
+        String url = DeviceDynamicPanelBuilder.assembleUrl("s7", "", "10.0.0.1", "102", params);
+        UrlDisassembler.Partes partes = UrlDisassembler.disassemble(url);
+
+        assertEquals("C:\\maquina\\linea 1", partes.params().get("ruta"));
+        assertEquals("presión", partes.params().get("acentos"));
+    }
+
+    @Test
+    void valueWithoutReservedCharsIsWrittenAsIs() {
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        params.put("ipa", "10.0.0.1");
+        params.put("port", "102");
+
+        String url = DeviceDynamicPanelBuilder.assembleUrl("s7", "cotp", "192.168.0.10", "102", params);
+
+        assertEquals("s7:cotp://192.168.0.10:102?ipa=10.0.0.1&port=102", url,
+                "T3.10: las URLs ya guardadas no deben cambiar al pasar a codificar");
+    }
+
+    @Test
+    void strayPercentDoesNotBreakParsing() {
+        UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7://10.0.0.1?nota=100%");
+
+        assertTrue(partes != null);
+        assertEquals("100%", partes.params().get("nota"),
+                "un '%' que no forma una secuencia valida se deja como estaba");
     }
 }

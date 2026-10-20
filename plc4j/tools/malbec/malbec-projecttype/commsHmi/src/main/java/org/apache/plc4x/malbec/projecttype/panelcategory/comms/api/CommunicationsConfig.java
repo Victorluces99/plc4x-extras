@@ -23,71 +23,62 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 
 public final class CommunicationsConfig {
 
-    private final List<DeviceConfigData> devices;
-    private final Map<String, CommConfigData> comms;
+    private static final Logger LOGGER
+            = Logger.getLogger(CommunicationsConfig.class.getName());
+    private final List<DeviceConfigData> dispositivos = new ArrayList<>();
+    private final Map<String, Integer> indicePorUuid = new HashMap<>();
+    private final Map<String, CommConfigData> comms = new HashMap<>();
 
     public CommunicationsConfig() {
-        this.devices = new ArrayList<>();
-        this.comms = new HashMap<>();
     }
 
     public CommunicationsConfig(List<DeviceConfigData> devices) {
-        this.devices = devices == null ? new ArrayList<>() : new ArrayList<>(devices);
-        this.comms = new HashMap<>();
+        for (DeviceConfigData device : devices == null ? List.<DeviceConfigData>of() : devices) {
+            addDevice(device);
+        }
     }
 
     public List<DeviceConfigData> getDevices() {
-        return Collections.unmodifiableList(devices);
+        return Collections.unmodifiableList(dispositivos);
     }
 
     public void addDevice(DeviceConfigData device) {
-        devices.add(device);
+        dispositivos.add(device);
+        indexar(device);
     }
 
     public void upsertDevice(DeviceConfigData device) {
-        if (device.getUuid() == null || device.getUuid().isBlank()) {
-            System.err.println("upsertDevice: el dispositivo '" + device.getDeviceName()
-                    + "' llegó sin UUID. Se agrega como dispositivo nuevo y no se va a poder"
-                    + " modificar más que una vez: conviene revisarlo.");
-            devices.add(device);
+        String uuid = device.getUuid();
+        if (uuid == null || uuid.isBlank()) {
+            String name = device.getDeviceName();
+            LOGGER.log(Level.FINE, () -> "El dispositivo '" + name + "' llega sin UUID;"
+                    + " se agrega como nuevo y se le asignará al cargar.");
+            dispositivos.add(device);
             return;
         }
-        for (int i = 0; i < devices.size(); i++) {
-            if (devices.get(i).getUuid() != null && devices.get(i).getUuid().equals(device.getUuid())) {
-                devices.set(i, device);
-                return;
-            }
+        Integer posicion = indicePorUuid.get(uuid);
+        if (posicion == null) {
+            dispositivos.add(device);
+            indexar(device);
+            return;
         }
-        devices.add(device);
-    }
-
-    public void replaceDevice(int index, DeviceConfigData device) {
-        devices.set(index, device);
+        int i = posicion;
+        dispositivos.set(i, device);
     }
 
     public DeviceConfigData findByUuid(String uuid) {
-        for (DeviceConfigData device : devices) {
-            if (device.getUuid() != null && device.getUuid().equals(uuid)) {
-                return device;
-            }
+        if (uuid == null || uuid.isBlank()) {
+            return null;
         }
-        return null;
-    }
-
-    public boolean removeDevice(String uuid) {
-        for (int i = 0; i < devices.size(); i++) {
-            if (devices.get(i).getUuid() != null && devices.get(i).getUuid().equals(uuid)) {
-                devices.remove(i);
-                comms.remove(uuid);
-                return true;
-            }
-        }
-        return false;
+        Integer posicion = indicePorUuid.get(uuid);
+        return posicion == null ? null : dispositivos.get(posicion);
     }
 
     public Map<String, CommConfigData> getComms() {
@@ -110,8 +101,56 @@ public final class CommunicationsConfig {
         comms.remove(deviceUuid);
     }
 
+    public boolean removeDevice(String uuid) {
+        if (uuid == null || uuid.isBlank()) {
+            return false;
+        }
+        Integer posicion = indicePorUuid.remove(uuid);
+        if (posicion == null) {
+            return false;
+        }
+        dispositivos.remove(posicion.intValue());
+        reindexar();
+        comms.remove(uuid);
+        return true;
+    }
+
+    public void replaceDevice(int index, DeviceConfigData device) {
+        DeviceConfigData anterior = dispositivos.set(index, device);
+        if (anterior != null) {
+            desindexar(anterior);
+        }
+        indexar(device, index);
+    }
+
     public void clear() {
-        devices.clear();
+        dispositivos.clear();
+        indicePorUuid.clear();
         comms.clear();
+    }
+
+    private void indexar(DeviceConfigData device) {
+        indexar(device, dispositivos.size() - 1);
+    }
+
+    private void indexar(DeviceConfigData device, int posicion) {
+        String uuid = device == null ? null : device.getUuid();
+        if (uuid != null && !uuid.isBlank()) {
+            indicePorUuid.put(uuid, posicion);
+        }
+    }
+
+    private void desindexar(DeviceConfigData device) {
+        String uuid = device.getUuid();
+        if (uuid != null && !uuid.isBlank()) {
+            indicePorUuid.remove(uuid);
+        }
+    }
+
+    private void reindexar() {
+        indicePorUuid.clear();
+        for (int i = 0; i < dispositivos.size(); i++) {
+            indexar(dispositivos.get(i), i);
+        }
     }
 }

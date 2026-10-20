@@ -18,20 +18,39 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRepository;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigRepositoryProvider;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigStorage;
+import org.junit.jupiter.api.Test;
 import org.openide.util.Lookup;
-import org.openide.util.lookup.ServiceProvider;
 
-@ServiceProvider(service = CommConfigServices.class)
-public final class CommConfigServices {
+class CommConfigRepositoryLookupTest {
 
-    public CommConfigRepository createRepository(CommConfigStorage storage) {
-        for (CommConfigRepositoryProvider provider : Lookup.getDefault()
-                .lookupAll(CommConfigRepositoryProvider.class)) {
-            return provider.createRepository(storage);
-        }
-        throw new IllegalStateException("No CommConfigRepositoryProvider encontrado en el Lookup");
+    @Test
+    void hayUnProveedorRegistradoEnElLookup() {
+        assertTrue(Lookup.getDefault().lookupAll(CommConfigRepositoryProvider.class)
+                .iterator().hasNext(),
+                "T3.9: sin proveedor registrado la busqueda falla en runtime, no al compilar");
+    }
+
+    @Test
+    void lookupReturnsAUsableRepository() {
+        CommConfigRepository repo = CommConfigRepositoryLookup.createRepository(new TextoFijo(""));
+
+        assertNotNull(repo, "la busqueda tiene que devolver un repositorio");
+    }
+
+    @Test
+    void lookupReturnsADifferentRepositoryOnEachCall() {
+        CommConfigStorage storage = new TextoFijo("");
+
+        CommConfigRepository primero = CommConfigRepositoryLookup.createRepository(storage);
+        CommConfigRepository segundo = CommConfigRepositoryLookup.createRepository(storage);
+
+        assertTrue(primero != segundo,
+                "T3.9: compartir el repositorio entre dispositivos mezclaría su configuración");
     }
 }

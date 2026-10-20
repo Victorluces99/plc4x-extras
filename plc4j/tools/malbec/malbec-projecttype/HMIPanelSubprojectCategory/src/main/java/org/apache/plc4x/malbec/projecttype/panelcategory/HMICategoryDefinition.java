@@ -18,36 +18,89 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory;
 
-
 public enum HMICategoryDefinition {
-    IMAGE("Image", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
-    COMUNICATION("Comunicacion", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/comm.png"),
-    NOTICE_MANAGEMENT("Gestion de Avisos", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
-    RECIPE("Recetas", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
-    HISTORIAL("Historial", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
-    SCRIPTS("Scripts", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
-    REPORT("Informes", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
-    TEXT_GRAPHIC("Texto y Lista de graficos", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
-    ADMIN_USER("Administracion de Usuarios runtime", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png"),
-    CONFIG_PANEL("Configuracion de panel de operador", "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png");
 
+    IMAGE("image", "Image", null, null,
+            CategoryIcons.DEFAULT),
+    COMUNICATION("communication", "Comunicacion", null, null,
+            CategoryIcons.COMMUNICATION),
+    NOTICE_MANAGEMENT("warning-management", "Gestion de Avisos", "wmg", "base.wmg",
+            CategoryIcons.DEFAULT),
+    RECIPE("recipe", "Recetas", "rcp", "base.rcp",
+            CategoryIcons.DEFAULT),
+    HISTORIAL("history", "Historial", "record", "record.record",
+            CategoryIcons.DEFAULT),
+    SCRIPTS("scripts", "Scripts", "scp", "base.scp",
+            CategoryIcons.DEFAULT),
+    REPORT("report", "Informes", "rpt", "base.rpt",
+            CategoryIcons.DEFAULT),
+    TEXT_GRAPHIC("text-and-list-charts", "Texto y Lista de graficos", "tlc", "base.tlc",
+            CategoryIcons.DEFAULT),
+    ADMIN_USER("runtime-user-management", "Administracion de Usuarios runtime", "rtum", "base.rtum",
+            CategoryIcons.DEFAULT),
+    CONFIG_PANEL("operator-panel-config", "Configuracion de panel de operador", "oppc", "base.oppc",
+            CategoryIcons.DEFAULT);
+
+    private final String id;
     private final String displayName;
+    private final String fileExtension;
+    private final String hiddenFile;
     private final String iconPath;
 
-    HMICategoryDefinition(String displayName, String iconPath) {
+    HMICategoryDefinition(String id, String displayName, String fileExtension, String hiddenFile,
+            String iconPath) {
+        this.id = id;
         this.displayName = displayName;
+        this.fileExtension = fileExtension;
+        this.hiddenFile = hiddenFile;
         this.iconPath = iconPath;
+    }
+
+    public String getId() {
+        return id;
     }
 
     public String getDisplayName() {
         return displayName;
     }
 
+    public String getFileExtension() {
+        return fileExtension;
+    }
+
+    public String getHiddenFile() {
+        return hiddenFile;
+    }
+
     public String getIconPath() {
         return iconPath;
     }
 
-    public class HMIUtil {
+    public boolean matchesFolder(String nombreCarpeta) {
+        return nombreCarpeta != null && displayName.equalsIgnoreCase(nombreCarpeta.trim());
+    }
 
+    public String detectionKey() {
+        return this == COMUNICATION ? ProjectIds.COMMUNICATION_CONFIG_FILE : hiddenFile;
+    }
+
+    public static java.util.Optional<HMICategoryDefinition> byFolderName(
+            String nombreCarpeta) {
+        for (HMICategoryDefinition category : values()) {
+            if (category.matchesFolder(nombreCarpeta)) {
+                return java.util.Optional.of(category);
+            }
+        }
+        return java.util.Optional.empty();
+    }
+
+    public boolean acepta(String nombreExt, String extension, boolean esCarpeta) {
+        if (esCarpeta || fileExtension == null || extension == null) {
+            return false;
+        }
+        if (!fileExtension.equalsIgnoreCase(extension)) {
+            return false;
+        }
+        return hiddenFile == null || !hiddenFile.equalsIgnoreCase(nombreExt);
     }
 }

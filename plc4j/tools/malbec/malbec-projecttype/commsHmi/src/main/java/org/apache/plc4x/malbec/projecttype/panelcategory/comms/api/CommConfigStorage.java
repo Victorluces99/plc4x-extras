@@ -25,4 +25,10 @@ public interface CommConfigStorage {
     String open() throws Exception;
 
     OutputStream create() throws Exception;
+
+    default void write(byte[] content) throws Exception {
+        try (OutputStream out = create()) {
+            out.write(content);
+        }
+    }
 }

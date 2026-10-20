@@ -18,7 +18,7 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.comms.plcopen;
 
-import java.io.OutputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -97,9 +97,9 @@ public final class PlcOpenCommConfigRepositoryImpl implements CommConfigReposito
             Configuration configuration = DeviceXmlMapper.writeDevice(device, configurations);
             DeviceXmlMapper.writeComms(config.getComms(device.getUuid()), configuration);
         }
-        try (OutputStream out = storage.create()) {
-            doc.save(out, SAVE_OPTIONS);
-        }
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        doc.save(buffer, SAVE_OPTIONS);
+        storage.write(buffer.toByteArray());
     }
 
     private ProjectDocument parseOrNew() throws Exception {

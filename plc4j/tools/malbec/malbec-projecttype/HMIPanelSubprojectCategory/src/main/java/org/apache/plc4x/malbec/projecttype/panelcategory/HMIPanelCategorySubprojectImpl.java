@@ -23,13 +23,14 @@ import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import javax.swing.Action;
 import javax.swing.Icon;
-import javax.swing.ImageIcon;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateCommAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDeviceAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDisplayAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans.HMICommunicationModel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.netbeans.api.annotations.common.StaticResource;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectInformation;
@@ -45,12 +46,14 @@ import org.openide.nodes.FilterNode;
 import org.openide.nodes.Node;
 import org.openide.util.Exceptions;
 import org.openide.util.ImageUtilities;
-import org.openide.util.Lookup;
 import org.openide.util.lookup.Lookups;
 import org.openide.util.lookup.ProxyLookup;
+import org.openide.util.Lookup;
 
 public class HMIPanelCategorySubprojectImpl implements Project {
 
+    private static final java.util.logging.Logger ExceptionsLOGGER =
+            java.util.logging.Logger.getLogger(HMICategoryCreateCommAction.class.getName());
     private final FileObject fo;
     private final ProjectState ps;
     private Lookup lkp;
@@ -78,6 +81,12 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                 Exceptions.attachMessage(t,
                         "El modelo de comunicaciones no pudo inicializarse; "
                         + "se omite del Lookup para no bloquear el árbol de proyectos.");
+                ExceptionsLOGGER.log(
+                        java.util.logging.Level.SEVERE,
+                        "No se pudo crear el modelo de comunicaciones del proyecto "
+                                + getProjectDirectory().getName()
+                                + "; el asistente de comunicación quedará sin funcionar.",
+                        t);
             }
             lkp = Lookups.fixed(services.toArray());
         }
@@ -101,7 +110,7 @@ public class HMIPanelCategorySubprojectImpl implements Project {
 
         @Override
         public Icon getIcon() {
-            return new ImageIcon(ImageUtilities.loadImage(PROJECT_ICON));
+            return ImageUtilities.loadImageIcon(PROJECT_ICON, false);
         }
 
         @Override
@@ -168,16 +177,19 @@ public class HMIPanelCategorySubprojectImpl implements Project {
             }
 
             public Action[] getActions(boolean context) {
-                FileObject projectDir = this.project.getProjectDirectory();
-                String detectedFile = findExistingCategoryFile(projectDir);
+                Optional<String> detected = DeteccionCategoria.detect(
+                        FileObjectTree.fromFileObject(this.project.getProjectDirectory()));
+                if (detected.isEmpty()) {
+                    return getActionForName(new Action[0]);
+                }
 
                 // Identificar la acción específica asociada al archivo
-                Action[] customAction = switch (detectedFile) {
+                Action[] customAction = switch (detected.get()) {
                     case "template.bob" ->
                         new Action[]{
                             new HMICategoryCreateDisplayAction(this.project),                        
                         };
-                    case "comunicacion.xml" ->
+                    case ProjectIds.COMMUNICATION_CONFIG_FILE ->
                         new Action[]{
                             new HMICategoryCreateCommAction(this.project),
                             new HMICategoryCreateDeviceAction(this.project),
@@ -209,33 +221,6 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                 }
 
                 return actionList.toArray(Action[]::new);
-            }
-
-            private String findExistingCategoryFile(FileObject projectDir) {
-                String[] categoryFiles = {
-                    "template.bob", "comunicacion.xml", "base.oppc", "record.record",
-                    "base.rcp", "base.rpt", "base.scp", "base.wmg", "base.tlc", "base.rtum"
-                };
-
-                for (String fileName : categoryFiles) {
-                    if (hasChildFile(projectDir, fileName)) {
-                        return fileName;
-                    }
-                }
-                return null;
-            }
-
-            private boolean hasChildFile(FileObject folder, String fileName) {
-                for (FileObject child : folder.getChildren()) {
-                    if (child.isFolder()) {
-                        if (child.getFileObject(fileName) != null || hasChildFile(child, fileName)) {
-                            return true;
-                        }
-                    } else if (child.getNameExt().equalsIgnoreCase(fileName)) {
-                        return true;
-                    }
-                }
-                return false;
             }
 
             @Override

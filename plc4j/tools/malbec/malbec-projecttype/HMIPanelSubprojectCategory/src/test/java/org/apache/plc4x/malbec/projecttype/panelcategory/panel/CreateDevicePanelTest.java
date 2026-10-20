@@ -27,14 +27,14 @@ import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
-import org.apache.plc4x.malbec.projecttype.panelcategory.stub.NoopCommunicationStore;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.NoopCommunicationStore;
 
 class CreateDevicePanelTest {
 
     private CreateDevicePanel panelCompleto() {
         CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore());
         panel.getCbMarca().setSelectedIndex(1);
-        panel.getCbModelo().setSelectedIndex(3);
+        panel.getCbModel().setSelectedIndex(3);
         panel.registrarNodoS88("MD70", "uuid-md70");
         panel.getCbS88Node().setSelectedIndex(1);
         panel.getTxtDeviceName().setText("Compresor 1");
@@ -45,34 +45,34 @@ class CreateDevicePanelTest {
     }
 
     @Test
-    void elNodoS88SeleccionadoEsNullConElPlaceholder() {
-        assertNull(new CreateDevicePanel(null, new NoopCommunicationStore()).nodoS88Seleccionado(),
+    void selectedS88NodeIsNullWithThePlaceholder() {
+        assertNull(new CreateDevicePanel(null, new NoopCommunicationStore()).selectedS88Node(),
                 "el placeholder del combo no puede pasar por nodo elegido");
     }
 
     @Test
-    void unFormularioVacioPideLosSeisCamposObligatorios() {
-        List<String> faltantes = new CreateDevicePanel(null, new NoopCommunicationStore()).camposObligatoriosVacios();
+    void emptyFormAsksForTheSixRequiredFields() {
+        List<String> faltantes = new CreateDevicePanel(null, new NoopCommunicationStore()).missingRequiredFields();
         assertEquals(6, faltantes.size(), "faltantes: " + faltantes);
         assertTrue(faltantes.contains("Name"), "faltantes: " + faltantes);
         assertTrue(faltantes.contains("Key"), "faltantes: " + faltantes);
-        assertTrue(faltantes.contains("Marca y modelo"), "faltantes: " + faltantes);
+        assertTrue(faltantes.contains("Brand and Model"), "faltantes: " + faltantes);
         assertTrue(faltantes.contains("Node"), "faltantes: " + faltantes);
         assertTrue(faltantes.contains("UUID"),
                 "un dispositivo sin UUID se guardaría sin identidad: " + faltantes);
     }
 
     @Test
-    void noDejaGuardarSinNodoS88AunqueElRestoEsteCompleto() {
+    void doesNotAllowSavingWithoutS88NodeEvenIfTheRestIsComplete() {
         CreateDevicePanel panel = panelCompleto();
         panel.getCbS88Node().setSelectedIndex(0);
-        assertTrue(panel.camposObligatoriosVacios().contains("Node"),
+        assertTrue(panel.missingRequiredFields().contains("Node"),
                 "un dispositivo sin nodo S88 no debería poder guardarse");
     }
 
     @Test
-    void conTodosLosDatosNoFaltaNinguno() {
-        assertTrue(panelCompleto().camposObligatoriosVacios().isEmpty(),
+    void withAllDataNoneIsMissing() {
+        assertTrue(panelCompleto().missingRequiredFields().isEmpty(),
                 "el formulario completo no debería pedir nada");
     }
 
@@ -81,8 +81,8 @@ class CreateDevicePanelTest {
         DeviceConfigData data = panelCompleto().getDeviceConfigData();
         assertNotNull(data, "el formulario completo tiene que producir un dispositivo");
         assertEquals("Siemens", data.getBrand());
-        assertEquals("S7-1500", data.getModel());
-        assertEquals("S7", data.getProtocol());
+        assertEquals("s7-1500", data.getModel());
+        assertEquals("s7", data.getProtocol());
         assertEquals("Compresor 1", data.getDeviceName());
         assertEquals("CMP-001", data.getDeviceKey());
         assertEquals("MD70", data.getS88Node());
@@ -92,7 +92,7 @@ class CreateDevicePanelTest {
     }
 
     @Test
-    void laUrlSeArmaConHostTransporteYPuerto() {
+    void urlIsBuiltWithHostTransportAndPort() {
         DeviceConfigData data = panelCompleto().getDeviceConfigData();
         assertNotNull(data);
         String url = data.getSpecificParameters();
@@ -100,11 +100,65 @@ class CreateDevicePanelTest {
         assertTrue(url.contains("102"), "falta el puerto en la url: " + url);
     }
 
-    private DeviceConfigData deviceParaEditar(String uuid, String model, String url) {
+    @Test
+    void cambiarDeMarcaCambiaElProtocoloDeLaUrl() {
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore());
+
+        panel.getCbMarca().setSelectedIndex(1);          // Siemens
+        panel.getCbModel().setSelectedIndex(0);
+        panel.getTxtHost().setText("192.168.0.10");
+        panel.getTxtPort().setText("102");
+        String urlSiemens = panel.urlActual();
+        assertTrue(urlSiemens.startsWith("s7:"), "Siemens compone s7, no: " + urlSiemens);
+
+        panel.getCbMarca().setSelectedIndex(2);          // Allen Bradley
+        panel.getCbModel().setSelectedIndex(0);
+        panel.getTxtHost().setText("192.168.0.20");
+        panel.getTxtPort().setText("44818");
+        String urlAb = panel.urlActual();
+        assertTrue(urlAb.startsWith("eip:"), "Allen Bradley compone eip, no: " + urlAb);
+        assertNotEquals(urlSiemens, urlAb,
+                "T3.4: cambiar de marca tiene que cambiar el builder y la URL");
+
+        panel.getCbMarca().setSelectedIndex(3);          // Modbus
+        panel.getCbModel().setSelectedIndex(0);
+        panel.getTxtHost().setText("192.168.0.30");
+        panel.getTxtPort().setText("502");
+        assertTrue(panel.urlActual().startsWith("modbus-tcp:"),
+                "Modbus compone segun su variante, no: " + panel.urlActual());
+    }
+
+    @Test
+    void cambiarDeMarcaLimpiaLaConexionDelModeloAnterior() {
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore());
+
+        panel.getCbMarca().setSelectedIndex(1);          // Siemens
+        panel.getCbModel().setSelectedIndex(0);
+        panel.getTxtHost().setText("192.168.0.10");
+        panel.getTxtPort().setText("102");
+        assertTrue(panel.urlActual().contains("192.168.0.10"), "precondición");
+
+        panel.getCbMarca().setSelectedIndex(3);          // Modbus
+        panel.getCbModel().setSelectedIndex(0);
+
+        assertFalse(panel.urlActual().contains("192.168.0.10"),
+                "la dirección del modelo anterior no puede sobrevivir al cambio: "
+                        + panel.urlActual());
+        assertTrue(panel.urlActual().startsWith("modbus-tcp:"),
+                "y el protocolo nuevo sí debe estar: " + panel.urlActual());
+    }
+
+    private static void assertNotEquals(String a, String b, String mensaje) {
+        if (a.equals(b)) {
+            org.junit.jupiter.api.Assertions.fail(mensaje);
+        }
+    }
+
+    private DeviceConfigData deviceToEdit(String uuid, String model, String url) {
         Properties p = new Properties();
         p.put("brand", "Siemens");
         p.put("model", model);
-        p.put("protocol", "S7");
+        p.put("protocol", "s7");
         p.put("deviceName", "Compresor 1");
         p.put("deviceKey", "CMP-001");
         p.put("description", "Compresor principal");
@@ -119,28 +173,28 @@ class CreateDevicePanelTest {
     @Test
     void alAbrirUnDispositivoSePrecarganSusDatos() {
         CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(),
-                deviceParaEditar("uuid-fijo", "S7-1500", "s7:cotp://192.168.0.10:102"));
+                deviceToEdit("uuid-fijo", "s7-1500", "s7:cotp://192.168.0.10:102"));
         assertEquals("uuid-fijo", panel.getTxtUUID().getText());
         assertEquals("Compresor 1", panel.getTxtDeviceName().getText());
         assertEquals("CMP-001", panel.getTxtDeviceKey().getText());
-        assertEquals("S7-1500", panel.getCbModelo().getItemAt(
-                panel.getCbModelo().getSelectedIndex()).getModel());
+        assertEquals("s7-1500", panel.getCbModel().getItemAt(
+                panel.getCbModel().getSelectedIndex()).getModel());
     }
 
     @Test
-    void elUuidNoCambiaAlElegirOtroModelo() {
+    void uuidDoesNotChangeWhenChoosingAnotherModel() {
         CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(),
-                deviceParaEditar("uuid-fijo", "S7-1500", "s7:cotp://192.168.0.10:102"));
+                deviceToEdit("uuid-fijo", "s7-1500", "s7:cotp://192.168.0.10:102"));
         panel.getCbMarca().setEnabled(true);   // en edición viene bloqueado
-        panel.getCbModelo().setSelectedIndex(1);
+        panel.getCbModel().setSelectedIndex(1);
         assertEquals("uuid-fijo", panel.getTxtUUID().getText(),
                 "regenerar el UUID en modificación guardaría un dispositivo nuevo");
     }
 
     @Test
     void alEditarSeRecuperanHostPuertoYParametros() {
-        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(), deviceParaEditar("uuid-1",
-                "S7-1500", "s7:cotp://192.168.0.10:102?cotp.remote-slot=3&pdu-size=512"));
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(), deviceToEdit("uuid-1",
+                "s7-1500", "s7:cotp://192.168.0.10:102?cotp.remote-slot=3&pdu-size=512"));
         assertEquals("192.168.0.10", panel.getTxtHost().getText());
         assertEquals("102", panel.getTxtPort().getText());
         String url = panel.urlActual();
@@ -151,46 +205,66 @@ class CreateDevicePanelTest {
     }
 
     @Test
-    void elNodoGuardadoVuelveAlComboAunqueNoHayaPlantModel() {
+    void savedNodeComesBackToTheComboEvenWithoutPlantModel() {
         CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(),
-                deviceParaEditar("uuid-1", "S7-1500", "s7:cotp://192.168.0.10:102"));
-        assertEquals("MD70", panel.nodoS88Seleccionado(),
+                deviceToEdit("uuid-1", "s7-1500", "s7:cotp://192.168.0.10:102"));
+        assertEquals("MD70", panel.selectedS88Node(),
                 "el nodo guardado no llegó al combo: el dispositivo quedaría sin poder modificarse");
-        assertTrue(panel.camposObligatoriosVacios().isEmpty(),
+        assertTrue(panel.missingRequiredFields().isEmpty(),
                 "un dispositivo existente tiene que poder volver a guardarse sin cambios: "
-                        + panel.camposObligatoriosVacios());
+                        + panel.missingRequiredFields());
     }
 
     @Test
     void alGuardarSeConservaElTransporteDeLaUrlLeida() {
         String url = "s7:cotp://192.168.0.10:102?cotp.remote-slot=3";
         CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(),
-                deviceParaEditar("uuid-1", "S7-1500", url));
+                deviceToEdit("uuid-1", "s7-1500", url));
         assertTrue(panel.urlActual().startsWith("s7:cotp://"),
                 "el transporte guardado no se restauró: " + panel.urlActual());
     }
 
     @Test
+    void transportDropdownDoesNotAcceptFreeText() {
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(),
+                deviceToEdit("uuid-1", "s7-1500", "s7://10.0.0.1:102"));
+
+        assertFalse(panel.transporteEditable(),
+                "el transporte solo se elige de la lista: escribirlo a mano genera URLs "
+                        + "que el PLC no entiende");
+    }
+
+    @Test
+    void transportOutsideTheListStillSurvives() {
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(),
+                deviceToEdit("uuid-1", "s7-1500", "s7:iso-on-tcp://10.0.0.1:102"));
+
+        assertTrue(panel.urlActual().contains("iso-on-tcp"),
+                "si el transporte no estaba en la lista hay que conservarlo igualmente: "
+                        + panel.urlActual());
+    }
+
+    @Test
     void alCambiarElModeloLaConexionSeRehazeConLosDefaultsDelNuevo() {
-        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(), deviceParaEditar("uuid-1",
-                "S7-1500", "s7:cotp://192.168.0.10:102?cotp.remote-slot=3"));
+        CreateDevicePanel panel = new CreateDevicePanel(null, new NoopCommunicationStore(), deviceToEdit("uuid-1",
+                "s7-1500", "s7:cotp://192.168.0.10:102?cotp.remote-slot=3"));
         panel.getCbMarca().setEnabled(true);   // en edición viene bloqueado
-        panel.getCbModelo().setSelectedIndex(0);
+        panel.getCbModel().setSelectedIndex(0);
 
         assertTrue(panel.getTxtHost().getText().isEmpty(),
                 "cambiar de modelo no debe arrastrar el host anterior");
         String url = panel.urlActual();
         assertFalse(url.contains("cotp.remote-slot=3"),
                 "los parámetros de otro modelo no aplican: " + url);
-        assertTrue(url.contains("controller-type=S7_300"),
+        assertTrue(url.contains("controller-type=s7_300"),
                 "la URL debería quedar con los defaults del modelo nuevo: " + url);
     }
 
     @Test
-    void elFormularioEsAnchoSuficienteParaPoderLeerse() {
-        int ancho = panelCompleto().getPreferredSize().width;
-        assertTrue(ancho >= 700,
-                "el formulario mide " + ancho + " px de ancho y la ventana se empaqueta"
+    void formIsWideEnoughToBeReadable() {
+        int width = panelCompleto().getPreferredSize().width;
+        assertTrue(width >= 700,
+                "el formulario mide " + width + " px de ancho y la ventana se empaqueta"
                         + " a ese tamaño; los campos se están quedando con su mínimo");
     }
 }

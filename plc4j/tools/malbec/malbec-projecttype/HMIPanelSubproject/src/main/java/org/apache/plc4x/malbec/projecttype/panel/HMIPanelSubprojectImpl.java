@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.Action;
 import javax.swing.Icon;
-import javax.swing.ImageIcon;
 import org.apache.plc4x.malbec.projecttype.panel.action.HMIPanelCompileAction;
 import org.apache.plc4x.malbec.projecttype.panel.action.HMIPanelImportAction;
 import org.netbeans.api.annotations.common.StaticResource;
@@ -33,7 +32,6 @@ import org.netbeans.api.project.ProjectInformation;
 import org.netbeans.spi.project.ProjectState;
 import org.netbeans.spi.project.ui.LogicalViewProvider;
 import org.netbeans.spi.project.ui.support.NodeFactorySupport;
-
 import org.openide.filesystems.FileObject;
 import org.openide.loaders.DataFolder;
 import org.openide.loaders.DataObjectNotFoundException;
@@ -71,17 +69,7 @@ public class HMIPanelSubprojectImpl implements Project {
                 this,
                 new HMIPanelSubprojectInfoImpl(),
                 new HMIPanelSubprojectLogicalViewImpl(this),
-                new HMIPanelCategorySubprojectProviderImpl(this),
-            //                new HMIPanelCommunicationSubprojectProviderImpl(this), 
-            //                new HMIPanelNotificationManagerSubprojectProviderImpl(this), 
-            //                new HMIPanelRecipeSubprojectProviderImpl(this),                  
-            //                new HMIPanelHistorialSubprojectProviderImpl(this),                  
-            //                new HMIPanelScriptSubprojectProviderImpl(this),                  
-            //                new HMIPanelReportSubprojectProviderImpl(this),                  
-            //                new HMIPanelTextAndChartSubprojectProviderImpl(this),                  
-            //                new HMIPanelUserManagementSubprojectProviderImpl(this),                  
-            //                new HMIPanelOperatorConfigurationSubprojectProviderImpl(this),                  
-            //                 
+                new HMIPanelCategorySubprojectProviderImpl(this),            
             });
         }
         return lkp;
@@ -104,7 +92,7 @@ public class HMIPanelSubprojectImpl implements Project {
 
         @Override
         public Icon getIcon() {
-            return new ImageIcon(ImageUtilities.loadImage(PROJECT_ICON));
+            return ImageUtilities.loadImageIcon(PROJECT_ICON, false);
         }
 
         @Override
@@ -140,12 +128,9 @@ public class HMIPanelSubprojectImpl implements Project {
                 FileObject projectDirectory = project.getProjectDirectory();
                 DataFolder projectFolder = DataFolder.findFolder(projectDirectory);
                 Node nodeOfProjectFolder = projectFolder.getNodeDelegate();
-                //Decorate the project directory's node:
                 return new PanelProjectNode(nodeOfProjectFolder, project);
             } catch (DataObjectNotFoundException donfe) {
                 Exceptions.printStackTrace(donfe);
-                //Fallback-the directory couldn't be created -
-                //read-only filesystem or something evil happened
                 return new AbstractNode(Children.LEAF);
             }
         }
@@ -164,7 +149,6 @@ public class HMIPanelSubprojectImpl implements Project {
                 super(node,
                         NodeFactorySupport.createCompositeChildren(project,
                                 "Projects/org-apache-plc4x-panel/Nodes"),
-                        //                  new FilterNode.Children(node),
                         new ProxyLookup(
                                 new Lookup[]{
                                     Lookups.singleton(project),

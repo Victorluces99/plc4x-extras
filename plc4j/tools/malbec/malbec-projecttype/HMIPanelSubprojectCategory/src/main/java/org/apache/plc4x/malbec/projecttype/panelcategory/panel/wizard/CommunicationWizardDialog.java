@@ -41,6 +41,7 @@ import org.netbeans.api.project.Project;
 import org.openide.filesystems.FileUtil;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardController;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommunicationWizardState;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.SaveResult;
 
 public class CommunicationWizardDialog extends JDialog {
 
@@ -83,10 +84,10 @@ public class CommunicationWizardDialog extends JDialog {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                intentarCerrar();
+                attemptClose();
             }
         });
-        getRootPane().registerKeyboardAction(e -> intentarCerrar(),
+        getRootPane().registerKeyboardAction(e -> attemptClose(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_IN_FOCUSED_WINDOW);
 
@@ -97,9 +98,9 @@ public class CommunicationWizardDialog extends JDialog {
         Dimension pref = getPreferredSize();
         Rectangle screen = getGraphicsConfiguration() != null
                 ? getGraphicsConfiguration().getBounds()
-                : new Rectangle(0, 0, 1024, 768);
+                : new Rectangle(0, 0, 1024, 900);
         int maxW = Math.min(1000, Math.max(760, screen.width - 120));
-        int maxH = Math.min(740, Math.max(600, screen.height - 140));
+        int maxH = Math.min(860, Math.max(600, screen.height - 140));
         setSize(Math.min(pref.width, maxW), Math.min(pref.height, maxH));
         setResizable(false);
         setLocationRelativeTo(null);
@@ -118,6 +119,9 @@ public class CommunicationWizardDialog extends JDialog {
             }
         });
         btnNext.addActionListener(e -> {
+            if (STEP_PV.equals(currentStep)) {
+                return;
+            }
             if (STEP_AREA.equals(currentStep)) {
                 showStep(STEP_PV);
                 return;
@@ -130,9 +134,9 @@ public class CommunicationWizardDialog extends JDialog {
             }
             showStep(STEP_AREA);
         });
-        btnSave.addActionListener(e -> guardar());
-        btnSaveAndClose.addActionListener(e -> saveAndClose());
-        btnCancel.addActionListener(e -> intentarCerrar());
+        btnSave.addActionListener(e -> save(false));
+        btnSaveAndClose.addActionListener(e -> save(true));
+        btnCancel.addActionListener(e -> attemptClose());
 
         JPanel content = new JPanel(new BorderLayout(10, 10));
         content.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
@@ -145,7 +149,7 @@ public class CommunicationWizardDialog extends JDialog {
     private void wireSteps() {
         devicePanel.setOnDeviceChanged(this::onDeviceChanged);
         areaPanel.setOnItemsChanged(this::updateNavButtons);
-        pvPanel.setSaveHooks(this::confirmNoMissingGroups, this::showSavedMessage);
+        pvPanel.setBeforeSave(this::confirmNoMissingGroups);
     }
 
     private void onDeviceChanged() {
@@ -175,46 +179,53 @@ public class CommunicationWizardDialog extends JDialog {
 
     private void updateNavButtons() {
         boolean device = STEP_DEVICE.equals(currentStep);
+        boolean area = STEP_AREA.equals(currentStep);
         boolean pv = STEP_PV.equals(currentStep);
-        btnBack.setEnabled(!device);
+
+        btnBack.setVisible(area || pv);
+
+        btnNext.setVisible(device || area);
         btnNext.setText(device ? "Siguiente >" : "Continuar a variable >");
         btnNext.setEnabled(device || !state.getItems().isEmpty());
-        btnSave.setEnabled(!device && !pv);
+
+        btnSave.setVisible(area || pv);
+        btnSave.setEnabled(area || pv);
+
+        btnSaveAndClose.setVisible(pv);
         btnSaveAndClose.setEnabled(pv);
+
+        btnCancel.setVisible(true);
         btnCancel.setEnabled(true);
     }
 
-    private void guardar() {
+    private void save(boolean cerrar) {
         if (state.getSelectedDevice() == null || model == null) {
             return;
         }
         if (!confirmNoMissingGroups()) {
             return;
         }
-        showSavedMessage("Grupos y áreas guardados.");
-    }
-
-    private void saveAndClose() {
-        if (state.getSelectedDevice() == null || model == null) {
-            return;
+        SaveResult resultado;
+        if (STEP_PV.equals(currentStep) && !cerrar) {
+            resultado = saveAndWarn(
+                    "Variables guardadas en comunicacion.xml y en boot.db.",
+                    "El guardado de variables no fue completo.");
+        } else {
+            resultado = saveAndWarn(cerrar ? "Comunicación guardada." : "Grupos y áreas guardados.");
         }
-        if (!confirmNoMissingGroups()) {
-            return;
+        if (cerrar && resultado.isComplete()) {
+            dispose();
         }
-        if (!showSavedMessage("Comunicación guardada.")) {
-            return;
-        }
-        dispose();
     }
 
     private boolean confirmNoMissingGroups() {
-        List<String> nombres = controller.areasSinGrupoNames();
-        if (nombres.isEmpty()) {
+        List<String> names = controller.areasWithoutGroupNames();
+        if (names.isEmpty()) {
             return true;
         }
         JOptionPane.showMessageDialog(this,
                 "Las siguientes áreas de memoria no tienen grupo de escaneo:\n\n"
-                        + String.join(", ", nombres)
+                        + String.join(", ", names)
                         + "\n\nEl grupo de escaneo es obligatorio, por lo que no se "
                         + "guarda ni el XML ni la base de datos.\n"
                         + "Vuelva a crear esas áreas eligiendo su grupo.",
@@ -222,22 +233,30 @@ public class CommunicationWizardDialog extends JDialog {
         return false;
     }
 
-    private boolean showSavedMessage(String what) {
-        boolean databaseUpdated = controller.saveAll();
-        if (databaseUpdated) {
-            JOptionPane.showMessageDialog(this, what + "\nGuardado en comunicacion.xml y en boot.db.",
+    private SaveResult saveAndWarn(String what) {
+        return saveAndWarn(what + "\nGuardado en comunicacion.xml y en boot.db.", what);
+    }
+
+    private SaveResult saveAndWarn(String successMessage, String failurePrefix) {
+        SaveResult resultado = controller.saveAll();
+        if (resultado.isComplete()) {
+            JOptionPane.showMessageDialog(this, successMessage,
                     "Guardado", JOptionPane.INFORMATION_MESSAGE);
+        } else if (!resultado.xmlSaved()) {
+            JOptionPane.showMessageDialog(this, failurePrefix
+                            + "\nNo se guardó nada: " + resultado.message(),
+                    "Error al guardar", JOptionPane.ERROR_MESSAGE);
         } else {
-            JOptionPane.showMessageDialog(this, what
+            JOptionPane.showMessageDialog(this, failurePrefix
                             + "\nGuardado en comunicacion.xml, pero NO se pudo actualizar boot.db."
                             + "\nRevise la salida de la aplicación para el detalle.",
                     "Guardado parcial", JOptionPane.WARNING_MESSAGE);
         }
-        return databaseUpdated;
+        return resultado;
     }
 
-    private void intentarCerrar() {
-        if (state.isCambiosSinGuardar()) {
+    private void attemptClose() {
+        if (state.hasUnsavedChanges()) {
             int opcion = JOptionPane.showConfirmDialog(this,
                     "Hay cambios sin guardar en la configuración de comunicación.\n"
                             + "Si sale ahora, esos cambios se pierden.\n\n"
@@ -248,7 +267,8 @@ public class CommunicationWizardDialog extends JDialog {
                 return;
             }
             if (opcion == JOptionPane.YES_OPTION) {
-                if (!confirmNoMissingGroups() || !showSavedMessage("Comunicación guardada.")) {
+                if (!confirmNoMissingGroups()
+                        || !saveAndWarn("Comunicación guardada.").isComplete()) {
                     return;
                 }
             }

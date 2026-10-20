@@ -19,6 +19,7 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 
 import java.awt.BorderLayout;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Rectangle;
@@ -32,12 +33,15 @@ import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
 import javax.swing.KeyStroke;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationStore;
+import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.SaveResult;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans.HMICommunicationModel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.netbeans.api.project.Project;
 import org.openide.filesystems.FileUtil;
-import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
+import org.openide.util.RequestProcessor;
 
 public final class CreateDeviceDialog extends JDialog {
 
@@ -56,10 +60,11 @@ public final class CreateDeviceDialog extends JDialog {
         return new CreateDeviceDialog(owner, project, device);
     }
 
-    private static Path directorioDe(Project project) {
+    private static Path directoryOf(Project project) {
         return project != null ? FileUtil.toFile(project.getProjectDirectory()).toPath() : null;
     }
-    private static CommunicationStore storeDe(Project project) {
+
+    private static CommunicationStore storeOf(Project project) {
         return project != null ? project.getLookup().lookup(HMICommunicationModel.class) : null;
     }
 
@@ -67,23 +72,20 @@ public final class CreateDeviceDialog extends JDialog {
         super(owner, device == null
                 ? "Nuevo dispositivo de comunicación"
                 : "Modificar dispositivo", ModalityType.APPLICATION_MODAL);
-        this.projectDir = directorioDe(project);
-        this.store = storeDe(project);
+        this.projectDir = directoryOf(project);
+        this.store = storeOf(project);
         this.panel = new CreateDevicePanel(projectDir, store, device);
         this.editando = device != null;
 
         JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         botones.add(btnCancel);
         botones.add(btnOk);
-        JScrollPane scroll = new JScrollPane(panel);
-        scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.setMinimumSize(new Dimension(420, 260));
-
         JPanel content = new JPanel(new BorderLayout(0, 8));
-        content.add(scroll, BorderLayout.CENTER);
+        content.add(panel, BorderLayout.CENTER); 
         content.add(botones, BorderLayout.SOUTH);
         setContentPane(content);
-
+        content.add(botones, BorderLayout.SOUTH);
+        setContentPane(content);
 
         getRootPane().registerKeyboardAction(e -> dispose(),
                 KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
@@ -92,21 +94,22 @@ public final class CreateDeviceDialog extends JDialog {
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
-        btnOk.addActionListener(e -> guardar());
+        btnOk.addActionListener(e -> save());
         btnCancel.addActionListener(e -> dispose());
 
         setResizable(false);
-        pack();
-        Rectangle pantalla = getGraphicsConfiguration() != null
-                ? getGraphicsConfiguration().getBounds()
-                : new Rectangle(0, 0, 1024, 768);
-        Dimension pref = getPreferredSize();
-        setSize(Math.min(pref.width, pantalla.width - 80),
-                Math.min(pref.height, pantalla.height - 80));
+        setSize(550, 620);
+//        pack();
+//        Rectangle pantalla = getGraphicsConfiguration() != null
+//                ? getGraphicsConfiguration().getBounds()
+//                : new Rectangle(0, 0, 400, 700);
+//        Dimension pref = getPreferredSize();
+//        setSize(Math.min(pref.width, pantalla.width - 80),
+//                Math.min(pref.height, pantalla.height - 80));
         setLocationRelativeTo(owner);
     }
 
-    private void guardar() {
+    private void save() {
         DeviceConfigData data = panel.getDeviceConfigData();
         if (data == null) {
             return;
@@ -118,25 +121,48 @@ public final class CreateDeviceDialog extends JDialog {
             return;
         }
 
-        store.upsertDevice(data);
-        if (!store.save()) {
+        btnOk.setEnabled(false);
+        btnCancel.setEnabled(false);
+        setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+
+        RequestProcessor.getDefault().post(() -> {
+            store.upsertDevice(data);
+            SaveResult resultado = store.save();
+            SwingUtilities.invokeLater(() -> show(data, resultado));
+        });
+    }
+
+    private void show(DeviceConfigData data, SaveResult resultado) {
+        setCursor(Cursor.getDefaultCursor());
+        btnOk.setEnabled(true);
+        btnCancel.setEnabled(true);
+
+        if (!resultado.xmlSaved()) {
+            // Antes este mismo aviso decia "se guardó en comunicacion.xml" incluso
+            // cuando no se habia escrito nada, porque el booleano no lo distinguia.
+            JOptionPane.showMessageDialog(this,
+                    "No se pudo guardar el dispositivo:\n\n" + resultado.message(),
+                    "Error al guardar", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (resultado.isPartial()) {
             JOptionPane.showMessageDialog(this,
                     "El dispositivo se guardó en comunicacion.xml pero no se pudo\n"
                     + "actualizar la base de datos. Revisá la consola.",
                     "Guardado parcial", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        avisarGuardado(data);
+        saveWarning(data);
         dispose();
     }
 
-    private void avisarGuardado(DeviceConfigData data) {
-        String nombre = data.getDeviceName();
-        if (nombre == null || nombre.isBlank()) {
-            nombre = "(sin nombre)";
+    private void saveWarning(DeviceConfigData data) {
+        String name = data.getDeviceName();
+        if (name == null || name.isBlank()) {
+            name = "(sin nombre)";
         }
         JOptionPane.showMessageDialog(this,
-                "El dispositivo '" + nombre + "' fue "
+                "El dispositivo '" + name + "' fue "
                 + (editando ? "modificado" : "creado") + " correctamente.",
                 editando ? "Modificación exitosa" : "Dispositivo creado",
                 JOptionPane.INFORMATION_MESSAGE);

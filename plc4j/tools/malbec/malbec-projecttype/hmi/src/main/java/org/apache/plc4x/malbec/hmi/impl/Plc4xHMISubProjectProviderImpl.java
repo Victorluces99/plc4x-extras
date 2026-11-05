@@ -20,7 +20,6 @@ package org.apache.plc4x.malbec.hmi.impl;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 import javax.swing.event.ChangeListener;
 import org.netbeans.api.project.Project;
@@ -30,9 +29,6 @@ import org.openide.filesystems.FileObject;
 import org.openide.util.Exceptions;
 
 public class Plc4xHMISubProjectProviderImpl implements SubprojectProvider {
-    private static final java.util.logging.Logger LOGGER =
-            java.util.logging.Logger.getLogger(Plc4xHMISubProjectProviderImpl.class.getName());
-
 
     public static final String HMI_SUBPROJECT_DIRECTORY = "hmi";     
     
@@ -60,44 +56,21 @@ public class Plc4xHMISubProjectProviderImpl implements SubprojectProvider {
     /* 
     * 
     */
-    public Set loadProjects(FileObject dir) {
-        Set newProjects = new HashSet();
-        Project subp = null;
+    public Set<? extends Project> loadProjects(FileObject dir) {
         FileObject reportsFolder = dir.getFileObject(HMI_SUBPROJECT_DIRECTORY);
-        if (reportsFolder != null) {
-            try { 
-                subp = ProjectManager.getDefault().findProject(reportsFolder);
-                if (subp != null && subp instanceof Plc4xHMISubProjectImpl) {
-                    newProjects.add((Plc4xHMISubProjectImpl) subp);
-                }                
-            } catch (IOException ex) {
-                Exceptions.printStackTrace(ex);
-            } catch (IllegalArgumentException ex) {
-                Exceptions.printStackTrace(ex);
-            }
+        if (reportsFolder == null) {
+            return Collections.emptySet();
         }
-    
-        
-        if (reportsFolder != null) {
-            for (FileObject childFolder : reportsFolder.getChildren()) {
-                try {
-                    subp = ProjectManager.getDefault().findProject(childFolder);
-                    if (null != subp) {
-                        LOGGER.log(java.util.logging.Level.FINE,
-                                "Subproyecto HMI encontrado: {0}",
-                                subp.getProjectDirectory().getPath());
-                    }
-                    if (subp != null) {
-                        newProjects.add(subp);
-                    }
-                } catch (IOException ex) {
-                    Exceptions.printStackTrace(ex);
-                } catch (IllegalArgumentException ex) {
-                    Exceptions.printStackTrace(ex);
-                }
+
+        try {
+            Project subp = ProjectManager.getDefault().findProject(reportsFolder);
+            if (subp instanceof Plc4xHMISubProjectImpl) {
+                return Collections.singleton(subp);
             }
+        } catch (IOException | IllegalArgumentException ex) {
+            Exceptions.printStackTrace(ex);
         }
-        return Collections.unmodifiableSet(newProjects);
+        return Collections.emptySet();
     }    
     
 }

@@ -20,6 +20,7 @@ package org.apache.plc4x.malbec.hmi.impl;
 
 import java.awt.Image;
 import javax.swing.Action;
+import org.apache.plc4x.malbec.hmi.action.CreateProjectFolders;
 import org.netbeans.api.annotations.common.StaticResource;
 import org.netbeans.api.project.Project;
 import org.netbeans.spi.project.ui.LogicalViewProvider;
@@ -92,6 +93,7 @@ public class Plc4xHMISubProjectLogicalViewProviderImpl implements  LogicalViewPr
         @Override
         public Action[] getActions(boolean arg0) {
             return new Action[]{
+                        new CreateProjectFolders(project.getProjectDirectory()),
                         CommonProjectActions.newFileAction(),
                         CommonProjectActions.copyProjectAction(),
                         CommonProjectActions.deleteProjectAction(),

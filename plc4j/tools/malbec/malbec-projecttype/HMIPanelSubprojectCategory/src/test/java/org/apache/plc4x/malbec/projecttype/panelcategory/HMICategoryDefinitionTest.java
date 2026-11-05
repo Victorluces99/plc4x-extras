@@ -32,15 +32,15 @@ public class HMICategoryDefinitionTest {
     private static final Map<HMICategoryDefinition, String> NOMBRES_DE_CARPETA_EN_DISCO = new LinkedHashMap<>();
 
     static {
-        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.COMUNICATION, "Comunicacion");
-        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.NOTICE_MANAGEMENT, "Gestion de Avisos");
-        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.RECIPE, "Recetas");
-        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.HISTORIAL, "Historial");
+        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.COMUNICATION, "Communication");
+        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.NOTICE_MANAGEMENT, "Warning Management");
+        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.RECIPE, "Recipe");
+        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.RECORD, "Record");
         NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.SCRIPTS, "Scripts");
-        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.REPORT, "Informes");
-        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.TEXT_GRAPHIC, "Texto y Lista de graficos");
-        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.ADMIN_USER, "Administracion de Usuarios runtime");
-        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.CONFIG_PANEL, "Configuracion de panel de operador");
+        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.REPORT, "Report");
+        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.TEXT_GRAPHIC, "Text and List Charts");
+        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.ADMIN_USER, "Runtime User Management");
+        NOMBRES_DE_CARPETA_EN_DISCO.put(HMICategoryDefinition.CONFIG_PANEL, "Operator Panel Config");
     }
 
     @Test

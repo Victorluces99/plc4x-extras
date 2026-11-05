@@ -62,6 +62,20 @@ final class NetBeansProjectStorage implements ProjectStorage {
     }
 
     @Override
+    public boolean delete(String fileName) {
+        FileObject file = project.getProjectDirectory().getFileObject(fileName);
+        if (file == null) {
+            return false;
+        }
+        try {
+            file.delete();
+            return true;
+        } catch (IOException ex) {
+            return false;
+        }
+    }
+
+    @Override
     public File bootDbFolder() {
         return FileUtil.toFile(project.getProjectDirectory());
     }

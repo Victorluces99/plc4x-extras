@@ -41,7 +41,7 @@ class CategoryNodeFactoryConsolidationTest {
         ESPERADO.put(HMICategoryRecipeNodeFactory.class,
                 new Object[]{HMICategoryDefinition.RECIPE, 90});
         ESPERADO.put(HMICategoryRecordNodeFactory.class,
-                new Object[]{HMICategoryDefinition.HISTORIAL, 100});
+                new Object[]{HMICategoryDefinition.RECORD, 100});
         ESPERADO.put(HMICategoryScriptsNodeFactory.class,
                 new Object[]{HMICategoryDefinition.SCRIPTS, 110});
         ESPERADO.put(HMICategoryReportNodeFactory.class,

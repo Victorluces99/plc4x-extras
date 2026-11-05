@@ -43,7 +43,7 @@ public class HMICategoryCreateDisplayAction extends AbstractAction implements Co
     private Project project;
 
     public HMICategoryCreateDisplayAction(Project project) {
-        super("Crear pantalla");
+        super("Create Screen");
         this.project = project;
     }
 
@@ -55,7 +55,7 @@ public class HMICategoryCreateDisplayAction extends AbstractAction implements Co
 
         DialogDescriptor descriptorText = new DialogDescriptor(
                 cd,
-                "Crear Display",
+                "Create Display",
                 true,
                 new Object[0],
                 null,
@@ -72,7 +72,7 @@ public class HMICategoryCreateDisplayAction extends AbstractAction implements Co
                     .getResourceAsStream(DISPLAY_TEMPLATE_PATH)) {
 
                 if (in == null) {
-                    throw new IOException("No se encontro la plantilla " + DISPLAY_TEMPLATE_PATH);
+                    throw new IOException("The template was not found: " + DISPLAY_TEMPLATE_PATH);
                 }
 
                 FileObject newFile = targetFolder.createData(fileName, FILE_NAME_DISPLAY_EXT);
@@ -84,8 +84,8 @@ public class HMICategoryCreateDisplayAction extends AbstractAction implements Co
             } catch (IOException ex) {
                 Exceptions.printStackTrace(ex);
                 JOptionPane.showMessageDialog(null,
-                        "No se pudo crear la pantalla: " + ex.getMessage(),
-                        "Crear pantalla", JOptionPane.ERROR_MESSAGE);
+                        "The screen could not be created: " + ex.getMessage(),
+                        "Create Screen", JOptionPane.ERROR_MESSAGE);
             }
         }
     }

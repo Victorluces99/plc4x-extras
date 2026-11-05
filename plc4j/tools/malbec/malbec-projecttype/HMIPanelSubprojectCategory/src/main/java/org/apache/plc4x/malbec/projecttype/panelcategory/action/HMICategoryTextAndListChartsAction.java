@@ -25,6 +25,6 @@ public class HMICategoryTextAndListChartsAction extends AbstractNotImplementedAc
     private static final long serialVersionUID = 1L;
 
     public HMICategoryTextAndListChartsAction(FileObject fileObject) {
-        super("Editar textos y gráficos", fileObject);
+        super("Edit Texts and Charts", fileObject);
     }
 }

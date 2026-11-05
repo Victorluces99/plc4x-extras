@@ -34,6 +34,6 @@ public final class CommConfigRepositoryLookup {
             return provider.createRepository(storage);
         }
         throw new IllegalStateException(
-                "No hay ningun CommConfigRepositoryProvider registrado en el Lookup");
+                "There is no CommConfigRepositoryProvider registered in the Lookup");
     }
 }

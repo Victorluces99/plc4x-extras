@@ -25,6 +25,6 @@ public class HMICategoryWarningManagementAction extends AbstractNotImplementedAc
     private static final long serialVersionUID = 1L;
 
     public HMICategoryWarningManagementAction(FileObject fileObject) {
-        super("Editar gestión de avisos", fileObject);
+        super("Edit Warning Management", fileObject);
     }
 }

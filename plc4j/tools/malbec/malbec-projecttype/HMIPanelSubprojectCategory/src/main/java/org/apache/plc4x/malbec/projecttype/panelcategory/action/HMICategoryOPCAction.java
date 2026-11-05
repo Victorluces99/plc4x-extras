@@ -25,6 +25,6 @@ public class HMICategoryOPCAction extends AbstractNotImplementedAction {
     private static final long serialVersionUID = 1L;
 
     public HMICategoryOPCAction(FileObject fileObject) {
-        super("Editar panel de operador", fileObject);
+        super("Edit Operator Panel", fileObject);
     }
 }

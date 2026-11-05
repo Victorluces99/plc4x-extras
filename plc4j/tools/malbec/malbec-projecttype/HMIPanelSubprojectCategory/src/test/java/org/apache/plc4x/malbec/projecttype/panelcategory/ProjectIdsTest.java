@@ -35,7 +35,7 @@ class ProjectIdsTest {
         assertEquals("org-apache-plc4x-category", ProjectIds.CATEGORY_PROJECT_TYPE);
         assertEquals("org-apache-plc4x-panel", ProjectIds.PANEL_PROJECT_TYPE);
         assertEquals("category.cfg", ProjectIds.CATEGORY_MARKER_FILE);
-        assertEquals("comunicacion.xml", ProjectIds.COMMUNICATION_CONFIG_FILE);
+        assertEquals("communication.xml", ProjectIds.COMMUNICATION_CONFIG_FILE);
     }
 
     @Test

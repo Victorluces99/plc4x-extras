@@ -31,30 +31,30 @@ import org.junit.jupiter.api.Test;
 
 class HMICategoryFileRulesTest {
 
-    private static final Map<HMICategoryDefinition, String[]> EN_LA_FACTORY = new LinkedHashMap<>();
+    private static final Map<HMICategoryDefinition, String[]> AT_THE_FACTORY = new LinkedHashMap<>();
 
     static {
-        EN_LA_FACTORY.put(HMICategoryDefinition.RECIPE,
-                new String[]{"Recetas", "rcp", "base.rcp"});
-        EN_LA_FACTORY.put(HMICategoryDefinition.SCRIPTS,
-                new String[]{"Scripts", "scp", "base.scp"});
-        EN_LA_FACTORY.put(HMICategoryDefinition.HISTORIAL,
-                new String[]{"Historial", "record", "record.record"});
-        EN_LA_FACTORY.put(HMICategoryDefinition.REPORT,
-                new String[]{"Informes", "rpt", "base.rpt"});
-        EN_LA_FACTORY.put(HMICategoryDefinition.TEXT_GRAPHIC,
-                new String[]{"Texto y Lista de graficos", "tlc", "base.tlc"});
-        EN_LA_FACTORY.put(HMICategoryDefinition.NOTICE_MANAGEMENT,
-                new String[]{"Gestion de Avisos", "wmg", "base.wmg"});
-        EN_LA_FACTORY.put(HMICategoryDefinition.ADMIN_USER,
-                new String[]{"Administracion de Usuarios runtime", "rtum", "base.rtum"});
-        EN_LA_FACTORY.put(HMICategoryDefinition.CONFIG_PANEL,
-                new String[]{"Configuracion de panel de operador", "oppc", "base.oppc"});
+        AT_THE_FACTORY.put(HMICategoryDefinition.RECIPE,
+                new String[]{"Recipe", "rcp", "template.rcp"});
+        AT_THE_FACTORY.put(HMICategoryDefinition.SCRIPTS,
+                new String[]{"Scripts", "scp", "template.scp"});
+        AT_THE_FACTORY.put(HMICategoryDefinition.RECORD,
+                new String[]{"Record", "record", "template.record"});
+        AT_THE_FACTORY.put(HMICategoryDefinition.REPORT,
+                new String[]{"Report", "rpt", "template.rpt"});
+        AT_THE_FACTORY.put(HMICategoryDefinition.TEXT_GRAPHIC,
+                new String[]{"Text and List Charts", "tlc", "template.tlc"});
+        AT_THE_FACTORY.put(HMICategoryDefinition.NOTICE_MANAGEMENT,
+                new String[]{"Warning Management", "wmg", "template.wmg"});
+        AT_THE_FACTORY.put(HMICategoryDefinition.ADMIN_USER,
+                new String[]{"Runtime User Management", "rtum", "template.rtum"});
+        AT_THE_FACTORY.put(HMICategoryDefinition.CONFIG_PANEL,
+                new String[]{"Operator Panel Config", "oppc", "template.oppc"});
     }
 
     @Test
     void eachCategoryKeepsFolderExtensionAndHiddenFile() {
-        for (Map.Entry<HMICategoryDefinition, String[]> entrada : EN_LA_FACTORY.entrySet()) {
+        for (Map.Entry<HMICategoryDefinition, String[]> entrada : AT_THE_FACTORY.entrySet()) {
             HMICategoryDefinition definition = entrada.getKey();
             String[] esperado = entrada.getValue();
             assertEquals(esperado[0], definition.getDisplayName(),
@@ -78,12 +78,12 @@ class HMICategoryFileRulesTest {
     @Test
     void categoryWithoutExtensionAcceptsNoFile() {
         assertFalse(HMICategoryDefinition.IMAGE.acepta("captura.bob", "bob", false));
-        assertFalse(HMICategoryDefinition.COMUNICATION.acepta("comunicacion.xml", "xml", false));
+        assertFalse(HMICategoryDefinition.COMUNICATION.acepta("communication.xml", "xml", false));
     }
 
     @Test
     void eachCategoryAcceptsItsOwnFile() {
-        for (Map.Entry<HMICategoryDefinition, String[]> entrada : EN_LA_FACTORY.entrySet()) {
+        for (Map.Entry<HMICategoryDefinition, String[]> entrada : AT_THE_FACTORY.entrySet()) {
             HMICategoryDefinition definition = entrada.getKey();
             String[] esperado = entrada.getValue();
             String name = "mi-recurso." + esperado[1];
@@ -94,7 +94,7 @@ class HMICategoryFileRulesTest {
 
     @Test
     void hiddenFileIsNotListed() {
-        for (Map.Entry<HMICategoryDefinition, String[]> entrada : EN_LA_FACTORY.entrySet()) {
+        for (Map.Entry<HMICategoryDefinition, String[]> entrada : AT_THE_FACTORY.entrySet()) {
             HMICategoryDefinition definition = entrada.getKey();
             String[] esperado = entrada.getValue();
             assertFalse(definition.acepta(esperado[2], esperado[1], false),
@@ -104,7 +104,7 @@ class HMICategoryFileRulesTest {
 
     @Test
     void folderIsNeverListedAsFile() {
-        for (HMICategoryDefinition definition : EN_LA_FACTORY.keySet()) {
+        for (HMICategoryDefinition definition : AT_THE_FACTORY.keySet()) {
             String extension = definition.getFileExtension();
             assertFalse(definition.acepta("subcarpeta." + extension, extension, true),
                     definition.name() + " no debe intentar mostrar un directorio");
@@ -113,7 +113,7 @@ class HMICategoryFileRulesTest {
 
     @Test
     void otraExtensionNoSeMuestra() {
-        for (HMICategoryDefinition definition : EN_LA_FACTORY.keySet()) {
+        for (HMICategoryDefinition definition : AT_THE_FACTORY.keySet()) {
             assertFalse(definition.acepta("documento.pdf", "pdf", false),
                     definition.name() + " solo muestra " + definition.getFileExtension());
         }
@@ -121,10 +121,10 @@ class HMICategoryFileRulesTest {
 
     @Test
     void folderIsComparedIgnoringCaseAndSpaces() {
-        assertTrue(HMICategoryDefinition.RECIPE.matchesFolder("Recetas"));
-        assertTrue(HMICategoryDefinition.RECIPE.matchesFolder("recetas"));
-        assertTrue(HMICategoryDefinition.RECIPE.matchesFolder("RECETAS"));
-        assertTrue(HMICategoryDefinition.RECIPE.matchesFolder("  Recetas  "));
+        assertTrue(HMICategoryDefinition.RECIPE.matchesFolder("Recipe"));
+        assertTrue(HMICategoryDefinition.RECIPE.matchesFolder("recipe"));
+        assertTrue(HMICategoryDefinition.RECIPE.matchesFolder("RECIPE"));
+        assertTrue(HMICategoryDefinition.RECIPE.matchesFolder("  Recipe  "));
         assertFalse(HMICategoryDefinition.RECIPE.matchesFolder("Scripts"));
         assertFalse(HMICategoryDefinition.RECIPE.matchesFolder(null));
         assertFalse(HMICategoryDefinition.RECIPE.matchesFolder(""));
@@ -135,7 +135,7 @@ class HMICategoryFileRulesTest {
         HMICategoryDefinition receta = HMICategoryDefinition.RECIPE;
 
         assertTrue(receta.acepta("Receta.RCP", "RCP", false));
-        assertFalse(receta.acepta("BASE.RCP", "rcp", false),
+        assertFalse(receta.acepta("TEMPLATE.RCP", "rcp", false),
                 "el fichero oculto tambien se compara sin distinguir mayusculas");
     }
 

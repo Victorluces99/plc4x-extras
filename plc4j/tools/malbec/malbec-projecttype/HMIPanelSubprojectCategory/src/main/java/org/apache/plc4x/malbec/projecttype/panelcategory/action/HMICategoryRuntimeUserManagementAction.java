@@ -25,6 +25,6 @@ public class HMICategoryRuntimeUserManagementAction extends AbstractNotImplement
     private static final long serialVersionUID = 1L;
 
     public HMICategoryRuntimeUserManagementAction(FileObject fileObject) {
-        super("Editar usuarios runtime", fileObject);
+        super("Edit Runtime Users", fileObject);
     }
 }

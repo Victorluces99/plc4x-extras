@@ -29,6 +29,6 @@ public class HMICategoryRecordNodeFactory extends CategoryFilesNodeFactory {
 
     @Override
     protected HMICategoryDefinition category() {
-        return HMICategoryDefinition.HISTORIAL;
+        return HMICategoryDefinition.RECORD;
     }
 }

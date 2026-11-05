@@ -38,7 +38,7 @@ final class DeleteDeviceDialog {
 
         Object[] options = {"Accept", "Cancel"};
         int chosen = JOptionPane.showOptionDialog(window,
-                DeviceNodeLabels.deletionMessage(name, model.getComms(uuid)),
+                DeviceNodeLabels.deletionMessage(name, model.getVariables(uuid)),
                 "Delete device", JOptionPane.WARNING_MESSAGE,
                 JOptionPane.DEFAULT_OPTION, null, options, options[0]);
         if (chosen != 0) {

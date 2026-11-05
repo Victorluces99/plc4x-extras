@@ -62,7 +62,7 @@ final class InMemoryProjectStorage implements ProjectStorage {
         return files.get(fileName);
     }
 
-    /** Numero de veces que se ha escrito {@code comunicacion.xml}. */
+    /** Number of times {@code communication.xml} has been written. */
     int configWrites() {
         return configWrites;
     }
@@ -93,6 +93,11 @@ final class InMemoryProjectStorage implements ProjectStorage {
     public CommConfigStorage createConfig() {
         files.putIfAbsent(HMICommunicationModel.CONFIG_FILE, "");
         return new AlmacenEnMemoria();
+    }
+
+    @Override
+    public boolean delete(String fileName) {
+        return files.remove(fileName) != null;
     }
 
     @Override

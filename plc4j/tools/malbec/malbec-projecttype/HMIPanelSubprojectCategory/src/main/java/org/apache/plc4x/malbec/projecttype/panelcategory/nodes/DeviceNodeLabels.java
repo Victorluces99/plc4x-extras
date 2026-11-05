@@ -20,7 +20,6 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.nodes;
 
 import java.util.List;
 import java.util.function.Function;
-import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.PvConfigData;
 
@@ -44,24 +43,12 @@ final class DeviceNodeLabels {
                 + " / " + device.getProtocol();
     }
 
-    static int variableCount(CommConfigData communication) {
-        return communication == null ? 0 : sizeOf(communication.getPvs());
-    }
-
     static int variableCount(List<PvConfigData> variables) {
         return sizeOf(variables);
     }
 
-    static boolean hasVariables(CommConfigData communication) {
-        return variableCount(communication) > 0;
-    }
-
     static boolean hasVariables(List<PvConfigData> variables) {
         return variableCount(variables) > 0;
-    }
-
-    static String variablesTooltip(CommConfigData communication) {
-        return variablesTooltip(variableCount(communication));
     }
 
     static String variablesTooltip(List<PvConfigData> variables) {
@@ -88,26 +75,18 @@ final class DeviceNodeLabels {
 
     /**
      * @param name device name, already resolved by {@link #nameOf}
-     * @param communication its communication, or null if it has none
+     * @param variables its variables, or null if it has none
      */
-    static String deletionMessage(String name, CommConfigData communication) {
+    static String deletionMessage(String name, List<PvConfigData> variables) {
         StringBuilder text = new StringBuilder("You are about to delete the device '")
                 .append(name).append("'.")
                 .append("\n\nDeleting it will discard all its settings.");
-        if (communication != null) {
-            int groups = communication.getGroups().size();
-            int areas = communication.getItems().size();
-            int variables = communication.getPvs().size();
-            if (groups > 0 || areas > 0 || variables > 0) {
-                text.append("\n\n  \u2022 ").append(groups)
-                        .append(groups == 1 ? " group" : " groups")
-                        .append("\n  \u2022 ").append(areas)
-                        .append(areas == 1 ? " area" : " areas")
-                        .append("\n  \u2022 ").append(variables)
-                        .append(variables == 1 ? " variable" : " variables");
-            }
+        int count = variableCount(variables);
+        if (count > 0) {
+            text.append("\n\n  \u2022 ").append(count)
+                    .append(count == 1 ? " variable" : " variables");
         }
-        return text.append("\n\nIt will also be removed from comunicacion.xml and boot.db.")
+        return text.append("\n\nIt will also be removed from communication.xml and boot.db.")
                 .append("\n\nDo you want to continue?").toString();
     }
 
@@ -117,7 +96,7 @@ final class DeviceNodeLabels {
     }
 
     static String partialSaveMessage(String name) {
-        return "The device '" + name + "' was removed from comunicacion.xml, but boot.db\n"
+        return "The device '" + name + "' was removed from communication.xml, but boot.db\n"
                 + "could not be updated. Check the console.";
     }
 

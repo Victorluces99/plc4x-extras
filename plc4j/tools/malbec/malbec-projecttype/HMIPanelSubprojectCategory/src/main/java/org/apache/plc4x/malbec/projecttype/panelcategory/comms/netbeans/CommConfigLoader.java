@@ -24,9 +24,9 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.Communication
 final class CommConfigLoader {
 
     /**
-     * @param config         la configuracion leida, ya con los UUID reparados
-     * @param uuidReparados  si hizo falta rellenar algun UUID ausente, para saber
-     *                       si el fichero debe reescribirse
+     * @param config         the configuration file, now with the UUIDs fixed
+     * @param uuidReparados  whether it was necessary to fill in any missing UUIDs,
+     *                       to determine whether the file needs to be rewritten
      */
     record Result(CommunicationsConfig config, boolean uuidReparados) {
     }
@@ -35,7 +35,7 @@ final class CommConfigLoader {
 
     CommConfigLoader(CommConfigRepository repository) {
         if (repository == null) {
-            throw new IllegalArgumentException("hace falta un repositorio de configuración");
+            throw new IllegalArgumentException("A configuration repository is required");
         }
         this.repository = repository;
     }
@@ -44,9 +44,9 @@ final class CommConfigLoader {
         CommunicationsConfig config = repository.load();
         if (config == null) {
             throw new IllegalStateException(
-                    "el repositorio devolvió una configuración nula en lugar de una vacía");
+                    "The repository returned a null configuration instead of an empty one");
         }
-        boolean reparados = HMICommunicationModel.repararUuidsAusentes(config);
-        return new Result(config, reparados);
+        boolean repaired = HMICommunicationModel.repararUuidsAusentes(config);
+        return new Result(config, repaired);
     }
 }

@@ -32,7 +32,6 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommConfigSto
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationsConfig;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.api.CommunicationStore;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.persistence.RebuildResults;
-import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.PvConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
@@ -133,6 +132,7 @@ public final class HMICommunicationModel implements CommunicationStore {
                 || storage.has(CONFIG_FILE)
                 || storage.has("comm.merlot");
     }
+
 
     private void forgetConfiguration() {
         lock.writeLock().lock();
@@ -246,15 +246,6 @@ public final class HMICommunicationModel implements CommunicationStore {
         }
     }
 
-    public CommConfigData getComms(String deviceUuid) {
-        lock.readLock().lock();
-        try {
-            return config.getComms(deviceUuid);
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
     public List<PvConfigData> getVariables(String deviceUuid) {
         lock.readLock().lock();
         try {
@@ -268,15 +259,6 @@ public final class HMICommunicationModel implements CommunicationStore {
         lock.writeLock().lock();
         try {
             config.upsertDevice(device);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public void upsertComms(String deviceUuid, CommConfigData commConfig) {
-        lock.writeLock().lock();
-        try {
-            config.upsertComms(deviceUuid, commConfig);
         } finally {
             lock.writeLock().unlock();
         }

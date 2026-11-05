@@ -181,7 +181,7 @@ class HMICommunicationModelIntegrityTest {
         assertFalse(new File(tempDir.toFile(), "boot.db").exists(),
                 "H-01: no se puede reconstruir boot.db desde un modelo que no se ha podido leer");
         assertEquals(0, storage.configWrites(),
-                "H-01: tampoco se debe reescribir comunicacion.xml");
+                "H-01: tampoco se debe reescribir communication.xml");
     }
 
     @Test
@@ -205,7 +205,7 @@ class HMICommunicationModelIntegrityTest {
 
     @Test
     void failedReadDoesNotAllowOverwritingTheFile(@TempDir Path tempDir) {
-        InMemoryProjectStorage storage = new InMemoryProjectStorage("Comunicacion", tempDir.toFile())
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("Communication", tempDir.toFile())
                 .withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO)
                 .failNextReads(1);
         HMICommunicationModel model = new HMICommunicationModel(storage);
@@ -238,11 +238,11 @@ class HMICommunicationModelIntegrityTest {
 
     @Test
     void communicationsProjectCreatesTheFileIfMissing(@TempDir Path tempDir) {
-        InMemoryProjectStorage storage = new InMemoryProjectStorage("Comunicacion", tempDir.toFile());
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("Communication", tempDir.toFile());
         new HMICommunicationModel(storage);
 
         assertTrue(storage.has(HMICommunicationModel.CONFIG_FILE),
-                "un proyecto de comunicaciones debe materializar comunicacion.xml");
+                "un proyecto de comunicaciones debe materializar communication.xml");
     }
 
     @Test
@@ -358,7 +358,7 @@ class HMICommunicationModelIntegrityTest {
 
     @Test
     void alBorrarElArchivoSeVuelveACrear(@TempDir Path tempDir) {
-        InMemoryProjectStorage storage = new InMemoryProjectStorage("Comunicacion",
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("Communication",
                 tempDir.toFile());
         HMICommunicationModel model = new HMICommunicationModel(storage);
         assertTrue(storage.has(HMICommunicationModel.CONFIG_FILE), "precondicion: existe");
@@ -366,7 +366,7 @@ class HMICommunicationModelIntegrityTest {
         storage.fireDeleted();
 
         assertTrue(storage.has(HMICommunicationModel.CONFIG_FILE),
-                "borrar comunicacion.xml no puede dejar el proyecto sin el fichero");
+                "borrar communication.xml no puede dejar el proyecto sin el fichero");
         assertDoesNotThrow(() -> model.save(),
                 "con el fichero recreado el modelo se puede volver a usar");
     }

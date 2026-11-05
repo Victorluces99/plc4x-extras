@@ -32,6 +32,8 @@ interface ProjectStorage {
 
     CommConfigStorage createConfig() throws IOException;
 
+    boolean delete(String fileName);
+
     File bootDbFolder();
 
     void setOnChanged(Runnable onChanged);

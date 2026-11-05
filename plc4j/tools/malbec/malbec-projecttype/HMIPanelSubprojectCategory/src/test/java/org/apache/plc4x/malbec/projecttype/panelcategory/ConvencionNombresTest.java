@@ -65,7 +65,7 @@ class ConvencionNombresTest {
             // Project / ProjectFactory / ProjectState
             "getProjectDirectory", "getLookup", "saveProject", "isProject",
             // ProjectStorage, CommConfigStorage, CommConfigRepository
-            "getDevices", "findByUuid", "getComms", "upsertDevice", "upsertComms",
+            "getDevices", "findByUuid", "upsertDevice",
             "removeDevice", "save", "load", "open", "create", "close", "directoryName",
             "has", "config", "bootDbFolder", "setOnChanged", "setOnDeleted",
             "watchForChanges", "pauseNotifications", "resumeNotifications",

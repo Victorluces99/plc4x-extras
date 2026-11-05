@@ -24,8 +24,11 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -66,6 +69,7 @@ public final class CreateVariableTopComponent extends TopComponent {
 
     private static final String HISTORY_TAB = "History";
     private final Set<String> deletedPvUuids = new LinkedHashSet<>();
+    private final Map<String, String> deviceNamesByUuid = new LinkedHashMap<>();
     private List<CreateVariableController.Row> savedRows = List.of();
 
     private final ChangeListener modelListener = event -> refreshConnectionOptions();
@@ -100,6 +104,7 @@ public final class CreateVariableTopComponent extends TopComponent {
         boolean projectChanged = this.project != project;
         if (projectChanged) {
             deletedPvUuids.clear();
+            deviceNamesByUuid.clear();
             undoSupport.discardHistory();
         }
 
@@ -167,7 +172,7 @@ public final class CreateVariableTopComponent extends TopComponent {
         btnAddRow.setToolTipText("Add a new variable row.");
         btnDeleteRow.setToolTipText("Delete the selected variable row.");
         btnDuplicate.setToolTipText("Duplicate the selected row the indicated number of times.");
-        btnGuardar.setToolTipText("Validate and save variables to comunicacion.xml and boot.db.");
+        btnGuardar.setToolTipText("Validate and save variables to communication.xml and boot.db.");
         btnCancelar.setToolTipText("Close this editor. If there are unsaved changes, you will be asked to save them.");
 
         spnDuplicateCount = new JSpinner(new SpinnerNumberModel(1, 1, 100, 1));
@@ -194,9 +199,9 @@ public final class CreateVariableTopComponent extends TopComponent {
 
         tabs = new JTabbedPane();
         tabs.addTab("Variables", variablesPanel);
-        tabs.setToolTipTextAt(0, "Edit the variables stored in comunicacion.xml.");
+        tabs.setToolTipTextAt(0, "Edit the variables stored in communication.xml.");
         tabs.addTab(HISTORY_TAB, historyPlaceholder());
-        tabs.setToolTipTextAt(1, "Local history for comunicacion.xml.");
+        tabs.setToolTipTextAt(1, "Local history for communication.xml.");
         add(tabs, BorderLayout.CENTER);
         markSaved();
     }
@@ -247,8 +252,11 @@ public final class CreateVariableTopComponent extends TopComponent {
 
         try {
             var content = documentService.readContent(change.xml());
+            boolean wasDirty = hasUnsavedChanges();
             model.reload();
-            loadVariablesFromXml(project);
+            if (!wasDirty) {
+                loadVariablesFromXml(project);
+            }
             refreshConnectionOptions();
 
             File folder = documentService.folder();
@@ -265,7 +273,7 @@ public final class CreateVariableTopComponent extends TopComponent {
             rebuildHistoryTab();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this,
-                    "The variables in comunicacion.xml could not be loaded: "
+                    "The variables in communication.xml could not be loaded: "
                     + (ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage()),
                     "Variables",
                     JOptionPane.ERROR_MESSAGE);
@@ -313,7 +321,7 @@ public final class CreateVariableTopComponent extends TopComponent {
 
     private static Component historyPlaceholder() {
         JLabel label = new JLabel(
-                "Save the variables to create comunicacion.xml and enable local history.",
+                "Save the variables to create communication.xml and enable local history.",
                 SwingConstants.CENTER);
         label.setEnabled(false);
         return label;
@@ -332,7 +340,73 @@ public final class CreateVariableTopComponent extends TopComponent {
             SwingUtilities.invokeLater(this::refreshConnectionOptions);
             return;
         }
-        undoSupport.withoutRecording(() -> tablePanel.refreshDeviceOptions(this::devices));
+        List<DeviceConfigData> currentDevices = devices();
+        Map<String, String> currentNames = namesByUuid(currentDevices);
+        Map<String, String> renames = renameMap(deviceNamesByUuid, currentNames);
+        boolean wasDirty = hasUnsavedChanges();
+
+        undoSupport.withoutRecording(() -> {
+            if (!renames.isEmpty()) {
+                tablePanel.renameDeviceReferences(renames);
+            }
+            tablePanel.refreshDeviceOptions(() -> currentDevices);
+        });
+
+        if (!renames.isEmpty()) {
+            if (!wasDirty) {
+                savedRows = applyRenames(savedRows, renames);
+            }
+            undoSupport.discardHistory();
+        }
+        deviceNamesByUuid.clear();
+        deviceNamesByUuid.putAll(currentNames);
+    }
+
+    private static Map<String, String> namesByUuid(List<DeviceConfigData> devices) {
+        Map<String, String> result = new LinkedHashMap<>();
+        for (DeviceConfigData device : devices) {
+            if (device == null) {
+                continue;
+            }
+            String uuid = device.getUuid();
+            String name = device.getDeviceName();
+            if (uuid == null || uuid.isBlank() || name == null || name.isBlank()) {
+                continue;
+            }
+            result.put(uuid, name);
+        }
+        return result;
+    }
+
+    private static Map<String, String> renameMap(Map<String, String> previous,
+            Map<String, String> current) {
+        Map<String, String> renames = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : previous.entrySet()) {
+            String currentName = current.get(entry.getKey());
+            if (currentName != null && !currentName.equals(entry.getValue())) {
+                renames.put(entry.getValue(), currentName);
+            }
+        }
+        return renames;
+    }
+
+    private static List<CreateVariableController.Row> applyRenames(
+            List<CreateVariableController.Row> rows, Map<String, String> renames) {
+        if (rows == null || rows.isEmpty()) {
+            return rows == null ? List.of() : rows;
+        }
+        boolean changed = false;
+        List<CreateVariableController.Row> result = new ArrayList<>(rows.size());
+        for (CreateVariableController.Row row : rows) {
+            String replacement = row == null ? null : renames.get(row.deviceName());
+            if (replacement != null && !replacement.equals(row.deviceName())) {
+                result.add(row.withDeviceName(replacement));
+                changed = true;
+            } else {
+                result.add(row);
+            }
+        }
+        return changed ? List.copyOf(result) : rows;
     }
 
     private List<DeviceConfigData> devices() {
@@ -367,7 +441,7 @@ public final class CreateVariableTopComponent extends TopComponent {
         } catch (Exception ex) {
             addVariableRow();
             JOptionPane.showMessageDialog(this,
-                    "The variables in comunicacion.xml could not be loaded: "
+                    "The variables in communication.xml could not be loaded: "
                     + (ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage()),
                     "Variables",
                     JOptionPane.ERROR_MESSAGE);
@@ -586,6 +660,7 @@ public final class CreateVariableTopComponent extends TopComponent {
             return false;
         }
 
+        model.reload();
         markSaved();
         JOptionPane.showMessageDialog(this,
                 "Variables saved successfully.",

@@ -69,11 +69,11 @@ public final class CreateVariable extends AbstractAction implements ContextAware
     @Override
     public void actionPerformed(ActionEvent e) {
         if (project == null) {
-            showWarning("Seleccione un proyecto antes de crear variables.");
+            showWarning("Select a project before creating variables.");
             return;
         }
         if (project.getLookup().lookup(HMICommunicationModel.class) == null) {
-            showWarning("El proyecto seleccionado no tiene configuración de comunicaciones.");
+            showWarning("The selected project has no communication configuration.");
             return;
         }
 
@@ -99,7 +99,7 @@ public final class CreateVariable extends AbstractAction implements ContextAware
         JOptionPane.showMessageDialog(
                 WindowManager.getDefault().getMainWindow(),
                 message,
-                "Crear Variables",
+                "Create Variables",
                 JOptionPane.WARNING_MESSAGE);
     }
 

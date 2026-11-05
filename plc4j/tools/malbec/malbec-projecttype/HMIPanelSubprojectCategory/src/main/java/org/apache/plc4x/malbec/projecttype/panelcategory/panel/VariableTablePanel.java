@@ -439,6 +439,22 @@ final class VariableTablePanel extends JPanel {
         return removed;
     }
 
+    void renameDeviceReferences(Map<String, String> renames) {
+        if (renames == null || renames.isEmpty()) {
+            return;
+        }
+        for (int row = 0; row < tableModel.getRowCount(); row++) {
+            Object current = tableModel.getValueAt(row, VariableTableModel.COL_DEVICE);
+            if (current == null) {
+                continue;
+            }
+            String replacement = renames.get(current.toString());
+            if (replacement != null && !replacement.equals(current)) {
+                tableModel.setValueAt(replacement, row, VariableTableModel.COL_DEVICE);
+            }
+        }
+    }
+
     void refreshDeviceOptions(Supplier<List<DeviceConfigData>> devicesSupplier) {
         if (!SwingUtilities.isEventDispatchThread()) {
             SwingUtilities.invokeLater(() -> refreshDeviceOptions(devicesSupplier));

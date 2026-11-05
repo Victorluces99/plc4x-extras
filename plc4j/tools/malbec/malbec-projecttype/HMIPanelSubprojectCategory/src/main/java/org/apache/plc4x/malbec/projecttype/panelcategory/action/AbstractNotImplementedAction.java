@@ -46,19 +46,19 @@ public abstract class AbstractNotImplementedAction extends AbstractAction {
     public String notImplementedMessage() {
         String name = getValue(Action.NAME) == null ? getClass().getSimpleName()
                 : String.valueOf(getValue(Action.NAME));
-        return "La acción '" + name + "' todavía no está implementada.";
+        return "The action '" + name + "' has not been implemented yet.";
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
         String mensaje = notImplementedMessage();
-        LOGGER.log(Level.FINE, "{0} sobre {1}",
+        LOGGER.log(Level.FINE, "{0} about {1}",
                 new Object[]{mensaje, fileObject == null ? null : fileObject.getNameExt()});
         try {
             DialogDisplayer.getDefault().notify(
                     new NotifyDescriptor.Message(mensaje, NotifyDescriptor.WARNING_MESSAGE));
         } catch (RuntimeException ex) {
-            LOGGER.log(Level.FINE, "No se pudo mostrar el aviso de accion no implementada", ex);
+            LOGGER.log(Level.FINE, "The “Action Not Implemented” message could not be displayed", ex);
         }
     }
 }

@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Optional;
 import javax.swing.Action;
 import javax.swing.Icon;
-import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateCommAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDeviceAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreateDisplayAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans.HMICommunicationModel;
@@ -53,8 +52,6 @@ import org.openide.util.Lookup;
 
 public class HMIPanelCategorySubprojectImpl implements Project {
 
-    private static final java.util.logging.Logger ExceptionsLOGGER =
-            java.util.logging.Logger.getLogger(HMICategoryCreateCommAction.class.getName());
     private final FileObject fo;
     private final ProjectState ps;
     private Lookup lkp;
@@ -80,14 +77,8 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                 services.add(new HMICommunicationModel(this));
             } catch (Throwable t) {
                 Exceptions.attachMessage(t,
-                        "El modelo de comunicaciones no pudo inicializarse; "
-                        + "se omite del Lookup para no bloquear el árbol de proyectos.");
-                ExceptionsLOGGER.log(
-                        java.util.logging.Level.SEVERE,
-                        "No se pudo crear el modelo de comunicaciones del proyecto "
-                                + getProjectDirectory().getName()
-                                + "; el asistente de comunicación quedará sin funcionar.",
-                        t);
+                        "The communications model could not be initialized, "
+                        + "it is omitted from the Lookup to avoid blocking the project tree.");
             }
             lkp = Lookups.fixed(services.toArray());
         }
@@ -197,21 +188,20 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                         };
                     case ProjectIds.COMMUNICATION_CONFIG_FILE ->
                         new Action[]{
-                            new HMICategoryCreateCommAction(this.project),
                             new HMICategoryCreateDeviceAction(this.project),
                             new CreateVariable(this.project),
                         };
-//                    case "base.oppc" ->
+//                    case "template.oppc" ->
 //                        new HMICategoryCreateOperatorPanelConfigAction(this.project);
-//                    case "record.record" ->
+//                    case "template.record" ->
 //                        new HMICategoryCreateRecordAction(this.project);
-//                    case "base.rcp" ->
+//                    case "template.rcp" ->
 //                        new HMICategoryCreateRecipeAction(this.project);
-//                    case "base.rpt" ->
+//                    case "template.rpt" ->
 //                        new HMICategoryCreateReportAction(this.project);
-//                    case "base.scp" ->
+//                    case "template.scp" ->
 //                        new HMICategoryCreateScriptsAction(this.project);
-//                    case "base.wmg" ->
+//                    case "template.wmg" ->
 //                        new HMICategoryCreateWarningManagementAction(this.project);
                     default ->
                         new Action[0];

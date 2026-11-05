@@ -506,7 +506,7 @@ public final class CreateVariableController {
                     ? ex.getClass().getSimpleName()
                     : ex.getMessage();
             return Result.fail(List.of(
-                    "The variables could not be saved to comunicacion.xml: " + detail));
+                    "The variables could not be saved to communication.xml: " + detail));
         }
 
         RebuildResults rebuild = BootDbTagDynamicRepository.rebuildWithReason(

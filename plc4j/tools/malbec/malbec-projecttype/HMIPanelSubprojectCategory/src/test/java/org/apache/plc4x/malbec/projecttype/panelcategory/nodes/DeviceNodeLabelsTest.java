@@ -23,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import java.util.Properties;
-import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.PvConfigData;
 import org.junit.jupiter.api.Test;
@@ -77,50 +76,43 @@ class DeviceNodeLabelsTest {
 
     @Test
     void deletionMessagePicksSingularOrPluralByCount() {
-        CommConfigData oneGroup = communication(1, 1, 1);
-        String text = DeviceNodeLabels.deletionMessage("Compresor 1", oneGroup);
+        String text = DeviceNodeLabels.deletionMessage("Compresor 1", variableList(1));
 
-        assertTrue(text.contains("1 group\n"), "one group is singular: " + text);
-        assertFalse(text.contains("1 groups"), "it cannot say '1 groups': " + text);
-        assertTrue(text.contains("1 area"), "one area is singular: " + text);
-        assertFalse(text.contains("1 areas"), "it cannot say '1 areas': " + text);
         assertTrue(text.contains("1 variable\n"), "one variable is singular: " + text);
         assertFalse(text.contains("1 variables"), "it cannot say '1 variables': " + text);
     }
 
     @Test
     void withSeveralItemsItIsPlural() {
-        String text = DeviceNodeLabels.deletionMessage("Compresor 1", communication(3, 2, 7));
+        String text = DeviceNodeLabels.deletionMessage("Compresor 1", variableList(7));
 
-        assertTrue(text.contains("3 groups"), text);
-        assertTrue(text.contains("2 areas"), text);
         assertTrue(text.contains("7 variables"), text);
     }
 
     @Test
     void deviceWithNothingToLoseDoesNotListZeros() {
-        String text = DeviceNodeLabels.deletionMessage("PLC", communication(0, 0, 0));
+        String text = DeviceNodeLabels.deletionMessage("PLC", variableList(0));
 
-        assertFalse(text.contains("  \u2022 0 groups"), "listing zeros makes no sense: " + text);
+        assertFalse(text.contains("  \u2022 0 variables"), "listing zeros makes no sense: " + text);
         assertTrue(text.contains("You are about to delete the device 'PLC'."), text);
         assertTrue(text.contains("Do you want to continue?"), text);
     }
 
     @Test
     void deletionMessageWarnsThatBootDbIsAlsoTouched() {
-        String text = DeviceNodeLabels.deletionMessage("PLC", communication(1, 0, 0));
+        String text = DeviceNodeLabels.deletionMessage("PLC", variableList(1));
 
-        assertTrue(text.contains("comunicacion.xml"), text);
+        assertTrue(text.contains("communication.xml"), text);
         assertTrue(text.contains("boot.db"), text);
         assertTrue(text.contains("Deleting it will discard all its settings."), text);
     }
 
     @Test
-    void deletionMessageHandlesNullComms() {
+    void deletionMessageHandlesNullVariables() {
         String text = DeviceNodeLabels.deletionMessage("PLC", null);
 
         assertTrue(text.contains("You are about to delete the device 'PLC'."), text);
-        assertFalse(text.contains("\u2022"), "without communication there is nothing to list: " + text);
+        assertFalse(text.contains("\u2022"), "without variables there is nothing to list: " + text);
     }
 
     @Test
@@ -135,34 +127,21 @@ class DeviceNodeLabelsTest {
     }
 
     @Test
-    void deviceWithoutCommunicationHasNoVariables() {
-        assertEquals(0, DeviceNodeLabels.variableCount((CommConfigData) null));
-        assertFalse(DeviceNodeLabels.hasVariables((CommConfigData) null));
+    void nullVariablesHaveNoVariables() {
+        assertEquals(0, DeviceNodeLabels.variableCount(null));
+        assertFalse(DeviceNodeLabels.hasVariables(null));
     }
 
     @Test
-    void communicationWithoutVariablesDoesNotShowTheVariableNode() {
-        CommConfigData empty = communication(0, 0, 0);
-
-        assertEquals(0, DeviceNodeLabels.variableCount(empty));
-        assertFalse(DeviceNodeLabels.hasVariables(empty));
-    }
-
-    @Test
-    void communicationWithVariablesShowsTheVariableNode() {
-        CommConfigData one = communication(0, 0, 1);
-        CommConfigData several = communication(1, 2, 7);
-
-        assertEquals(1, DeviceNodeLabels.variableCount(one));
-        assertTrue(DeviceNodeLabels.hasVariables(one));
-        assertEquals(7, DeviceNodeLabels.variableCount(several));
-        assertTrue(DeviceNodeLabels.hasVariables(several));
+    void emptyVariablesDoNotShowTheVariableNode() {
+        assertEquals(0, DeviceNodeLabels.variableCount(List.of()));
+        assertFalse(DeviceNodeLabels.hasVariables(List.of()));
     }
 
     @Test
     void variableTooltipUsesSingularAndPlural() {
-        assertEquals("1 variable", DeviceNodeLabels.variablesTooltip(communication(0, 0, 1)));
-        assertEquals("7 variables", DeviceNodeLabels.variablesTooltip(communication(0, 0, 7)));
+        assertEquals("1 variable", DeviceNodeLabels.variablesTooltip(variableList(1)));
+        assertEquals("7 variables", DeviceNodeLabels.variablesTooltip(variableList(7)));
     }
 
     @Test
@@ -200,22 +179,5 @@ class DeviceNodeLabelsTest {
                     "d", "500", true, true, "0", "1", "d", "%.2f", "u", "0", "1", "1", "m"));
         }
         return pvs;
-    }
-
-    private static CommConfigData communication(int groups, int areas, int variables) {
-        List<CommConfigData.GroupConfig> groupList = new java.util.ArrayList<>();
-        for (int i = 0; i < groups; i++) {
-            groupList.add(new CommConfigData.GroupConfig("g" + i, "G" + i, "d", "500", true, "m"));
-        }
-        List<CommConfigData.ItemConfig> areaList = new java.util.ArrayList<>();
-        for (int i = 0; i < areas; i++) {
-            areaList.add(new CommConfigData.ItemConfig("i" + i, "A" + i, "d", "t" + i, true, "m", "g0"));
-        }
-        List<CommConfigData.PvConfig> pvList = new java.util.ArrayList<>();
-        for (int i = 0; i < variables; i++) {
-            pvList.add(new CommConfigData.PvConfig("p" + i, "P" + i, "INT", "A0", "0", "d",
-                    "500", true, true, "0", "1", "d", "%.2f", "u", "0", "1", "1", "m", ""));
-        }
-        return new CommConfigData("PLC", groupList, areaList, pvList);
     }
 }

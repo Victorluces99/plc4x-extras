@@ -22,14 +22,14 @@ public final class ProjectIds {
 
     public static final String CATEGORY_PROJECT_TYPE = "org-apache-plc4x-category";
 
-    /** Tipo de proyecto de un panel HMI. */
+    /** Project type of an HMI panel. */
     public static final String PANEL_PROJECT_TYPE = "org-apache-plc4x-panel";
 
-    /** Fichero que marca una carpeta como categoria, y la da por valida. */
+    /** File that marks a folder as a category and validates it. */
     public static final String CATEGORY_MARKER_FILE = "category.cfg";
 
-    /** Fichero de configuracion de comunicaciones. */
-    public static final String COMMUNICATION_CONFIG_FILE = "comunicacion.xml";
+    /** Communication configuration file. */
+    public static final String COMMUNICATION_CONFIG_FILE = "communication.xml";
 
     private ProjectIds() {
     }

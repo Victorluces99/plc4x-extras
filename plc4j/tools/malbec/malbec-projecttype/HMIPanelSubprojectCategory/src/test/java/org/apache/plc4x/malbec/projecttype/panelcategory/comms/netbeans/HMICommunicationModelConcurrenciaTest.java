@@ -94,7 +94,7 @@ class HMICommunicationModelConcurrenciaTest {
     void unaRecargaNoSeColaEnUnGuardadoEnCurso(@TempDir File bootDbFolder) throws Exception {
         CountDownLatch escrituraEmpezada = new CountDownLatch(1);
         CountDownLatch escrituraLiberada = new CountDownLatch(1);
-        InMemoryProjectStorage storage = new InMemoryProjectStorage("Comunicacion", bootDbFolder)
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("Communication", bootDbFolder)
                 .withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO)
                 .bloquearEscritura(escrituraEmpezada, escrituraLiberada);
         HMICommunicationModel model = new HMICommunicationModel(storage);
@@ -136,7 +136,7 @@ class HMICommunicationModelConcurrenciaTest {
     void unaLecturaEsperaAQueTermineElGuardado(@TempDir File bootDbFolder) throws Exception {
         CountDownLatch escrituraEmpezada = new CountDownLatch(1);
         CountDownLatch escrituraLiberada = new CountDownLatch(1);
-        InMemoryProjectStorage storage = new InMemoryProjectStorage("Comunicacion", bootDbFolder)
+        InMemoryProjectStorage storage = new InMemoryProjectStorage("Communication", bootDbFolder)
                 .withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO)
                 .bloquearEscritura(escrituraEmpezada, escrituraLiberada);
         HMICommunicationModel model = new HMICommunicationModel(storage);
@@ -179,7 +179,7 @@ class HMICommunicationModelConcurrenciaTest {
 
 //    @Test
 //    void unListenerQueVuelveALeerNoSeCuelga(@TempDir File bootDbFolder) throws Exception {
-//        InMemoryProjectStorage storage = new InMemoryProjectStorage("Comunicacion", bootDbFolder)
+//        InMemoryProjectStorage storage = new InMemoryProjectStorage("Communication", bootDbFolder)
 //                .withFile(HMICommunicationModel.CONFIG_FILE, XML_CON_UN_DISPOSITIVO);
 //        HMICommunicationModel model = new HMICommunicationModel(storage);
 //        AtomicInteger lecturasDesdeElListener = new AtomicInteger();

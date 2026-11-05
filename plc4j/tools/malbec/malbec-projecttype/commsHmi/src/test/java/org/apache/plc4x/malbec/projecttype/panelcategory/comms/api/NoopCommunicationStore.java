@@ -21,7 +21,6 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.comms.api;
 import java.util.Collections;
 import java.util.List;
 import javax.swing.event.ChangeListener;
-import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 
 public class NoopCommunicationStore implements CommunicationStore {
@@ -37,16 +36,7 @@ public class NoopCommunicationStore implements CommunicationStore {
     }
 
     @Override
-    public CommConfigData getComms(String deviceUuid) {
-        return null;
-    }
-
-    @Override
     public void upsertDevice(DeviceConfigData device) {
-    }
-
-    @Override
-    public void upsertComms(String deviceUuid, CommConfigData config) {
     }
 
     @Override

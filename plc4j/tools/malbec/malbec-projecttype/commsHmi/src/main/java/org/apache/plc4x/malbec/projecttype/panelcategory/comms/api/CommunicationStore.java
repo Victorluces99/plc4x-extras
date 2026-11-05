@@ -20,7 +20,6 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.comms.api;
 
 import java.util.List;
 import javax.swing.event.ChangeListener;
-import org.apache.plc4x.malbec.projecttype.panelcategory.model.CommConfigData;
 import org.apache.plc4x.malbec.projecttype.panelcategory.model.DeviceConfigData;
 
 public interface CommunicationStore {
@@ -29,11 +28,7 @@ public interface CommunicationStore {
 
     DeviceConfigData findByUuid(String uuid);
 
-    CommConfigData getComms(String deviceUuid);
-
     void upsertDevice(DeviceConfigData device);
-
-    void upsertComms(String deviceUuid, CommConfigData config);
 
     boolean removeDevice(String uuid);
 

@@ -21,7 +21,7 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.comms.api;
 import java.util.Objects;
 
 /**
- * @param xmlSaved         whether {@code comunicacion.xml} was written
+ * @param xmlSaved         whether {@code communication.xml} was written
  * @param databaseUpdated  whether {@code boot.db} was rebuilt
  * @param message          explaining why not, empty if everything went well
  */
@@ -30,11 +30,11 @@ public record SaveResult(boolean xmlSaved, boolean databaseUpdated, String messa
     private static final SaveResult success = new SaveResult(true, true, "");
 
     public SaveResult {
-        Objects.requireNonNull(message, "el mensaje no puede ser null");
+        Objects.requireNonNull(message, "The message cannot be null");
         if (!isComplete2(xmlSaved, databaseUpdated) && message.isBlank()) {
             throw new IllegalArgumentException(
-                    "un guardado que no fue completo necesita un motivo: sin el, el aviso "
-                            + "no le diria nada al usuario");
+                    "A save that wasn't completed needs a reason: without it, the  "
+                            + "message wouldn't mean anything to the user");
         }
     }
 
@@ -42,20 +42,19 @@ public record SaveResult(boolean xmlSaved, boolean databaseUpdated, String messa
         return xml && db;
     }
 
-    /** El guardado fue bien: XML y base de datos. */
     public static SaveResult success() {
         return success;
     }
 
     public static SaveResult partial(String message) {
         return new SaveResult(true, false, Objects.requireNonNull(message,
-                "un guardado parcial necesita un motivo: si no, el aviso no dice nada"));
+                "A partial save requires a reason; otherwise, the message is meaningless."));
     }
 
     public static SaveResult notSaved(String message) {
         return new SaveResult(false, false, Objects.requireNonNull(message,
-                "un guardado rechazado necesita un motivo: si no, el usuario no sabe que "
-                        + "se ha perdido su trabajo"));
+                "A rejected save requires a reason; otherwise, the user won't  "
+                        + "know why their work has been lost"));
     }
 
     public boolean isComplete() {

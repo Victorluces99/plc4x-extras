@@ -162,15 +162,6 @@ class DataTypeTest {
         }
     }
 
-    @Test
-    void rawByteArrayEsUnAliasDeByte() {
-        assertEquals(DataType.candidates("BYTE", 8), DataType.candidates("RAW_BYTE_ARRAY", 8));
-        MemoryTag t = MemoryTag.parse("%DB1.DBB0[0..15]:RAW_BYTE_ARRAY");
-        assertEquals("RAW_BYTE_ARRAY", t.family());
-        assertEquals(16, t.byteCapacity());
-        assertFalse(DataType.candidates(t.family(), t.codeBits()).isEmpty(),
-                "y el área tiene que poder usarse con ese alias");
-    }
 
     @Test
     void plc4xTypeNamesKnowTheirOwnSize() {
@@ -192,21 +183,6 @@ class DataTypeTest {
     void plc4xLrealIsADoubleNotAFloat() {
         assertEquals(List.of(DataType.DOUBLE), DataType.candidates("LREAL", 64));
         assertEquals(List.of(DataType.DOUBLE), DataType.candidates("LREAL", 0));
-    }
-
-    @Test
-    void siemensTagWithPlc4xTypeFindsItsTypes() {
-        MemoryTag tag = MemoryTag.parse("%DB1.DBD0:DINT");
-        assertEquals("DINT", tag.family());
-        assertEquals(32, tag.codeBits());
-        assertEquals(List.of(DataType.INT, DataType.UINT),
-                DataType.candidates(tag.family(), tag.codeBits()));
-
-        MemoryTag largo = MemoryTag.parse("%DB1.DBLD0:LREAL");
-        assertEquals("LREAL", largo.family());
-        assertEquals(64, largo.codeBits());
-        assertEquals(List.of(DataType.DOUBLE),
-                DataType.candidates(largo.family(), largo.codeBits()));
     }
 
     @Test

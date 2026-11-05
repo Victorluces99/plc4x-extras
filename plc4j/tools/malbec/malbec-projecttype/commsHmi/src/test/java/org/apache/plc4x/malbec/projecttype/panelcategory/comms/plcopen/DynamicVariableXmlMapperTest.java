@@ -95,6 +95,18 @@ class DynamicVariableXmlMapperTest {
     }
 
     @Test
+    void nestedPvUsesTheContainingDeviceName() throws Exception {
+        String xml = xml().replace("deviceName=\"PLC-1\" tag=",
+                "deviceName=\"Old PLC\" tag=");
+
+        DynamicVariableXmlMapper.Content content = DynamicVariableXmlMapper.read(xml);
+
+        assertEquals(1, content.pvs().size());
+        assertEquals("PLC-1", content.pvs().get(0).getDeviceName(),
+                "the containing device owns the variable, not a stale attribute");
+    }
+
+    @Test
     void writingAgainRemovesVariablesThatAreNoLongerPresent(@TempDir Path folder)
             throws Exception {
         DynamicVariableXmlMapper.write(

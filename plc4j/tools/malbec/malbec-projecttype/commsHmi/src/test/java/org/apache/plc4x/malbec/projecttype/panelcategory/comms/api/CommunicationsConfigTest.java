@@ -61,6 +61,21 @@ class CommunicationsConfigTest {
                 "T3.2: el indice tiene que devolver el dispositivo ya cambiado");
     }
 
+    @Test
+    void renamingADeviceUpdatesItsVariables() {
+        CommunicationsConfig config = new CommunicationsConfig();
+        config.upsertDevice(device("uuid-1", "Compresor 1"));
+        config.upsertVariables("uuid-1", List.of(new PvConfigData(
+                "pv-1", "PV1", "INT", "Compresor 1", "%DB1.DBB0:INT", "d", "500",
+                true, false, "0", "10", "d", "%.0f", "u", "0", "10", "1", "m")));
+
+        config.upsertDevice(device("uuid-1", "Compresor renamed"));
+
+        assertEquals("Compresor renamed",
+                config.getVariables("uuid-1").get(0).getDeviceName(),
+                "variables must follow the renamed device");
+    }
+
     // ------------------------------------------------------- T3.2
 
     @Test
@@ -160,16 +175,6 @@ class CommunicationsConfigTest {
 
         assertEquals(2, config.getDevices().size(),
                 "sin UUID no hay identidad: el comportamiento es agregar, y por eso avisa");
-    }
-
-    @Test
-    void removeDeviceSacaElDispositivoYSuComunicacion() {
-        CommunicationsConfig config = new CommunicationsConfig();
-        config.upsertDevice(device("uuid-1", "Compresor 1"));
-        config.upsertComms("uuid-1", null);
-
-        assertTrue(config.removeDevice("uuid-1"));
-        assertEquals(0, config.getDevices().size());
     }
 
     @Test

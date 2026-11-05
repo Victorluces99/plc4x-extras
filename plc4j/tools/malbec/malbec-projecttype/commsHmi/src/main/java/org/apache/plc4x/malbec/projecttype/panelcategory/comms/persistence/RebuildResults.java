@@ -24,7 +24,7 @@ public record RebuildResults(boolean success, String reason) {
         return new RebuildResults(true, null);
     }
 
-    public static RebuildResults fallo(String reason) {
+    public static RebuildResults failed(String reason) {
         return new RebuildResults(false,
                 reason == null || reason.isBlank() ? "it could not be reconstructed boot.db" : reason);
     }

@@ -94,7 +94,7 @@ public class BootDbTagDynamicRepository {
     public static boolean createDB(String folderPath) {
         File folder = new File(folderPath);
         if (!folder.exists() && !folder.mkdirs()) {
-            LOGGER.log(Level.SEVERE, "No se pudo crear la carpeta: {0}", folderPath);
+            LOGGER.log(Level.SEVERE, "The folder could not be created: {0}", folderPath);
             return false;
         }
 
@@ -102,7 +102,7 @@ public class BootDbTagDynamicRepository {
             createSchema(new File(folder, "boot.db"));
             return true;
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error al crear las tablas", e);
+            LOGGER.log(Level.SEVERE, "Error creating tables", e);
             return false;
         }
     }
@@ -110,10 +110,10 @@ public class BootDbTagDynamicRepository {
     public static RebuildResults rebuildWithReason(File folder, List<DeviceConfigData> devices,
             List<PvConfigData> pvs) {
         if (folder == null) {
-            return RebuildResults.fallo("no hay proyecto ni configuracion que guardar");
+            return RebuildResults.failed("There is no project or configuration to save");
         }
         if (!folder.isDirectory()) {
-            return RebuildResults.fallo("la carpeta de boot.db no existe");
+            return RebuildResults.failed("The folder where boot.db is created does not exist");
         }
 
         List<DeviceConfigData> deviceList = devices == null ? List.of() : devices;
@@ -121,7 +121,7 @@ public class BootDbTagDynamicRepository {
         for (DeviceConfigData device : deviceList) {
             String problem = deviceProblem(device);
             if (problem != null) {
-                return RebuildResults.fallo(problem);
+                return RebuildResults.failed(problem);
             }
         }
 
@@ -157,14 +157,14 @@ public class BootDbTagDynamicRepository {
             replaceDatabase(temp, target);
             return RebuildResults.ok();
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error reconstruyendo boot.db", e);
-            return RebuildResults.fallo(e.getMessage());
+            LOGGER.log(Level.SEVERE, "Error rebuilding boot.db", e);
+            return RebuildResults.failed(e.getMessage());
         } finally {
             if (temp != null) {
                 try {
                     Files.deleteIfExists(temp.toPath());
                 } catch (IOException e) {
-                    LOGGER.log(Level.WARNING, "No se pudo borrar el temporal de boot.db", e);
+                    LOGGER.log(Level.WARNING, "The boot.db temporary file could not be deleted", e);
                 }
             }
         }
@@ -178,43 +178,10 @@ public class BootDbTagDynamicRepository {
     private static void createSchema(File database) throws SQLException {
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + database);
                 Statement stmt = conn.createStatement()) {
-//            dropLegacySchema(conn, stmt);
             stmt.execute(SQL_CREATE_TABLE_DEVICES);
             stmt.execute(SQL_CREATE_TABLE_PVRECORDS);
         }
     }
-//
-//    private static void dropLegacySchema(Connection conn, Statement stmt) throws SQLException {
-//        if (!tableExists(conn, "PvRecords") || hasColumn(conn, "PvRecords", "PvDeviceName")) {
-//            return;
-//        }
-//        stmt.execute("DROP TABLE PvRecords");
-//        stmt.execute("DROP TABLE IF EXISTS Groups");
-//        stmt.execute("DROP TABLE IF EXISTS Items");
-//    }
-
-    private static boolean tableExists(Connection conn, String table) throws SQLException {
-        try (PreparedStatement pstmt = conn.prepareStatement(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name=?")) {
-            pstmt.setString(1, table);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                return rs.next();
-            }
-        }
-    }
-
-//    private static boolean hasColumn(Connection conn, String table, String column)
-//            throws SQLException {
-//        try (Statement stmt = conn.createStatement();
-//                ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + table + ")")) {
-//            while (rs.next()) {
-//                if (column.equalsIgnoreCase(rs.getString("name"))) {
-//                    return true;
-//                }
-//            }
-//            return false;
-//        }
-//    }
 
     private static void replaceDatabase(File source, File target) throws IOException {
         deleteSidecars(target);
@@ -307,7 +274,7 @@ public class BootDbTagDynamicRepository {
             List<PvConfigData> pvs) throws SQLException {
 
         if (device == null) {
-            throw new SQLException("No hay dispositivo que guardar");
+            throw new SQLException("There is no device to save");
         }
 
         String deviceUuid = uuidOrRandom(device.getUuid());

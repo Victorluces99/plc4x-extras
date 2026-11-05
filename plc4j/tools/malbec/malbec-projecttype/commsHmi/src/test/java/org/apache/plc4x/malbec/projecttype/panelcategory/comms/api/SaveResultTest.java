@@ -53,7 +53,7 @@ class SaveResultTest {
         SaveResult resultado = SaveResult.notSaved("la carga anterior fallo");
 
         assertFalse(resultado.xmlSaved(),
-                "H-01: con la carga fallida no se puede escribir comunicacion.xml");
+                "H-01: con la carga fallida no se puede escribir communication.xml");
         assertFalse(resultado.databaseUpdated(),
                 "y tampoco se reconstruye boot.db desde un modelo que no se ha leido");
         assertFalse(resultado.isComplete());

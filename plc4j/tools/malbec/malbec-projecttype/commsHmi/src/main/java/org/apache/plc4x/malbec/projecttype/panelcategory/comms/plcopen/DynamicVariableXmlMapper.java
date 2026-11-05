@@ -48,7 +48,7 @@ import org.plcopen.xml.tc60201.ProjectDocument.Project.Instances.Configurations.
  */
 public final class DynamicVariableXmlMapper {
 
-    public static final String FILE_NAME = "comunicacion.xml";
+    public static final String FILE_NAME = "communication.xml";
 
     private record Field<T>(String name, Function<T, String> read) {
     }
@@ -300,11 +300,12 @@ public final class DynamicVariableXmlMapper {
         List<PvConfigData> pvs = new ArrayList<>();
         for (XmlObject element : elements) {
             Map<String, String> values = readFields(PV_FIELDS, element);
-            String deviceName = values.get("deviceName");
+            String deviceName = device == null ? "" : device.getDeviceName();
             if (isBlank(deviceName)) {
-                deviceName = device == null
-                        ? configuration.getName()
-                        : device.getDeviceName();
+                deviceName = values.get("deviceName");
+            }
+            if (isBlank(deviceName)) {
+                deviceName = configuration.getName();
             }
 
             String tag = firstNonBlank(values.get("tag"), attr(element, "id"));

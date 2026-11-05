@@ -119,8 +119,11 @@ public final class PlcOpenCommConfigRepositoryImpl implements CommConfigReposito
         removeAllConfigurations(configurations);
         for (DeviceConfigData device : config.getDevices()) {
             Configuration configuration = DynamicVariableXmlMapper.writeDevice(device, configurations);
-            DynamicVariableXmlMapper.writePvs(
-                    configuration, pvsByDevice.getOrDefault(device.getUuid(), List.of()));
+            List<PvConfigData> pvs = pvsByDevice.getOrDefault(device.getUuid(), List.of())
+                    .stream()
+                    .map(pv -> pv.withDeviceName(device.getDeviceName()))
+                    .toList();
+            DynamicVariableXmlMapper.writePvs(configuration, pvs);
         }
         validateForSave(doc);
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();

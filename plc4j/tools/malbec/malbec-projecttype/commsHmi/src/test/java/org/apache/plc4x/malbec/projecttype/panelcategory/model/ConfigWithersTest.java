@@ -19,6 +19,7 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.lang.reflect.Method;
@@ -30,147 +31,142 @@ import org.junit.jupiter.api.Test;
 class ConfigWithersTest {
 
     private static final String[] ORIGINAL = {
-        "uuid-1", "nombre", "descripcion", "500", "etiqueta", "md5-1", "grupo-1",
-        "segundo", "tercero", "cuarto", "quinto", "sexto", " septimo", "octavo", "noveno",
-        "decimo", "undecimo", "duodecimo", "decimotercero", "catorce"};
+        "uuid-1", "name", "description", "500", "label", "md5-1", "group-1",
+        "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth",
+        "tenth", "eleventh", "twelfth", "thirteenth", "fourteenth"};
 
     @Test
     void eachWitherChangesOnlyItsField() {
-        for (Class<?> type : List.of(CommConfigData.GroupConfig.class,
-                CommConfigData.ItemConfig.class, CommConfigData.PvConfig.class)) {
-            for (RecordComponent campo : type.getRecordComponents()) {
-                verifyWithOneField(type, campo);
+        for (Class<?> type : List.of(PvConfigData.class)) {
+            for (RecordComponent component : type.getRecordComponents()) {
+                verifyWitherChangesOnlyOneField(type, component);
             }
         }
     }
 
-    private void verifyWithOneField(Class<?> type, RecordComponent campo) {
-        String name = "with" + Character.toUpperCase(campo.getName().charAt(0))
-                + campo.getName().substring(1);
+    private void verifyWitherChangesOnlyOneField(Class<?> type, RecordComponent component) {
+        String name = "with" + Character.toUpperCase(component.getName().charAt(0))
+                + component.getName().substring(1);
         Object original = exampleInstance(type);
-        Object copia = invoke(original, name, campo.getType(), differentValue(campo.getType()));
+        Object copy = invoke(original, name, component.getType(),
+                differentValue(component.getType()));
 
-        assertNotEquals(original, copia,
-                type.getSimpleName() + "." + name + " tendria que producir otra instancia");
+        assertNotEquals(original, copy,
+                type.getSimpleName() + "." + name + " must produce another instance");
 
-        for (RecordComponent otro : type.getRecordComponents()) {
-            boolean esElCampoEditado = otro.getName().equals(campo.getName());
-            Object esperado = esElCampoEditado ? differentValue(otro.getType())
-                    : leer(original, otro.getName());
-            Object real = leer(copia, otro.getName());
-            assertEquals(esperado, real,
-                    type.getSimpleName() + "." + name + " no dejo "
-                            + otro.getName() + " como estaba");
+        for (RecordComponent other : type.getRecordComponents()) {
+            boolean isEditedField = other.getName().equals(component.getName());
+            Object expected = isEditedField ? differentValue(other.getType())
+                    : read(original, other.getName());
+            Object actual = read(copy, other.getName());
+            assertEquals(expected, actual,
+                    type.getSimpleName() + "." + name + " did not leave "
+                            + other.getName() + " unchanged");
         }
     }
 
     @Test
     void withersReturnCopiesNotTheSameObject() {
-        CommConfigData.PvConfig pv = pvOriginal();
+        PvConfigData pv = originalPv();
 
-        CommConfigData.PvConfig copia = pv.withDescriptorText("otro descriptor");
+        PvConfigData copy = pv.withDescriptorText("another descriptor");
 
-        assertEquals("otro descriptor", copia.getDescriptorText());
-        assertEquals(pv.getUuid(), copia.getUuid());
-        assertEquals(pv.getS88Path(), copia.getS88Path());
-        assertTrue(pv != copia, "una copia tiene que ser un objeto distinto");
+        assertEquals("another descriptor", copy.getDescriptorText());
+        assertEquals(pv.getUuid(), copy.getUuid());
+        assertEquals(pv.getMd5(), copy.getMd5());
+        assertTrue(pv != copy, "a copy must be a different object");
     }
 
     @Test
-    void encadenarWithersAcumulaLosCambios() {
-        CommConfigData.PvConfig pv = pvOriginal();
+    void chainedWithersAccumulateChanges() {
+        PvConfigData pv = originalPv();
 
-        CommConfigData.PvConfig copia = pv
-                .withDescriptorText("nuevo descriptor")
+        PvConfigData copy = pv
+                .withDescriptorText("new descriptor")
                 .withScanEnable(false)
                 .withDisplayUnits("l/h")
                 .withControlMinStep("2.5");
 
-        assertEquals("nuevo descriptor", copia.getDescriptorText());
-        assertFalseBoolean(copia.isScanEnable(), "scanEnable debe quedar desactivado");
-        assertEquals("l/h", copia.getDisplayUnits());
-        assertEquals("2.5", copia.getControlMinStep());
-        assertEquals(pv.getUuid(), copia.getUuid(), "lo no tocado se conserva");
-        assertEquals(pv.getAreaName(), copia.getAreaName());
-        assertTrue(pv.isScanEnable(), "el original no se toca");
+        assertEquals("new descriptor", copy.getDescriptorText());
+        assertFalse(copy.isScanEnable(), "scanEnable must remain disabled");
+        assertEquals("l/h", copy.getDisplayUnits());
+        assertEquals("2.5", copy.getControlMinStep());
+        assertEquals(pv.getUuid(), copy.getUuid(), "untouched fields are preserved");
+        assertEquals(pv.getDeviceName(), copy.getDeviceName());
+        assertTrue(pv.isScanEnable(), "the original is not modified");
     }
 
     @Test
     void everyComponentHasItsWither() {
-        for (Class<?> type : List.of(CommConfigData.GroupConfig.class,
-                CommConfigData.ItemConfig.class, CommConfigData.PvConfig.class)) {
-            for (RecordComponent campo : type.getRecordComponents()) {
-                String name = "with" + Character.toUpperCase(campo.getName().charAt(0))
-                        + campo.getName().substring(1);
-                boolean existe = Arrays.stream(type.getDeclaredMethods())
+        for (Class<?> type : List.of(PvConfigData.class)) {
+            for (RecordComponent component : type.getRecordComponents()) {
+                String name = "with" + Character.toUpperCase(component.getName().charAt(0))
+                        + component.getName().substring(1);
+                boolean exists = Arrays.stream(type.getDeclaredMethods())
                         .anyMatch(m -> m.getName().equals(name)
                                 && m.getParameterCount() == 1);
-                assertTrue(existe, type.getSimpleName() + " deberia tener " + name + "()");
+                assertTrue(exists, type.getSimpleName() + " must have " + name + "()");
             }
         }
     }
 
-    private static void assertFalseBoolean(boolean valor, String mensaje) {
-        assertEquals(false, valor, mensaje);
-    }
-
     private static Object exampleInstance(Class<?> type) {
-        RecordComponent[] componentes = type.getRecordComponents();
-        Class<?>[] tipos = new Class<?>[componentes.length];
-        Object[] valores = new Object[componentes.length];
-        for (int i = 0; i < componentes.length; i++) {
-            tipos[i] = componentes[i].getType();
-            valores[i] = componentes[i].getType() == boolean.class
+        RecordComponent[] components = type.getRecordComponents();
+        Class<?>[] types = new Class<?>[components.length];
+        Object[] values = new Object[components.length];
+        for (int i = 0; i < components.length; i++) {
+            types[i] = components[i].getType();
+            values[i] = components[i].getType() == boolean.class
                     ? Boolean.FALSE : differentValues()[i];
         }
         try {
-            return type.getDeclaredConstructor(tipos).newInstance(valores);
+            return type.getDeclaredConstructor(types).newInstance(values);
         } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("No se pudo construir " + type.getSimpleName(), e);
+            throw new IllegalStateException("Could not construct " + type.getSimpleName(), e);
         }
     }
 
     private static String[] differentValues() {
-        String[] v = new String[ORIGINAL.length];
-        Arrays.fill(v, "x");
-        v[0] = "uuid-original";
-        return v;
+        String[] values = new String[ORIGINAL.length];
+        Arrays.fill(values, "x");
+        values[0] = "original-uuid";
+        return values;
     }
 
     private static Object differentValue(Class<?> type) {
-        return type == boolean.class ? Boolean.TRUE : "valor-distinto";
+        return type == boolean.class ? Boolean.TRUE : "different-value";
     }
 
-    private static Object leer(Object registro, String componente) {
+    private static Object read(Object record, String component) {
         try {
-            return registro.getClass().getMethod(componente).invoke(registro);
+            return record.getClass().getMethod(component).invoke(record);
         } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("No se pudo leer " + componente, e);
+            throw new IllegalStateException("Could not read " + component, e);
         }
     }
 
-    private static Object invoke(Object registro, String metodo, Class<?> type, Object valor) {
+    private static Object invoke(Object record, String method, Class<?> type, Object value) {
         try {
-            Method m = registro.getClass().getDeclaredMethod(metodo, type);
+            Method m = record.getClass().getDeclaredMethod(method, type);
             m.setAccessible(true);
-            return m.invoke(registro, valor);
+            return m.invoke(record, value);
         } catch (NoSuchMethodException e) {
-            throw new IllegalStateException("No existe " + metodo + "(" + type.getSimpleName()
-                    + ") en " + registro.getClass().getName()
-                    + "; metodos: " + namesOf(registro.getClass()), e);
+            throw new IllegalStateException("There is no " + method + "(" + type.getSimpleName()
+                    + ") in " + record.getClass().getName()
+                    + "; methods: " + namesOf(record.getClass()), e);
         } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("No se pudo invocar " + metodo, e);
+            throw new IllegalStateException("Could not invoke " + method, e);
         }
     }
 
     private static String namesOf(Class<?> type) {
         return Arrays.stream(type.getDeclaredMethods()).map(Method::getName).sorted()
-                .reduce((a, b) -> a + ", " + b).orElse("(ninguno)");
+                .reduce((a, b) -> a + ", " + b).orElse("(none)");
     }
 
-    private static CommConfigData.PvConfig pvOriginal() {
-        return new CommConfigData.PvConfig("uuid-1", "PV1", "INT", "Area 1", "0", "descriptor",
-                "500", true, true, "0", "10", "Presion (bar)", "%.2f", "bar", "0", "10", "0.1",
-                "md5-pv", "S88.1");
+    private static PvConfigData originalPv() {
+        return new PvConfigData("uuid-1", "PV1", "INT", "Area 1", "0", "descriptor",
+                "500", true, true, "0", "10", "Pressure (bar)", "%.2f", "bar", "0", "10",
+                "0.1", "md5-pv");
     }
 }

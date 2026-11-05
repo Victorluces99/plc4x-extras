@@ -20,7 +20,6 @@ package org.apache.plc4x.malbec.projecttype.panelcategory.comms.plcopen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,15 +56,15 @@ class PlcOpenCommConfigRepositoryImplTest {
         CommConfigRepository repo = new PlcOpenCommConfigRepositoryImpl(storage);
 
         CommunicationsConfig config = new CommunicationsConfig();
-        config.addDevice(device("uuid-1", "PLC_Uno"));
-        config.addDevice(device("uuid-2", "VFD_Bomba"));
+        config.addDevice(device("uuid-1", "PLC_One"));
+        config.addDevice(device("uuid-2", "VFD_Pump"));
         repo.save(config);
 
         CommunicationsConfig loaded = repo.load();
 
         assertEquals(2, loaded.getDevices().size());
-        assertDevice(loaded.getDevices().get(0), deviceProps("uuid-1", "PLC_Uno"));
-        assertDevice(loaded.getDevices().get(1), deviceProps("uuid-2", "VFD_Bomba"));
+        assertDevice(loaded.getDevices().get(0), deviceProps("uuid-1", "PLC_One"));
+        assertDevice(loaded.getDevices().get(1), deviceProps("uuid-2", "VFD_Pump"));
     }
 
     @Test
@@ -74,7 +73,7 @@ class PlcOpenCommConfigRepositoryImplTest {
         CommConfigRepository repo = new PlcOpenCommConfigRepositoryImpl(storage);
 
         CommunicationsConfig config = new CommunicationsConfig();
-        config.addDevice(device("uuid-1", "PLC_Uno"));
+        config.addDevice(device("uuid-1", "PLC_One"));
         repo.save(config);
 
         String saved = storage.text();
@@ -88,33 +87,52 @@ class PlcOpenCommConfigRepositoryImplTest {
         CommConfigRepository repo = new PlcOpenCommConfigRepositoryImpl(storage);
 
         CommunicationsConfig first = new CommunicationsConfig();
-        first.addDevice(device("uuid-1", "PLC_Uno"));
+        first.addDevice(device("uuid-1", "PLC_One"));
         repo.save(first);
 
         CommunicationsConfig second = new CommunicationsConfig();
-        second.addDevice(device("uuid-2", "VFD_Bomba"));
+        second.addDevice(device("uuid-2", "VFD_Pump"));
         repo.save(second);
 
         CommunicationsConfig loaded = repo.load();
         assertEquals(1, loaded.getDevices().size());
-        assertEquals("VFD_Bomba", loaded.getDevices().get(0).getDeviceName());
+        assertEquals("VFD_Pump", loaded.getDevices().get(0).getDeviceName());
     }
 
     @Test
-    void loadPopulatesVariablesWithoutTouchingComms() throws Exception {
+    void loadPopulatesVariables() throws Exception {
         InMemoryStorage storage = new InMemoryStorage();
         ByteArrayOutputStream xml = new ByteArrayOutputStream();
         DynamicVariableXmlMapper.write(xml,
-                List.of(device("uuid-1", "PLC_Uno")),
-                List.of(pv("pv-1", "PLC_Uno")));
+                List.of(device("uuid-1", "PLC_One")),
+                List.of(pv("pv-1", "PLC_One")));
         storage.write(xml.toByteArray());
 
         CommunicationsConfig loaded = new PlcOpenCommConfigRepositoryImpl(storage).load();
 
         assertEquals(1, loaded.getVariables("uuid-1").size());
         assertEquals("PV1", loaded.getVariables("uuid-1").get(0).getName());
-        assertNull(loaded.getComms("uuid-1"),
-                "las variables del XML no deben rellenar el estado en memoria del wizard");
+    }
+
+    @Test
+    void saveKeepsVariablesWhenTheDeviceIsRenamed() throws Exception {
+        InMemoryStorage storage = new InMemoryStorage();
+        ByteArrayOutputStream xml = new ByteArrayOutputStream();
+        DynamicVariableXmlMapper.write(xml,
+                List.of(device("uuid-1", "PLC_One")),
+                List.of(pv("pv-1", "PLC_One")));
+        storage.write(xml.toByteArray());
+
+        CommConfigRepository repo = new PlcOpenCommConfigRepositoryImpl(storage);
+        CommunicationsConfig config = repo.load();
+        config.upsertDevice(device("uuid-1", "PLC_Renamed"));
+        repo.save(config);
+
+        CommunicationsConfig loaded = repo.load();
+        assertEquals(1, loaded.getVariables("uuid-1").size(),
+                "the variables must be preserved when the device is renamed");
+        assertEquals("PLC_Renamed", loaded.getVariables("uuid-1").get(0).getDeviceName(),
+                "the variable must point to the new device name");
     }
 
     @Test
@@ -152,17 +170,17 @@ class PlcOpenCommConfigRepositoryImplTest {
         assertThrows(IllegalStateException.class,
                 () -> DynamicVariableXmlMapper.write(
                         new ByteArrayOutputStream(),
-                        List.of(device("uuid-1", "PLC_Uno")),
-                        List.of(pv("pv-1", "PLC_Uno"), pv("pv-2", "PLC_Uno"))));
+                        List.of(device("uuid-1", "PLC_One")),
+                        List.of(pv("pv-1", "PLC_One"), pv("pv-2", "PLC_One"))));
     }
 
     @Test
-    void commsAreNotPersisted() throws Exception {
+    void configurationRoundTrips() throws Exception {
         InMemoryStorage storage = new InMemoryStorage();
         CommConfigRepository repo = new PlcOpenCommConfigRepositoryImpl(storage);
 
         CommunicationsConfig config = new CommunicationsConfig();
-        config.addDevice(device("uuid-1", "PLC_Uno"));
+        config.addDevice(device("uuid-1", "PLC_One"));
         repo.save(config);
 
         String saved = storage.text();
@@ -171,7 +189,6 @@ class PlcOpenCommConfigRepositoryImplTest {
 
         CommunicationsConfig loaded = repo.load();
         assertEquals(1, loaded.getDevices().size());
-        assertNull(loaded.getComms("uuid-1"));
     }
 
     @Test
@@ -183,7 +200,7 @@ class PlcOpenCommConfigRepositoryImplTest {
 
         assertThrows(IllegalStateException.class,
                 () -> new PlcOpenCommConfigRepositoryImpl(storage).load(),
-                "El XSD Malbec debe exigir deviceUrl");
+                "The Malbec XSD must require deviceUrl");
     }
 
     @Test
@@ -195,7 +212,7 @@ class PlcOpenCommConfigRepositoryImplTest {
 
         assertThrows(IllegalStateException.class,
                 () -> new PlcOpenCommConfigRepositoryImpl(storage).load(),
-                "El XSD Malbec debe exigir deviceKey");
+                "The Malbec XSD must require deviceKey");
     }
 
     @Test
@@ -207,7 +224,7 @@ class PlcOpenCommConfigRepositoryImplTest {
 
         assertThrows(IllegalStateException.class,
                 () -> new PlcOpenCommConfigRepositoryImpl(storage).load(),
-                "El XSD Malbec debe validar los booleanos de pvrecord");
+                "The Malbec XSD must validate pvrecord booleans");
     }
 
     @Test
@@ -219,7 +236,7 @@ class PlcOpenCommConfigRepositoryImplTest {
 
         assertThrows(IllegalStateException.class,
                 () -> new PlcOpenCommConfigRepositoryImpl(storage).load(),
-                "El XSD Malbec debe rechazar un deviceKey vacio");
+                "The Malbec XSD must reject an empty deviceKey");
     }
 
     @Test
@@ -231,7 +248,7 @@ class PlcOpenCommConfigRepositoryImplTest {
 
         assertThrows(IllegalStateException.class,
                 () -> new PlcOpenCommConfigRepositoryImpl(storage).load(),
-                "El XSD Malbec debe rechazar un nombre de pvrecord vacio");
+                "The Malbec XSD must reject an empty pvrecord name");
     }
 
     @Test
@@ -244,7 +261,7 @@ class PlcOpenCommConfigRepositoryImplTest {
 
         assertThrows(IllegalStateException.class,
                 () -> new PlcOpenCommConfigRepositoryImpl(storage).load(),
-                "El XSD Malbec debe rechazar atributos no declarados");
+                "The Malbec XSD must reject undeclared attributes");
     }
 
     @Test
@@ -259,7 +276,7 @@ class PlcOpenCommConfigRepositoryImplTest {
 
         assertThrows(IllegalStateException.class,
                 () -> new PlcOpenCommConfigRepositoryImpl(storage).load(),
-                "PLCopen permite data extra; la validacion estructural debe rechazarlo");
+                "PLCopen allows extra data; structural validation must reject it");
     }
 
     @Test
@@ -278,7 +295,7 @@ class PlcOpenCommConfigRepositoryImplTest {
 
         assertThrows(IllegalStateException.class,
                 () -> new PlcOpenCommConfigRepositoryImpl(storage).load(),
-                "El formato legacy comms-data-name ya no debe aceptarse");
+                "The legacy comms-data-name format must no longer be accepted");
     }
 
     @Test
@@ -286,7 +303,7 @@ class PlcOpenCommConfigRepositoryImplTest {
         InMemoryStorage storage = new InMemoryStorage();
         storage.write(xmlWithPv()
                 .replace("</configurations>", """
-                        <configuration name="sin-device">
+                        <configuration name="without-device">
                           <addData/>
                         </configuration>
                         </configurations>""")
@@ -294,7 +311,7 @@ class PlcOpenCommConfigRepositoryImplTest {
 
         assertThrows(IllegalStateException.class,
                 () -> new PlcOpenCommConfigRepositoryImpl(storage).load(),
-                "Cada configuracion debe contener un device Malbec");
+                "Each configuration must contain a Malbec device");
     }
 
     @Test
@@ -303,7 +320,7 @@ class PlcOpenCommConfigRepositoryImplTest {
                 PlcOpenCommConfigRepositoryImpl.TEMPLATE);
         Configurations configurations = document.getProject()
                 .getInstances().getConfigurations();
-        DynamicVariableXmlMapper.writeDevice(device("uuid-1", "PLC_Uno"), configurations);
+        DynamicVariableXmlMapper.writeDevice(device("uuid-1", "PLC_One"), configurations);
         NodeList devices = ((Document) document.getDomNode())
                 .getElementsByTagNameNS(CommsXmlIdentifiers.DEVICE_NS, "device");
         assertEquals(1, devices.getLength());
@@ -312,14 +329,14 @@ class PlcOpenCommConfigRepositoryImplTest {
         assertThrows(IllegalStateException.class,
                 () -> PlcOpenCommConfigRepositoryImpl.saveDocument(
                         document, new ByteArrayOutputStream()),
-                "El guardado debe rechazar un device invalido antes de escribir");
+                "Saving must reject an invalid device before writing");
     }
 
     private static String xmlWithPv() throws Exception {
         ByteArrayOutputStream xml = new ByteArrayOutputStream();
         DynamicVariableXmlMapper.write(xml,
-                List.of(device("uuid-1", "PLC_Uno")),
-                List.of(pv("pv-1", "PLC_Uno")));
+                List.of(device("uuid-1", "PLC_One")),
+                List.of(pv("pv-1", "PLC_One")));
         return new String(xml.toByteArray(), StandardCharsets.UTF_8);
     }
 
@@ -340,7 +357,7 @@ class PlcOpenCommConfigRepositoryImplTest {
         pDevice.put("protocol", "S7");
         pDevice.put("deviceName", deviceName);
         pDevice.put("deviceKey", "key-" + uuid);
-        pDevice.put("description", "Control principal");
+        pDevice.put("description", "Main control");
         pDevice.put("uuid", uuid);
         pDevice.put("enable", true);
         pDevice.put("s88Node", "S88.1");

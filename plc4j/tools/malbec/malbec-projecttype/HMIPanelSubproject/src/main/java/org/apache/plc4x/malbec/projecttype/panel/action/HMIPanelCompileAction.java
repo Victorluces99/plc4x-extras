@@ -20,9 +20,13 @@ package org.apache.plc4x.malbec.projecttype.panel.action;
 
 import java.awt.event.ActionEvent;
 import java.io.File;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.swing.AbstractAction;
-import org.netbeans.api.progress.ProgressHandle;
+import javax.swing.JOptionPane;
+import org.netbeans.api.progress.ProgressRunnable;
 import org.netbeans.api.progress.ProgressUtils;
+import org.openide.DialogDisplayer;
+import org.openide.NotifyDescriptor;
 import org.openide.awt.StatusDisplayer;
 import org.openide.filesystems.FileChooserBuilder;
 import org.openide.filesystems.FileObject;
@@ -34,7 +38,7 @@ public class HMIPanelCompileAction extends AbstractAction {
     private final FileObject panel;
 
     public HMIPanelCompileAction(FileObject panel) {
-        super("Exportar panel (ZIP)");
+        super("Export panel (ZIP)");
         this.panel = panel;
     }
 
@@ -62,24 +66,28 @@ public class HMIPanelCompileAction extends AbstractAction {
         }
         File destino = zipDestino;
         try {
-            ProgressHandle progreso = ProgressHandle.createHandle("Comprimiendo el panel...");
-            Exception[] fallo = new Exception[1];
-            progreso.start(400);
-            ProgressUtils.showProgressDialogAndRun(() -> {
+            AtomicReference<Exception> fallo = new AtomicReference<>();
+            ProgressRunnable<Void> operacion = handle -> {
                 try {
                     ZipUtils.zipFolder(folderOrigen.toPath(), destino.toPath());
                 } catch (Exception ex) {
-                    fallo[0] = ex;
-                } finally {
-                    progreso.finish();
+                    fallo.set(ex);
                 }
-            }, progreso, false);
-            if (fallo[0] != null) {
-                throw fallo[0];
+                return null;
+            };
+            ProgressUtils.showProgressDialogAndRun(operacion, "Comprimiendo el panel...", false);
+            if (fallo.get() != null) {
+                throw fallo.get();
             }
             StatusDisplayer.getDefault().setStatusText("Panel comprimido: " + destino.getName());
+            JOptionPane.showMessageDialog(null,
+                    "The panel was exported successfully:\n" + destino.getAbsolutePath(),
+                    "Export panel (ZIP)", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
             Exceptions.printStackTrace(ex);
+            DialogDisplayer.getDefault().notify(new NotifyDescriptor.Message(
+                    "No se pudo comprimir el panel: " + ex.getMessage(),
+                    NotifyDescriptor.ERROR_MESSAGE));
         }
     }
 }

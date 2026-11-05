@@ -34,12 +34,12 @@ import org.openide.windows.WindowManager;
 
 public class HMIPanelImportAction extends AbstractAction {
 
-    private static final String title = "Importando modelo de planta...";
+    private static final String title = "Importing a Plant Model...";
 
     private final FileObject panel;
 
     public HMIPanelImportAction(FileObject panel) {
-        super("Importar proyecto");
+        super("Import plant");
         this.panel = panel;
         FormatosDeImportacion.warnMisalignedFormats();
     }
@@ -52,7 +52,7 @@ public class HMIPanelImportAction extends AbstractAction {
     private void importPlant() {
         FileDialog chooser =
                 new FileDialog(WindowManager.getDefault().getMainWindow(),
-                        "Seleccionar modelo de planta", FileDialog.LOAD);
+                        "Select Plant Model", FileDialog.LOAD);
         chooser.setDirectory(System.getProperty("user.home"));
         chooser.setFilenameFilter(FormatosDeImportacion.fileFilter());
         chooser.setVisible(true);
@@ -63,7 +63,7 @@ public class HMIPanelImportAction extends AbstractAction {
         }
         File file = seleccion[0];
         if (!FormatosDeImportacion.extensionAdmitida(file)) {
-            reportFailure(file, "solo se admiten "
+            reportFailure(file, "Only files are allowed "
                     + FormatosDeImportacion.allowedFormats() + ".");
             return;
         }
@@ -93,13 +93,13 @@ public class HMIPanelImportAction extends AbstractAction {
 
     private void reportSuccess(File file, String areaId) {
         JOptionPane.showMessageDialog(null,
-                "Se importó el modelo de planta '" + areaId + "' desde '" + file.getName() + "'.",
-                "Importación exitosa", JOptionPane.INFORMATION_MESSAGE);
+                "The floor plan was imported '" + areaId + "' from '" + file.getName() + "'.",
+                "Import Successful", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void reportFailure(File file, String reason) {
         JOptionPane.showMessageDialog(null,
-                "No se pudo importar '" + file.getName() + "'.\n\n" + reason,
-                "Error de importación", JOptionPane.ERROR_MESSAGE);
+                "It could not be imported '" + file.getName() + "'.\n\n" + reason,
+                "Import Error", JOptionPane.ERROR_MESSAGE);
     }
 }

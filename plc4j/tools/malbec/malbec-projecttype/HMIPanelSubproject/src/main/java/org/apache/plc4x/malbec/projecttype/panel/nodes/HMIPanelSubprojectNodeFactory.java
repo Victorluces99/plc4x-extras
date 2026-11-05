@@ -20,16 +20,23 @@ package org.apache.plc4x.malbec.projecttype.panel.nodes;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import org.apache.plc4x.malbec.projecttype.panel.HMIPanelSubprojectFactory;
 import org.apache.plc4x.malbec.projecttype.panel.HMIPanelSubprojectImpl;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectManager;
 import org.netbeans.spi.project.ui.LogicalViewProvider;
 import org.netbeans.spi.project.ui.support.NodeFactory;
-import org.netbeans.spi.project.ui.support.NodeFactorySupport;
 import org.netbeans.spi.project.ui.support.NodeList;
-import org.openide.filesystems.AbstractFileSystem.List;
+import org.openide.filesystems.FileAttributeEvent;
+import org.openide.filesystems.FileChangeListener;
+import org.openide.filesystems.FileEvent;
 import org.openide.filesystems.FileObject;
+import org.openide.filesystems.FileRenameEvent;
 import org.openide.nodes.Node;
 import org.openide.util.Exceptions;
 
@@ -39,41 +46,126 @@ public class HMIPanelSubprojectNodeFactory implements NodeFactory {
 
     @Override
     public NodeList<?> createNodes(Project project) {
+        return new PanelNodeList(project.getProjectDirectory());
+    }
 
-        ArrayList<Node> nodes = new ArrayList<>();
+    private static final class PanelNodeList implements NodeList<Project>, FileChangeListener {
 
-        FileObject dir = project.getProjectDirectory();
+        private final FileObject dir;
+        private final List<ChangeListener> listeners = new ArrayList<>();
+        private final List<Project> keys = new ArrayList<>();
 
-        for (Project panelProject : getAllSubProject(dir)) {
+        PanelNodeList(FileObject dir) {
+            this.dir = dir;
+            refreshKeys();
+        }
 
-            LogicalViewProvider lvp = panelProject.getLookup().lookup(LogicalViewProvider.class);
-            if (lvp != null) {
-                nodes.add(lvp.createLogicalView());
+        @Override
+        public synchronized List<Project> keys() {
+            return List.copyOf(keys);
+        }
+
+        @Override
+        public Node node(Project key) {
+            LogicalViewProvider lvp = key.getLookup().lookup(LogicalViewProvider.class);
+            return lvp != null ? lvp.createLogicalView() : null;
+        }
+
+        @Override
+        public void addChangeListener(ChangeListener cl) {
+            listeners.add(cl);
+        }
+
+        @Override
+        public void removeChangeListener(ChangeListener cl) {
+            listeners.remove(cl);
+        }
+
+        @Override
+        public void addNotify() {
+            dir.addRecursiveListener(this);
+            refreshKeys();
+        }
+
+        @Override
+        public void removeNotify() {
+            dir.removeRecursiveListener(this);
+        }
+
+        private void fireChange() {
+            ChangeEvent event = new ChangeEvent(this);
+            for (ChangeListener listener : new ArrayList<>(listeners)) {
+                listener.stateChanged(event);
             }
         }
 
-        return NodeFactorySupport.fixedNodeList(nodes.toArray(new Node[0]));
-    }
-
-    private ArrayList<Project> getAllSubProject(FileObject dir) {
-        ArrayList<Project> result = new ArrayList<>();
-
-        for (FileObject child : dir.getChildren()) {
-            if (!child.isFolder()) {
-                continue;
+        private void refreshIfRelevant(FileObject file) {
+            if (file == null) {
+                return;
             }
-            try {
-                Project p = ProjectManager.getDefault().findProject(child);
-                if (p instanceof HMIPanelSubprojectImpl) {
-                    result.add((HMIPanelSubprojectImpl) p);
+            FileObject parent = file.getParent();
+            if (dir.equals(parent)) {
+                refreshKeys();
+                return;
+            }
+            FileObject grandParent = parent != null ? parent.getParent() : null;
+            if (dir.equals(grandParent)
+                    && HMIPanelSubprojectFactory.PROJECT_FILE.equals(file.getNameExt())) {
+                refreshKeys();
+            }
+        }
+
+        private synchronized void refreshKeys() {
+            FileObject[] children = dir.getChildren();
+            Arrays.sort(children, Comparator.comparing(FileObject::getName));
+
+            ProjectManager projectManager = ProjectManager.getDefault();
+            projectManager.clearNonProjectCache();
+
+            keys.clear();
+            for (FileObject child : children) {
+                if (!child.isFolder()
+                        || child.getFileObject(HMIPanelSubprojectFactory.PROJECT_FILE) == null) {
+                    continue;
                 }
-            } catch (IOException | IllegalArgumentException ex) {
-                Exceptions.printStackTrace(ex);
+                try {
+                    Project p = projectManager.findProject(child);
+                    if (p instanceof HMIPanelSubprojectImpl) {
+                        keys.add(p);
+                    }
+                } catch (IOException | IllegalArgumentException ex) {
+                    Exceptions.printStackTrace(ex);
+                }
             }
+            fireChange();
         }
 
-        return result;
+        @Override
+        public void fileFolderCreated(FileEvent fe) {
+            refreshIfRelevant(fe.getFile());
+        }
 
+        @Override
+        public void fileDataCreated(FileEvent fe) {
+            refreshIfRelevant(fe.getFile());
+        }
+
+        @Override
+        public void fileDeleted(FileEvent fe) {
+            refreshIfRelevant(fe.getFile());
+        }
+
+        @Override
+        public void fileRenamed(FileRenameEvent fre) {
+            refreshIfRelevant(fre.getFile());
+        }
+
+        @Override
+        public void fileChanged(FileEvent fe) {
+        }
+
+        @Override
+        public void fileAttributeChanged(FileAttributeEvent fae) {
+        }
     }
-
 }

@@ -19,6 +19,8 @@
 package org.apache.plc4x.malbec.projecttype.panelcategory.nodes;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import javax.swing.Action;
 import javax.swing.event.ChangeEvent;
@@ -115,8 +117,11 @@ public class HMICategoryNestedSubprojectNodeFactory implements NodeFactory {
         }
 
         private synchronized void refreshKeys() {
+            FileObject[] children = folder.getChildren();
+            Arrays.sort(children, Comparator.comparing(FileObject::getName));
+
             keys.clear();
-            for (FileObject child : folder.getChildren()) {
+            for (FileObject child : children) {
                 if (child.isFolder() && child.getFileObject(ProjectIds.CATEGORY_MARKER_FILE) != null) {
                     keys.add(child);
                 }

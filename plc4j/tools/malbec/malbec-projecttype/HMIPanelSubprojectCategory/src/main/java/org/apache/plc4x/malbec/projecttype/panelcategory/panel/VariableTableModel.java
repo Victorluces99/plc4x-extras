@@ -52,7 +52,7 @@ final class VariableTableModel extends AbstractTableModel {
 
     private static final String[] COLUMN_NAMES = {
         "Number",
-        "Name", "Conexión", "Data type", "Tag", TEST_TAG_LABEL, "Descriptor",
+        "Name", "Connection", "Data type", "Tag", TEST_TAG_LABEL, "Descriptor",
         "Scan Time", "ScanEnable", "WriteEnable", "DisplayLimitLow",
         "DisplayLimitHigh", "DisplayDescription", "DisplayFormat",
         "DisplayUnits", "ControlLimitLow", "ControlLimitHigh",

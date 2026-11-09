@@ -36,7 +36,7 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
 
     public HMICategoryOpenPhoebusAction(FileObject bobFile) {
         this.bobFile = bobFile;
-        putValue(NAME, "Abrir en Phoebus");
+        putValue(NAME, "Open in Phoebus");
     }
 
     public void actionPerformed(ActionEvent e) {
@@ -54,7 +54,7 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
 
         if (rutaPhoebus.isEmpty()) {
             org.openide.DialogDisplayer.getDefault().notify(
-                    new org.openide.NotifyDescriptor.Message("Por favor, configure la ruta de Phoebus en Tools -> Options.",
+                    new org.openide.NotifyDescriptor.Message("Please configure the Phoebus path in Tools -> Options.",
                             org.openide.NotifyDescriptor.INFORMATION_MESSAGE)
             );
             return;
@@ -67,7 +67,9 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
             if (!rutaPhoebus.toLowerCase().endsWith(".bat")) {
                 org.openide.DialogDisplayer.getDefault().notify(
                         new org.openide.NotifyDescriptor.Message(
-                                "Error de configuración: En Windows, la herramienta externa de Phoebus debe apuntar a un archivo ejecutable '.bat'.\nPor favor, corríjalo en Tools -> Options.",
+                                "Configuration error: In Windows, the Phoebus external "
+                                        + "tool must point to a ‘.bat’ executable file."
+                                        + "\nPlease correct this in Tools -> Options.",
                                 org.openide.NotifyDescriptor.ERROR_MESSAGE)
                 );
                 return;
@@ -76,7 +78,10 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
             if (!rutaPhoebus.toLowerCase().endsWith(".sh")) {
                 org.openide.DialogDisplayer.getDefault().notify(
                         new org.openide.NotifyDescriptor.Message(
-                                "Error de configuración: En sistemas Unix/Linux, la herramienta externa de Phoebus debe apuntar a un script '.sh'.\nPor favor, corríjalo en Tools -> Options.",
+                                "Configuration error: On Unix/Linux systems, the "
+                                        + "Phoebus external tool must point to a "
+                                        + "‘.sh’ script.\nPlease correct this in "
+                                        + "Tools -> Options.",
                                 org.openide.NotifyDescriptor.ERROR_MESSAGE)
                 );
                 return;
@@ -86,7 +91,7 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
         if (!ejecutablePhoebus.exists()) {
             org.openide.DialogDisplayer.getDefault().notify(
                     new org.openide.NotifyDescriptor.Message(
-                            "El archivo configurado para Phoebus no existe en la ruta especificada:\n" + rutaPhoebus,
+                            "The file configured for Phoebus does not exist in the specified path:\n" + rutaPhoebus,
                             org.openide.NotifyDescriptor.ERROR_MESSAGE)
             );
             return;
@@ -106,7 +111,7 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
 
         } catch (Exception ex) {
             org.openide.DialogDisplayer.getDefault().notify(
-                    new org.openide.NotifyDescriptor.Message("Error al intentar ejecutar Phoebus: " + ex.getMessage(),
+                    new org.openide.NotifyDescriptor.Message("Error while trying to run Phoebus: " + ex.getMessage(),
                             org.openide.NotifyDescriptor.ERROR_MESSAGE)
             );
             Exceptions.printStackTrace(ex);

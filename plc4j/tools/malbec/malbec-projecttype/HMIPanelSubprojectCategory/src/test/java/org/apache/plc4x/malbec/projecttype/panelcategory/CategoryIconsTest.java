@@ -81,7 +81,7 @@ class CategoryIconsTest {
 
     /** Recorre el codigo y devuelve ruta -> "fichero:linea". */
     private static Map<String, String> declaredIconPaths() throws IOException {
-        Pattern literal = Pattern.compile("\"([^\"]*\\.png)\"");
+        Pattern literal = Pattern.compile("\"([^*\"]*\\.png)\"");
         Map<String, String> encontradas = new LinkedHashMap<>();
         Path raiz = Path.of(System.getProperty("basedir", "."), "src", "main", "java");
         try (Stream<Path> archivos = Files.walk(raiz)) {

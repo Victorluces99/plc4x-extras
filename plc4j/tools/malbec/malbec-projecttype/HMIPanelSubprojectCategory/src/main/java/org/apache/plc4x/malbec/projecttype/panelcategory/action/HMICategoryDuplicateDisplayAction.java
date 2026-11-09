@@ -36,7 +36,7 @@ public class HMICategoryDuplicateDisplayAction extends AbstractAction{
      private final FileObject bobFile;
 
     public HMICategoryDuplicateDisplayAction(FileObject bobFile) {
-        super("Duplicar pantalla");
+        super("Duplicate Display");
         this.bobFile = bobFile;
     }
 
@@ -50,14 +50,12 @@ public class HMICategoryDuplicateDisplayAction extends AbstractAction{
         if (parent == null) {
             return;
         }
-        //Nombre base sin extensión
         String baseName = nuevobobFile.getName();
         String ext = nuevobobFile.getExt();
-        //Buscar un nombre libre: base - copia, base - copia2, ...
-        String newName = baseName + "_copia";
+        String newName = baseName + "_copy";
         int n = 2;
         while (parent.getFileObject(newName, ext) != null) {
-            newName = baseName + "_copia" + n++;
+            newName = baseName + "_copy" + n++;
         }
         try {
             FileObject newFile = parent.createData(newName, ext);
@@ -65,7 +63,7 @@ public class HMICategoryDuplicateDisplayAction extends AbstractAction{
                  OutputStream out = newFile.getOutputStream()) {
                 in.transferTo(out);
             }
-                LOGGER.log(Level.INFO, "[Duplicar] Creado: {0}", newFile.getNameExt());
+                LOGGER.log(Level.INFO, "[Duplicate] Created: {0}", newFile.getNameExt());
         } catch (IOException ex) {
             Exceptions.printStackTrace(ex);
         }

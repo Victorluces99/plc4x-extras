@@ -32,7 +32,7 @@ final class DeteccionCategoria {
     static final List<String> FICHEROS_MARCADOR = List.of(
             "template.bob", ProjectIds.COMMUNICATION_CONFIG_FILE, "template.oppc",
             "template.record", "template.rcp", "template.rpt", "template.scp",
-            "template.wmg", "template.tlc", "template.rtum");
+            "template.wmg", "template.tlc", "template.rtum", "template.icon");
 
     private DeteccionCategoria() {
     }

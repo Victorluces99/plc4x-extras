@@ -395,10 +395,7 @@ public final class CreateDevicePanel extends JPanel {
     boolean transporteEditable() {
         return conexion.transporteEditable();
     }
-//
-//    private void onTransportChanged() {
-//        conexion.onTransportChanged();
-//    }
+
 
     private void loadForEdit(DeviceConfigData d) {
         cbMarca.setSelectedItem(d.getBrand());

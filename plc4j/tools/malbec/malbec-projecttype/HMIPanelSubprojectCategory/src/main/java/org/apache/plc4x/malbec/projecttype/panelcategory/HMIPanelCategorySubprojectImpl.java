@@ -31,6 +31,8 @@ import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryCreat
 import org.apache.plc4x.malbec.projecttype.panelcategory.comms.netbeans.HMICommunicationModel;
 import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.CreateVariable;
+import org.apache.plc4x.malbec.projecttype.panelcategory.action.ImportDisplay;
+import org.apache.plc4x.malbec.projecttype.panelcategory.action.ImportIcon;
 import org.netbeans.api.annotations.common.StaticResource;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectInformation;
@@ -184,12 +186,17 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                 Action[] customAction = switch (detected.get()) {
                     case "template.bob" ->
                         new Action[]{
-                            new HMICategoryCreateDisplayAction(this.project),                        
+                            new HMICategoryCreateDisplayAction(this.project),
+                            new ImportDisplay(this.project),
                         };
                     case ProjectIds.COMMUNICATION_CONFIG_FILE ->
                         new Action[]{
                             new HMICategoryCreateDeviceAction(this.project),
                             new CreateVariable(this.project),
+                        };
+                    case "template.icon" ->
+                        new Action[]{
+                            new ImportIcon(this.project),
                         };
 //                    case "template.oppc" ->
 //                        new HMICategoryCreateOperatorPanelConfigAction(this.project);

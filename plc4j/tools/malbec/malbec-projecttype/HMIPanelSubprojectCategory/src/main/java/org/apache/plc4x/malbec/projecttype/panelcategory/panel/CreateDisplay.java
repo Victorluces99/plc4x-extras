@@ -107,7 +107,7 @@ public class CreateDisplay extends javax.swing.JPanel {
         if (getNameFileBob().trim().isEmpty()) {
 
             org.openide.DialogDisplayer.getDefault().notify(
-                    new org.openide.NotifyDescriptor.Message("El nombre del archivo no puede estar vacío.")
+                    new org.openide.NotifyDescriptor.Message("The file name cannot be empty.")
             );
             return;
         }

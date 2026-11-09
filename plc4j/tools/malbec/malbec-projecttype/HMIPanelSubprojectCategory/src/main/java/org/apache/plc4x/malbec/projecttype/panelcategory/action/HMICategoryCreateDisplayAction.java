@@ -43,7 +43,7 @@ public class HMICategoryCreateDisplayAction extends AbstractAction implements Co
     private Project project;
 
     public HMICategoryCreateDisplayAction(Project project) {
-        super("Create Screen");
+        super("Create Display");
         this.project = project;
     }
 
@@ -85,7 +85,7 @@ public class HMICategoryCreateDisplayAction extends AbstractAction implements Co
                 Exceptions.printStackTrace(ex);
                 JOptionPane.showMessageDialog(null,
                         "The screen could not be created: " + ex.getMessage(),
-                        "Create Screen", JOptionPane.ERROR_MESSAGE);
+                        "Create Display", JOptionPane.ERROR_MESSAGE);
             }
         }
     }

@@ -25,13 +25,18 @@ import java.util.List;
 import javax.swing.Action;
 import javax.swing.Icon;
 import org.apache.plc4x.malbec.projecttype.panel.action.HMIPanelCompileAction;
-import org.apache.plc4x.malbec.projecttype.panel.action.HMIPanelImportAction;
+import org.apache.plc4x.malbec.projecttype.panel.action.ImportPlant;
 import org.netbeans.api.annotations.common.StaticResource;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectInformation;
 import org.netbeans.spi.project.ProjectState;
 import org.netbeans.spi.project.ui.LogicalViewProvider;
 import org.netbeans.spi.project.ui.support.NodeFactorySupport;
+import org.openide.actions.CopyAction;
+import org.openide.actions.CutAction;
+import org.openide.actions.DeleteAction;
+import org.openide.actions.PasteAction;
+import org.openide.actions.RenameAction;
 import org.openide.filesystems.FileObject;
 import org.openide.loaders.DataFolder;
 import org.openide.loaders.DataObjectNotFoundException;
@@ -42,6 +47,7 @@ import org.openide.nodes.Node;
 import org.openide.util.Exceptions;
 import org.openide.util.ImageUtilities;
 import org.openide.util.Lookup;
+import org.openide.util.actions.SystemAction;
 import org.openide.util.lookup.Lookups;
 import org.openide.util.lookup.ProxyLookup;
 
@@ -69,8 +75,9 @@ public class HMIPanelSubprojectImpl implements Project {
                 this,
                 new HMIPanelSubprojectInfoImpl(),
                 new HMIPanelSubprojectLogicalViewImpl(this),
-                new HMIPanelCategorySubprojectProviderImpl(this),            
+                new HMIPanelCategorySubprojectProviderImpl(this)
             });
+            
         }
         return lkp;
     }
@@ -159,19 +166,39 @@ public class HMIPanelSubprojectImpl implements Project {
 
             @Override
             public boolean canRename() {
-                return false;
+                return true;
             }
 
             @Override
             public Action[] getActions(boolean context) {
                 FileObject projectDir = this.project.getProjectDirectory();
-                //TODO: Agregar acciones para los proyectos
-//                Action[] defaultActions = super.getActions(context);
-                
+
                 List<Action> allActions = new ArrayList<>();
                 allActions.add(new HMIPanelCompileAction(projectDir));
-                allActions.add(new HMIPanelImportAction(projectDir)); 
+                allActions.add(new ImportPlant(projectDir));
+                allActions.add(null);
+
+                for (Action action : getOriginal().getActions(context)) {
+                    if (isFileAction(action)) {
+                        allActions.add(action);
+                    }
+                }
+
                 return allActions.toArray(new Action[0]);
+            }
+
+            private boolean isFileAction(Action action) {
+                return isAction(action, CopyAction.class)
+                        || isAction(action, CutAction.class)
+                        || isAction(action, PasteAction.class)
+                        || isAction(action, RenameAction.class)
+                        || isAction(action, DeleteAction.class);
+            }
+
+            private boolean isAction(Action action, Class<? extends SystemAction> actionClass) {
+                SystemAction expected = SystemAction.get(actionClass);
+                return action == expected
+                        || (action != null && expected.getName().equals(action.getValue(Action.NAME)));
             }
 
             @Override

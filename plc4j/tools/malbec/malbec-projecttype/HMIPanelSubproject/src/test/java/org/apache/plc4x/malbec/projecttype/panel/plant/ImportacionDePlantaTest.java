@@ -44,39 +44,39 @@ class ImportacionDePlantaTest {
 
     @Test
     void extensionValida() {
-        assertTrue(FormatosDeImportacion.extensionAdmitida(new File("planta.xml")));
-        assertTrue(FormatosDeImportacion.extensionAdmitida(new File("PLANTA.XML")),
+        assertTrue(ImportFormats.extensionAdmitida(new File("planta.xml")));
+        assertTrue(ImportFormats.extensionAdmitida(new File("PLANTA.XML")),
                 "la extension no deberia distinguir mayusculas");
     }
 
     @Test
     void extensionInvalida() {
-        assertFalse(FormatosDeImportacion.extensionAdmitida(new File("planta.txt")));
-        assertFalse(FormatosDeImportacion.extensionAdmitida(new File("planta.csv")));
-        assertFalse(FormatosDeImportacion.extensionAdmitida(new File("planta")),
+        assertFalse(ImportFormats.extensionAdmitida(new File("planta.txt")));
+        assertFalse(ImportFormats.extensionAdmitida(new File("planta.csv")));
+        assertFalse(ImportFormats.extensionAdmitida(new File("planta")),
                 "un archivo sin extension no es una planta");
-        assertFalse(FormatosDeImportacion.extensionAdmitida(new File("planta.")),
+        assertFalse(ImportFormats.extensionAdmitida(new File("planta.")),
                 "un punto final no cuenta como extension");
     }
 
     @Test
     void onlyXmlIsDeclared() {
-        assertEquals(List.of("xml"), List.copyOf(FormatosDeImportacion.FORMATOS.keySet()));
-        assertEquals("Modelo de planta (*.xml)", FormatosDeImportacion.FORMATOS.get("xml"));
+        assertEquals(List.of("xml"), List.copyOf(ImportFormats.FORMATOS.keySet()));
+        assertEquals("Modelo de planta (*.xml)", ImportFormats.FORMATOS.get("xml"));
     }
 
     @Test
     void filterAndValidationMatch() {
-        for (String extension : FormatosDeImportacion.FORMATOS.keySet()) {
+        for (String extension : ImportFormats.FORMATOS.keySet()) {
             File archivo = new File("planta." + extension);
-            assertTrue(FormatosDeImportacion.extensionAdmitida(archivo),
+            assertTrue(ImportFormats.extensionAdmitida(archivo),
                     "el filtro deja ver ." + extension + " pero la validacion lo rechaza");
         }
     }
 
     @Test
     void chooserFilterAcceptsOnlyXml() {
-        FilenameFilter filtro = FormatosDeImportacion.fileFilter();
+        FilenameFilter filtro = ImportFormats.fileFilter();
         File directorio = new File(".");
 
         assertTrue(filtro.accept(directorio, "planta.xml"));
@@ -87,7 +87,7 @@ class ImportacionDePlantaTest {
 
     @Test
     void chooserFilterLetsFoldersThrough() {
-        FilenameFilter filtro = FormatosDeImportacion.fileFilter();
+        FilenameFilter filtro = ImportFormats.fileFilter();
 
         assertTrue(filtro.accept(new File("."), "."),
                 "sin esto no se podria navegar a una subcarpeta");
@@ -95,59 +95,59 @@ class ImportacionDePlantaTest {
 
     @Test
     void formatosAdmitidosSeMuestranParaElUsuario() {
-        assertTrue(FormatosDeImportacion.allowedFormats().contains("(*.xml)"));
+        assertTrue(ImportFormats.allowedFormats().contains("(*.xml)"));
     }
 
     @Test
     void everyDeclaredFormatIsAcceptedBySomeProvider() {
-        assertTrue(FormatosDeImportacion.formatsWithoutProvider(
+        assertTrue(ImportFormats.formatsWithoutProvider(
                         List.of(new ProviderQueSoloAcepta("xml")),
-                        FormatosDeImportacion.FORMATOS.keySet()).isEmpty(),
+                        ImportFormats.FORMATOS.keySet()).isEmpty(),
                 "xml esta declarado y hay un provider que lo acepta");
     }
 
     @Test
     void formatWithoutProviderIsDetected() {
-        assertEquals(Set.of("xml"), FormatosDeImportacion.formatsWithoutProvider(
+        assertEquals(Set.of("xml"), ImportFormats.formatsWithoutProvider(
                 List.of(new ProviderQueSoloAcepta("otro")),
-                FormatosDeImportacion.FORMATOS.keySet()),
+                ImportFormats.FORMATOS.keySet()),
                 "debe avisar si el provider no acepta el formato declarado");
     }
 
     @Test
     void providerAcceptingSeveralFormatsCoversThemAll() {
-        assertTrue(FormatosDeImportacion.formatsWithoutProvider(
+        assertTrue(ImportFormats.formatsWithoutProvider(
                 List.of(new ProviderQueSoloAcepta("xml"), new ProviderQueSoloAcepta("axml")),
                 List.of("xml", "axml")).isEmpty());
     }
 
     @Test
     void withoutProvidersEverythingDeclaredHasNoProvider() {
-        assertEquals(Set.of("xml"), FormatosDeImportacion.formatsWithoutProvider(
-                List.of(), FormatosDeImportacion.FORMATOS.keySet()));
+        assertEquals(Set.of("xml"), ImportFormats.formatsWithoutProvider(
+                List.of(), ImportFormats.FORMATOS.keySet()));
     }
 
     @Test
     void misalignedFormatsWarningIsIssuedOnlyOnce() throws Exception {
         resetTheWarning();
-        assertTrue(FormatosDeImportacion.warnMisalignedFormats(),
+        assertTrue(ImportFormats.warnMisalignedFormats(),
                 "la primera llamada hace la comprobacion");
         for (int i = 0; i < 4; i++) {
-            assertFalse(FormatosDeImportacion.warnMisalignedFormats(),
+            assertFalse(ImportFormats.warnMisalignedFormats(),
                     "la accion se construye en cada clic derecho: solo puede comprobarse una vez");
         }
     }
 
     private static void resetTheWarning() throws Exception {
         java.lang.reflect.Field field =
-                FormatosDeImportacion.class.getDeclaredField("AVISO_DADO");
+                ImportFormats.class.getDeclaredField("AVISO_DADO");
         field.setAccessible(true);
         ((java.util.concurrent.atomic.AtomicBoolean) field.get(null)).set(false);
     }
 
     @Test
     void misalignedFormatsWarningCanBeCalledWithoutProvider() {
-        assertDoesNotThrow(FormatosDeImportacion::warnMisalignedFormats);
+        assertDoesNotThrow(ImportFormats::warnMisalignedFormats);
     }
 
     private record ProviderQueSoloAcepta(String formato) implements S88RepositoryProvider {

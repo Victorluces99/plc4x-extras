@@ -31,13 +31,13 @@ import java.util.logging.Logger;
 import org.apache.plc4x.malbec.s88.api.S88RepositoryProvider;
 import org.openide.util.Lookup;
 
-public final class FormatosDeImportacion {
+public final class ImportFormats {
 
-    private static final Logger LOGGER = Logger.getLogger(FormatosDeImportacion.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(ImportFormats.class.getName());
     public static final Map<String, String> FORMATOS =
             Map.of("xml", "Modelo de planta (*.xml)");
 
-    private FormatosDeImportacion() {
+    private ImportFormats() {
     }
 
     public static String extensionOf(File file) {

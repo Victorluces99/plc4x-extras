@@ -23,7 +23,7 @@ import java.awt.event.ActionEvent;
 import java.io.File;
 import javax.swing.AbstractAction;
 import javax.swing.JOptionPane;
-import org.apache.plc4x.malbec.projecttype.panel.plant.FormatosDeImportacion;
+import org.apache.plc4x.malbec.projecttype.panel.plant.ImportFormats;
 import org.apache.plc4x.malbec.projecttype.panel.plant.ImportResult;
 import org.apache.plc4x.malbec.projecttype.panel.plant.ImportResult.Exito;
 import org.apache.plc4x.malbec.projecttype.panel.plant.ImportResult.Fallo;
@@ -32,16 +32,16 @@ import org.netbeans.api.progress.ProgressUtils;
 import org.openide.filesystems.FileObject;
 import org.openide.windows.WindowManager;
 
-public class HMIPanelImportAction extends AbstractAction {
+public class ImportPlant extends AbstractAction {
 
     private static final String title = "Importing a Plant Model...";
 
     private final FileObject panel;
 
-    public HMIPanelImportAction(FileObject panel) {
+    public ImportPlant(FileObject panel) {
         super("Import plant");
         this.panel = panel;
-        FormatosDeImportacion.warnMisalignedFormats();
+        ImportFormats.warnMisalignedFormats();
     }
 
     @Override
@@ -54,7 +54,7 @@ public class HMIPanelImportAction extends AbstractAction {
                 new FileDialog(WindowManager.getDefault().getMainWindow(),
                         "Select Plant Model", FileDialog.LOAD);
         chooser.setDirectory(System.getProperty("user.home"));
-        chooser.setFilenameFilter(FormatosDeImportacion.fileFilter());
+        chooser.setFilenameFilter(ImportFormats.fileFilter());
         chooser.setVisible(true);
 
         File[] seleccion = chooser.getFiles();
@@ -62,9 +62,9 @@ public class HMIPanelImportAction extends AbstractAction {
             return;
         }
         File file = seleccion[0];
-        if (!FormatosDeImportacion.extensionAdmitida(file)) {
+        if (!ImportFormats.extensionAdmitida(file)) {
             reportFailure(file, "Only files are allowed "
-                    + FormatosDeImportacion.allowedFormats() + ".");
+                    + ImportFormats.allowedFormats() + ".");
             return;
         }
 

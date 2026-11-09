@@ -35,8 +35,8 @@ public final class DynamicTag {
     public enum Code {
         X(1, DataType.BOOLEAN),
         B(8, DataType.BYTE),
-        W(16, DataType.WORD),
-        D(32, DataType.DWORD);
+        W(16, DataType.SHORT),
+        D(32, DataType.INT);
 
         private final int bits;
         private final DataType defaultType;
@@ -205,27 +205,6 @@ public final class DynamicTag {
             text.append('.').append(bit);
         }
         return text.toString();
-    }
-
-    public String toPlc4xAddress() {
-        return address() + ":" + plc4xType();
-    }
-
-    private String plc4xType() {
-        return switch (dataType) {
-            case BOOLEAN -> "BOOL";
-            case SHORT -> "INT";
-            case USHORT -> "UINT";
-            case INT -> "DINT";
-            case UINT -> "UDINT";
-            case LONG -> "LINT";
-            case ULONG -> "ULINT";
-            case FLOAT -> "REAL";
-            case DOUBLE -> "LREAL";
-            case UBYTE -> "USINT";
-            case WORD -> "INT";
-            default -> dataType.name();
-        };
     }
 
     public int startByte() {

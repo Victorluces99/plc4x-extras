@@ -28,19 +28,13 @@ public enum DataType {
 
     BOOLEAN("boolean", 1, true, true),
     BYTE("byte", 1, false, true),
-    WORD("word", 2, false, true),
-    DWORD("dword", 4, false, true),
     SINT("sint", 1, false, true),
     USINT("usint", 1, false, true),
     INT("int", 4, false, true),
     UINT("uint", 4, false, true),
     DINT("dint", 4, false, true),
     UDINT("udint", 4, false, true),
-//    LINT("lint", 8, false, true),
-//    ULINT("ulint", 8, false, true),
-//    REAL("real", 4, false, true),
-//    LREAL("lreal", 8, false, true),
-    // Legacy types (kept for backward compatibility)
+
     UBYTE("ubyte", 1, false, true),
     SHORT("short", 2, false, true),
     USHORT("ushort", 2, false, true),
@@ -51,10 +45,7 @@ public enum DataType {
 
     /** Tamaño variable de bytes (String por definir) */
     STRING("string", 0, false, false),
-//    TIME("time", 4, false, true),
-//    DATE("date", 2, false, true),
-//    TIME_OF_DAY("tod", 4, false, true),
-//    DATE_AND_TIME("dt", 8, false, true),
+
     S5TIME("s5time", 2, false, true, "s7"),
     S7DATE("s7date", 4, false, true, "s7"),
     S7TIME("s7time", 4, false, true, "s7"),
@@ -74,21 +65,12 @@ public enum DataType {
     private final boolean enabled;
     private final String protocol;
 
-    private static final Map<String, DataType> POR_NOMBRE = new HashMap<>();
-    private static final Map<String, DataType> POR_NOMBRE_SIN_MAYUSCULAS = new HashMap<>();
-    private static final String CONCATENATED_NAMES;
+    private static final Map<String, DataType> BY_NAME_IN_LOWCASE = new HashMap<>();
 
     static {
-        StringBuilder text = new StringBuilder();
         for (DataType t : values()) {
-            POR_NOMBRE.put(t.name, t);
-            POR_NOMBRE_SIN_MAYUSCULAS.put(t.name.toUpperCase(Locale.ROOT), t);
-            if (text.length() > 0) {
-                text.append(", ");
-            }
-            text.append(t.name);
+            BY_NAME_IN_LOWCASE.put(t.name.toUpperCase(Locale.ROOT), t);
         }
-        CONCATENATED_NAMES = text.toString();
     }
 
     DataType(String name, int byteSize, boolean bitAddressed, boolean enabled) {
@@ -146,10 +128,6 @@ public enum DataType {
         return enabled || (isProtocolSpecific() && byteSize > 0);
     }
 
-    public int slotBits() {
-        return bitAddressed ? 1 : byteSize * 8;
-    }
-
     public static List<DataType> valuesForProtocol(String protocol) {
         List<DataType> result = new ArrayList<>();
         for (DataType dataType : values()) {
@@ -160,70 +138,10 @@ public enum DataType {
         return result;
     }
 
-    public static DataType find(String name) {
-        if (name == null || name.isEmpty()) {
-            return null;
-        }
-        return POR_NOMBRE.get(name);
-    }
-
     public static DataType findIgnoreCase(String name) {
         if (name == null || name.isEmpty()) {
             return null;
         }
-        return POR_NOMBRE_SIN_MAYUSCULAS.get(name.toUpperCase(Locale.ROOT));
-    }
-
-    /** Nombres de todos los tipos, separados por coma. Se calcula una sola vez. */
-    public static String names() {
-        return CONCATENATED_NAMES;
-    }
-
-    public static List<DataType> candidates(String familia, int bitsArea) {
-        if (familia == null) {
-            return List.of();
-        }
-        return switch (familia.toUpperCase()) {
-            case "BYTE" -> bitsArea == 8 ? List.of(BYTE, UBYTE) : List.of();
-            case "UBYTE" -> List.of(BYTE, UBYTE);
-            case "WORD" -> bitsArea == 16 ? List.of(WORD) : List.of();
-            case "INTEGER" -> switch (bitsArea) {
-                case 16 -> List.of(SHORT, USHORT);
-                case 32 -> List.of(INT, UINT);
-                case 64 -> List.of(LONG, ULONG);
-                default -> List.of();
-            };
-            case "REAL" -> isReal(bitsArea) ? List.of(FLOAT, DOUBLE) : List.of();
-            case "BOOL" -> bitsArea == 1 || bitsArea == 8 ? List.of(BOOLEAN) : List.of();
-            case "INT", "UINT" -> List.of(SHORT, USHORT);
-            case "DINT", "UDINT", "DWORD" -> List.of(INT, UINT);
-            case "LINT", "ULINT", "LWORD" -> List.of(LONG, ULONG);
-            case "SINT", "USINT" -> List.of(BYTE, UBYTE);
-            case "CHAR" -> List.of(BYTE, UBYTE);
-            case "WCHAR" -> bitsArea == 16 ? List.of(WORD) : List.of(BYTE, UBYTE);
-            case "RAW_BYTE_ARRAY" -> List.of(BYTE, UBYTE);
-            case "USHORT" -> List.of(SHORT, USHORT);
-            case "ULONG" -> List.of(LONG, ULONG);
-            case "LREAL" -> List.of(DOUBLE);
-            default -> List.of();
-        };
-    }
-    
-    private static boolean isReal(int bitsArea) {
-        return bitsArea == 0 || bitsArea >= 32;
-    }
-
-    public static int bitsOfType(String name) {
-        if (name == null) {
-            return 0;
-        }
-        return switch (name.toUpperCase()) {
-            case "BOOL" -> 1;
-            case "BYTE", "SINT", "USINT", "CHAR" -> 8;
-            case "WORD", "INT", "UINT", "WCHAR" -> 16;
-            case "DWORD", "DINT", "UDINT", "REAL" -> 32;
-            case "LWORD", "LINT", "ULINT", "LREAL" -> 64;
-            default -> 0;
-        };
+        return BY_NAME_IN_LOWCASE.get(name.toUpperCase(Locale.ROOT));
     }
 }

@@ -33,23 +33,26 @@ final class VariableTableModel extends AbstractTableModel {
     static final int COL_DEVICE = 2;
     static final int COL_TYPE = 3;
     static final int COL_TAG = 4;
-    static final int COL_DESCRIPTOR = 5;
-    static final int COL_SCAN_TIME = 6;
-    static final int COL_SCAN_ENABLE = 7;
-    static final int COL_WRITE_ENABLE = 8;
-    static final int COL_DISPLAY_LIMIT_LOW = 9;
-    static final int COL_DISPLAY_LIMIT_HIGH = 10;
-    static final int COL_DISPLAY_DESCRIPTION = 11;
-    static final int COL_DISPLAY_FORMAT = 12;
-    static final int COL_DISPLAY_UNITS = 13;
-    static final int COL_CONTROL_LIMIT_LOW = 14;
-    static final int COL_CONTROL_LIMIT_HIGH = 15;
-    static final int COL_CONTROL_MIN_STEP = 16;
-    static final int COL_UUID = 17;
+    static final int COL_TEST_TAG = 5;
+    static final int COL_DESCRIPTOR = 6;
+    static final int COL_SCAN_TIME = 7;
+    static final int COL_SCAN_ENABLE = 8;
+    static final int COL_WRITE_ENABLE = 9;
+    static final int COL_DISPLAY_LIMIT_LOW = 10;
+    static final int COL_DISPLAY_LIMIT_HIGH = 11;
+    static final int COL_DISPLAY_DESCRIPTION = 12;
+    static final int COL_DISPLAY_FORMAT = 13;
+    static final int COL_DISPLAY_UNITS = 14;
+    static final int COL_CONTROL_LIMIT_LOW = 15;
+    static final int COL_CONTROL_LIMIT_HIGH = 16;
+    static final int COL_CONTROL_MIN_STEP = 17;
+    static final int COL_UUID = 18;
+    static final String TEST_TAG_LABEL = "Test Tag";
+    static final String TEST_TAG_BUTTON = "Test";
 
     private static final String[] COLUMN_NAMES = {
         "Number",
-        "Name", "Conexión", "Data type", "Tag", "Descriptor",
+        "Name", "Conexión", "Data type", "Tag", TEST_TAG_LABEL, "Descriptor",
         "Scan Time", "ScanEnable", "WriteEnable", "DisplayLimitLow",
         "DisplayLimitHigh", "DisplayDescription", "DisplayFormat",
         "DisplayUnits", "ControlLimitLow", "ControlLimitHigh",
@@ -146,6 +149,7 @@ final class VariableTableModel extends AbstractTableModel {
             case COL_DEVICE -> "Connection/device that owns the variable.";
             case COL_TYPE -> "Variable data type.";
             case COL_TAG -> "PLC address/tag for the variable.";
+            case COL_TEST_TAG -> "Test the tag against its connection.";
             case COL_DESCRIPTOR -> "Optional variable description.";
             case COL_SCAN_TIME -> "How often the variable is read.";
             case COL_SCAN_ENABLE -> "Enable reading this variable.";
@@ -176,7 +180,7 @@ final class VariableTableModel extends AbstractTableModel {
 
     @Override
     public boolean isCellEditable(int row, int column) {
-        return column != COL_UUID && column != COL_NUMBER;
+        return column != COL_UUID && column != COL_NUMBER && column != COL_TEST_TAG;
     }
 
     @Override
@@ -188,6 +192,7 @@ final class VariableTableModel extends AbstractTableModel {
             case COL_DEVICE -> row.deviceName();
             case COL_TYPE -> row.dataType();
             case COL_TAG -> row.tag();
+            case COL_TEST_TAG -> TEST_TAG_BUTTON;
             case COL_DESCRIPTOR -> row.descriptor();
             case COL_SCAN_TIME -> row.scanTime();
             case COL_SCAN_ENABLE -> row.scanEnable();
@@ -207,7 +212,8 @@ final class VariableTableModel extends AbstractTableModel {
 
     @Override
     public void setValueAt(Object value, int rowIndex, int columnIndex) {
-        if (columnIndex == COL_NUMBER || columnIndex == COL_UUID) {
+        if (columnIndex == COL_NUMBER || columnIndex == COL_UUID
+                || columnIndex == COL_TEST_TAG) {
             return;
         }
         CreateVariableController.Row current = rows.get(rowIndex);

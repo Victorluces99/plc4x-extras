@@ -167,7 +167,7 @@ public final class CreateDeviceDialog extends JDialog {
     }
 
     private static Set<String> hostsOf(DeviceConfigData device) {
-        UrlDisassembler.Partes partes =
+        UrlDisassembler.Parts partes =
                 UrlDisassembler.disassemble(device.getSpecificParameters());
         if (partes == null || partes.host() == null || partes.host().isBlank()) {
             return Set.of();

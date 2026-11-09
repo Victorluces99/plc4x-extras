@@ -30,53 +30,50 @@ public final class UrlDisassembler {
     private UrlDisassembler() {
     }
 
-    public record Partes(String protocol, String transport, String host, String port,
+    public record Parts(String protocol, String transport, String host, String port,
                  LinkedHashMap<String, String> params) {
     }
 
-    public static Partes disassemble(String url) {
+    public static Parts disassemble(String url) {
         if (url == null) {
             return null;
         }
-        String limpio = url.trim();
-        int separador = limpio.indexOf("://");
-        if (separador < 0) {
+        String clean = url.trim();
+        int separator = clean.indexOf("://");
+        if (separator < 0) {
             return null;
         }
 
-        String izquierda = limpio.substring(0, separador);
-        String resto = limpio.substring(separador + 3);
+        String left = clean.substring(0, separator);
+        String remains = clean.substring(separator + 3);
 
-        int colonTransporte = izquierda.indexOf(':');
-        String protocol = colonTransporte < 0 ? izquierda : izquierda.substring(0, colonTransporte);
-        String transport = colonTransporte < 0 ? "" : izquierda.substring(colonTransporte + 1);
+        int transportSeparator = left.indexOf(':');
+        String protocol = transportSeparator < 0 ? left : left.substring(0, transportSeparator);
+        String transport = transportSeparator < 0 ? "" : left.substring(transportSeparator + 1);
 
-        int interrogacion = resto.indexOf('?');
-        String hostPort = interrogacion < 0 ? resto : resto.substring(0, interrogacion);
-        String query = interrogacion < 0 ? "" : resto.substring(interrogacion + 1);
+        int question = remains.indexOf('?');
+        String hostPort = question < 0 ? remains : remains.substring(0, question);
+        String query = question < 0 ? "" : remains.substring(question + 1);
 
         String host;
         String port;
         if (hostPort.startsWith("[")) {
-            // Direccion IPv6 entre corchetes. Sin esto, 'lastIndexOf(:)' partia por el
-            // medio de la direccion y '::1' se leia como host '[' y puerto ':1]'.
-            int cierre = hostPort.indexOf(']');
-            if (cierre > 0) {
-                host = hostPort.substring(1, cierre);
-                String detras = hostPort.substring(cierre + 1);
-                port = detras.startsWith(":") ? detras.substring(1) : "";
+            int end = hostPort.indexOf(']');
+            if (end > 0) {
+                host = hostPort.substring(1, end);
+                String behind = hostPort.substring(end + 1);
+                port = behind.startsWith(":") ? behind.substring(1) : "";
             } else {
-                // Corchete sin cerrar: se toma todo como host, mejor que cortar la direccion.
                 host = hostPort;
                 port = "";
             }
         } else {
             host = hostPort;
             port = "";
-            int colonPuerto = hostPort.lastIndexOf(':');
-            if (colonPuerto >= 0) {
-                host = hostPort.substring(0, colonPuerto);
-                port = hostPort.substring(colonPuerto + 1);
+            int portSeparator = hostPort.lastIndexOf(':');
+            if (portSeparator >= 0) {
+                host = hostPort.substring(0, portSeparator);
+                port = hostPort.substring(portSeparator + 1);
             }
         }
 
@@ -85,13 +82,13 @@ public final class UrlDisassembler {
             if (par.isEmpty()) {
                 continue;
             }
-            int igual = par.indexOf('=');
-            String clave = igual < 0 ? par : par.substring(0, igual);
-            String valor = igual < 0 ? "" : par.substring(igual + 1);
+            int same = par.indexOf('=');
+            String clave = same < 0 ? par : par.substring(0, same);
+            String valor = same < 0 ? "" : par.substring(same + 1);
             params.put(decodificar(clave), decodificar(valor));
         }
 
-        return new Partes(protocol, transport, host, port, params);
+        return new Parts(protocol, transport, host, port, params);
     }
 
     static String decodificar(String text) {

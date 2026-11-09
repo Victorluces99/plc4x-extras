@@ -29,7 +29,7 @@ class UrlDisassemblerTest {
 
     @Test
     void splitsProtocolAndTransport() {
-        UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7:cotp://192.168.0.10:102");
+        UrlDisassembler.Parts partes = UrlDisassembler.disassemble("s7:cotp://192.168.0.10:102");
         assertEquals("s7", partes.protocol());
         assertEquals("cotp", partes.transport());
         assertEquals("192.168.0.10", partes.host());
@@ -39,7 +39,7 @@ class UrlDisassemblerTest {
 
     @Test
     void withoutTransportNorPort() {
-        UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7://192.168.0.10");
+        UrlDisassembler.Parts partes = UrlDisassembler.disassemble("s7://192.168.0.10");
         assertEquals("s7", partes.protocol());
         assertEquals("", partes.transport());
         assertEquals("192.168.0.10", partes.host());
@@ -48,7 +48,7 @@ class UrlDisassemblerTest {
 
     @Test
     void keepsTheParameterOrder() {
-        UrlDisassembler.Partes partes =
+        UrlDisassembler.Parts partes =
                 UrlDisassembler.disassemble("eip://10.0.0.5:44818?path=1&slot=0");
         assertEquals("10.0.0.5", partes.host());
         assertEquals("44818", partes.port());
@@ -60,7 +60,7 @@ class UrlDisassemblerTest {
 
     @Test
     void leeUnPuertoSerieComoHost() {
-        UrlDisassembler.Partes partes = UrlDisassembler.disassemble("modbus-rtu://COM3");
+        UrlDisassembler.Parts partes = UrlDisassembler.disassemble("modbus-rtu://COM3");
         assertEquals("modbus-rtu", partes.protocol());
         assertEquals("COM3", partes.host());
         assertEquals("", partes.port());
@@ -86,7 +86,7 @@ class UrlDisassemblerTest {
     }
 
     private void assertRoundTrip(String original) {
-        UrlDisassembler.Partes partes = UrlDisassembler.disassemble(original);
+        UrlDisassembler.Parts partes = UrlDisassembler.disassemble(original);
         assertTrue(partes != null, "no se pudo desensamblar: " + original);
         String reconstruida = DeviceDynamicPanelBuilder.assembleUrl(
                 partes.protocol(), partes.transport(), partes.host(),
@@ -99,7 +99,7 @@ class UrlDisassemblerTest {
 
     @Test
     void leeUnaIpv6ConPuerto() {
-        UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7://[fe80::1c2d]:102");
+        UrlDisassembler.Parts partes = UrlDisassembler.disassemble("s7://[fe80::1c2d]:102");
 
         assertEquals("fe80::1c2d", partes.host(),
                 "los corchetes son solo notacion y no forman parte de la direccion");
@@ -108,7 +108,7 @@ class UrlDisassemblerTest {
 
     @Test
     void leeUnaIpv6SinPuerto() {
-        UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7://[::1]");
+        UrlDisassembler.Parts partes = UrlDisassembler.disassemble("s7://[::1]");
 
         assertEquals("::1", partes.host(),
                 "sin puerto, los dos puntos de '::1' no pueden interpretarse como separador");
@@ -133,7 +133,7 @@ class UrlDisassemblerTest {
 
     @Test
     void unclosedBracketDoesNotBreakParsing() {
-        UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7://[fe80::1c2d");
+        UrlDisassembler.Parts partes = UrlDisassembler.disassemble("s7://[fe80::1c2d");
 
         assertTrue(partes != null);
         assertEquals("[fe80::1c2d", partes.host(),
@@ -149,7 +149,7 @@ class UrlDisassemblerTest {
         params.put("comentario", "a&b=c");
 
         String url = DeviceDynamicPanelBuilder.assembleUrl("s7", "", "10.0.0.1", "102", params);
-        UrlDisassembler.Partes partes = UrlDisassembler.disassemble(url);
+        UrlDisassembler.Parts partes = UrlDisassembler.disassemble(url);
 
         assertEquals(1, partes.params().size(),
                 "un '&' sin codificar partia los parametros en dos");
@@ -163,7 +163,7 @@ class UrlDisassemblerTest {
         params.put("acentos", "presión");
 
         String url = DeviceDynamicPanelBuilder.assembleUrl("s7", "", "10.0.0.1", "102", params);
-        UrlDisassembler.Partes partes = UrlDisassembler.disassemble(url);
+        UrlDisassembler.Parts partes = UrlDisassembler.disassemble(url);
 
         assertEquals("C:\\maquina\\linea 1", partes.params().get("ruta"));
         assertEquals("presión", partes.params().get("acentos"));
@@ -183,7 +183,7 @@ class UrlDisassemblerTest {
 
     @Test
     void strayPercentDoesNotBreakParsing() {
-        UrlDisassembler.Partes partes = UrlDisassembler.disassemble("s7://10.0.0.1?nota=100%");
+        UrlDisassembler.Parts partes = UrlDisassembler.disassemble("s7://10.0.0.1?nota=100%");
 
         assertTrue(partes != null);
         assertEquals("100%", partes.params().get("nota"),

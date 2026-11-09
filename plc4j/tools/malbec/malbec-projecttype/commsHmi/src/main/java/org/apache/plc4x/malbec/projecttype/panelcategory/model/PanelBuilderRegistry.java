@@ -30,9 +30,9 @@ import java.util.logging.Logger;
 public final class PanelBuilderRegistry {
     private static final Logger LOGGER = Logger.getLogger(PanelBuilderRegistry.class.getName());
 
-    private static final String MARCA_SIEMENS = "siemens";
-    private static final String MARCA_ALLEN_BRADLEY = "allen bradley";
-    private static final String MARCA_MODBUS = "modbus";
+    private static final String BRAND_SIEMENS = "siemens";
+    private static final String BRAND_ALLEN_BRADLEY = "allen bradley";
+    private static final String BRAND_MODBUS = "modbus";
 
     private final Map<String, Supplier<DeviceDynamicPanelBuilder>> byBrand;
     private final Supplier<DeviceDynamicPanelBuilder> defaultSupplier;
@@ -45,30 +45,30 @@ public final class PanelBuilderRegistry {
 
     public static PanelBuilderRegistry withDefaults() {
         Map<String, Supplier<DeviceDynamicPanelBuilder>> byBrand = new LinkedHashMap<>();
-        byBrand.put(MARCA_SIEMENS, SiemensPanelBuilder::new);
-        byBrand.put(MARCA_ALLEN_BRADLEY, AllenBradleyPanelBuilder::new);
-        byBrand.put(MARCA_MODBUS, ModbusPanelBuilder::new);
+        byBrand.put(BRAND_SIEMENS, SiemensPanelBuilder::new);
+        byBrand.put(BRAND_ALLEN_BRADLEY, AllenBradleyPanelBuilder::new);
+        byBrand.put(BRAND_MODBUS, ModbusPanelBuilder::new);
         return new PanelBuilderRegistry(byBrand, SiemensPanelBuilder::new);
     }
 
     public static PanelBuilderRegistry from(Map<String, Supplier<DeviceDynamicPanelBuilder>> byBrand,
             Supplier<DeviceDynamicPanelBuilder> defaultSupplier) {
-        Map<String, Supplier<DeviceDynamicPanelBuilder>> copia = new LinkedHashMap<>();
-        byBrand.forEach((brand, factory) -> copia.put(normalizar(brand), factory));
-        return new PanelBuilderRegistry(copia, defaultSupplier);
+        Map<String, Supplier<DeviceDynamicPanelBuilder>> copy = new LinkedHashMap<>();
+        byBrand.forEach((brand, factory) -> copy.put(normalizar(brand), factory));
+        return new PanelBuilderRegistry(copy, defaultSupplier);
     }
 
 public DeviceDynamicPanelBuilder forBrand(String brand) {
-        String clave = normalizar(brand);
-        Supplier<DeviceDynamicPanelBuilder> factory = byBrand.get(clave);
+        String key = normalizar(brand);
+        Supplier<DeviceDynamicPanelBuilder> factory = byBrand.get(key);
         if (factory != null) {
             return factory.get();
         }
-        if (!clave.isEmpty()) {
+        if (!key.isEmpty()) {
             LOGGER.log(Level.WARNING,
-                    "La marca ''{0}'' no tiene panel de conexion propio; se usa el de"
-                            + " {1} por defecto. Las URLs saldran como si fuera de ese"
-                            + " protocolo.",
+                    "The brand ''{0}'' does not have its own connection panel, the default one"
+                            + " {1} used. The URLs will appear as if they were from that"
+                            + " protocol.",
                     new Object[]{brand, defaultBuilder().getProtocol()});
         }
         return defaultSupplier.get();

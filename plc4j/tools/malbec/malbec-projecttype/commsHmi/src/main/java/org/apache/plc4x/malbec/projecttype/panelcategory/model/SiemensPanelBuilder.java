@@ -26,225 +26,220 @@ import java.util.Set;
 public class SiemensPanelBuilder implements DeviceDynamicPanelBuilder {
 
     private String host = "";
-    private String transport = "cotp"; 
+    private String transport = "cotp";
     private String port = "";
     private final LinkedHashMap<String, String> params = new LinkedHashMap<>();
 
-    // COMPLETE STATIC CATALOG OF S7 PARAMETERS (PLC4X)
     private static final Map<String, DeviceParameterDef> SIEMENS_STATIC_PARAMS = new LinkedHashMap<>();
 
     static {
         // 1. CONFIG OPTIONS (S7 Protocol Level)
         // pdu-size (INT, default 1024)
         SIEMENS_STATIC_PARAMS.put("pdu-size", new DeviceParameterDef(
-            "pdu-size", "1024", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) > 0 && 
-                    Integer.parseInt(val) <= 1024,
-            "Debe ser un número entero mayor a 0 y menor que 1025."
+                "pdu-size", "1024", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) > 0
+                && Integer.parseInt(val) <= 1024,
+                "It must be an integer greater than 0 and less than 1025."
         ));
 
         // max-amq-caller (INT, default 8)
         SIEMENS_STATIC_PARAMS.put("max-amq-caller", new DeviceParameterDef(
-            "max-amq-caller", "8", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) > 0 &&
-                    Integer.parseInt(val) <= 8,
-            "Debe ser un número entero mayor a 0 y menor a 9."
+                "max-amq-caller", "8", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) > 0
+                && Integer.parseInt(val) <= 8,
+                "It must be an integer greater than 0 and less than 9."
         ));
 
         // max-amq-callee (INT, default 8)
         SIEMENS_STATIC_PARAMS.put("max-amq-callee", new DeviceParameterDef(
-            "max-amq-callee", "8", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) > 0 &&
-                    Integer.parseInt(val) <= 8,
-            "Debe ser un número entero mayor a 0 y menor a 9."
+                "max-amq-callee", "8", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) > 0
+                && Integer.parseInt(val) <= 8,
+                "It must be an integer greater than 0 and less than 9."
         ));
 
         // controller-type (STRING, default ANY)
         SIEMENS_STATIC_PARAMS.put("controller-type", new DeviceParameterDef(
-            "controller-type", "ANY", false,
-            val -> !val.trim().isEmpty(), "No puede estar vacío."
+                "controller-type", "ANY", false,
+                val -> !val.trim().isEmpty(), "It cannot be empty."
         ));
 
         // read-timeout-ms (INT, default 10000)
         SIEMENS_STATIC_PARAMS.put("read-timeout-ms", new DeviceParameterDef(
-            "read-timeout-ms", "10000", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0 &&
-                    Integer.parseInt(val) <= 10000,
-            "Debe ser un número entero mayor o igual a 0 y menor o "
-                    + "igual a 10000 (milisegundos)."
+                "read-timeout-ms", "10000", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0
+                && Integer.parseInt(val) <= 10000,
+                "It must be an integer greater than or equal to 0 and less "
+                + "than or equal to 10000 (milliseconds)."
         ));
 
         // ha-heartbeat-interval-ms (INT, default 4000)
         SIEMENS_STATIC_PARAMS.put("ha-heartbeat-interval-ms", new DeviceParameterDef(
-            "ha-heartbeat-interval-ms", "4000", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0 &&
-                    Integer.parseInt(val) <= 4000,
-            "Debe ser un número entero mayor o igual a 0 y menor o "
-                    + "igual a 4000 (milisegundos)."
+                "ha-heartbeat-interval-ms", "4000", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0
+                && Integer.parseInt(val) <= 4000,
+                "It must be an integer greater than or equal to 0 and less than "
+                + "or equal to 4000 (milliseconds)."
         ));
 
         // ha-failover-timeout-ms (INT, default 2000)
         SIEMENS_STATIC_PARAMS.put("ha-failover-timeout-ms", new DeviceParameterDef(
-            "ha-failover-timeout-ms", "2000", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0 &&
-                    Integer.parseInt(val) <= 2000,
-            "Debe ser un número entero mayor o igual a 0 y menor o "
-                    + "igual a 2000 (milisegundos)."
+                "ha-failover-timeout-ms", "2000", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0
+                && Integer.parseInt(val) <= 2000,
+                "It must be an integer greater than or equal to 0 and less than "
+                + "or equal to 2000 (milliseconds)."
         ));
 
         // 2. TRANSPORT CONFIG OPTIONS (COTP Level)
-
         // cotp.local-rack (INT, default 1)
         SIEMENS_STATIC_PARAMS.put("cotp.local-rack", new DeviceParameterDef(
-            "cotp.local-rack", "1", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
-            "Debe ser un número entero mayor o igual a 0."
+                "cotp.local-rack", "1", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
+                "It must be an integer greater than or equal to 0."
         ));
 
         // cotp.local-slot (INT, default 1)
         SIEMENS_STATIC_PARAMS.put("cotp.local-slot", new DeviceParameterDef(
-            "cotp.local-slot", "1", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
-            "Debe ser un número entero mayor o igual a 0."
+                "cotp.local-slot", "1", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
+                "It must be an integer greater than or equal to 0."
         ));
 
         // cotp.local-device-group (STRING, default OTHERS)
         SIEMENS_STATIC_PARAMS.put("cotp.local-device-group", new DeviceParameterDef(
-            "cotp.local-device-group", "OTHERS", false,
-            val -> !val.trim().isEmpty(),
-            "No puede estar vacío."
+                "cotp.local-device-group", "OTHERS", false,
+                val -> !val.trim().isEmpty(),
+                "It cannot be empty."
         ));
 
         // cotp.remote-rack (INT, default 0)
         SIEMENS_STATIC_PARAMS.put("cotp.remote-rack", new DeviceParameterDef(
-            "cotp.remote-rack", "0", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
-            "Debe ser un número entero mayor o igual a 0."
+                "cotp.remote-rack", "0", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
+                "It must be an integer greater than or equal to 0."
         ));
 
         // cotp.remote-slot (INT, default 0)
         SIEMENS_STATIC_PARAMS.put("cotp.remote-slot", new DeviceParameterDef(
-            "cotp.remote-slot", "0", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
-            "Debe ser un número entero mayor o igual a 0."
+                "cotp.remote-slot", "0", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
+                "It must be an integer greater than or equal to 0."
         ));
 
         // cotp.remote-device-group (STRING, default PG_OR_PC)
         SIEMENS_STATIC_PARAMS.put("cotp.remote-device-group", new DeviceParameterDef(
-            "cotp.remote-device-group", "PG_OR_PC", false,
-            val -> !val.trim().isEmpty(),
-            "No puede estar vacío."
+                "cotp.remote-device-group", "PG_OR_PC", false,
+                val -> !val.trim().isEmpty(),
+                "It cannot be empty."
         ));
 
         // cotp.local-tsap (INT, default 0)
         SIEMENS_STATIC_PARAMS.put("cotp.local-tsap", new DeviceParameterDef(
-            "cotp.local-tsap", "0", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
-            "Debe ser un entero mayor o igual a 0."
+                "cotp.local-tsap", "0", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
+                "It must be an integer greater than or equal to 0."
         ));
 
         // cotp.remote-tsap (INT, default 0)
         SIEMENS_STATIC_PARAMS.put("cotp.remote-tsap", new DeviceParameterDef(
-            "cotp.remote-tsap", "0", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
-            "Debe ser un entero mayor o igual a 0."
+                "cotp.remote-tsap", "0", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
+                "It must be an integer greater than or equal to 0."
         ));
 
         // cotp.tpdu-size (INT, default 8192, válidos: 128, 256, 512, 1024, 2048, 4096, 8192)
         SIEMENS_STATIC_PARAMS.put("cotp.tpdu-size", new DeviceParameterDef(
-            "cotp.tpdu-size", "8192", false,
-            val -> val.matches("128|256|512|1024|2048|4096|8192"),
-            "Debe ser uno de los siguientes valores: 128, 256, 512, 1024, 2048, 4096, 8192."
+                "cotp.tpdu-size", "8192", false,
+                val -> val.matches("128|256|512|1024|2048|4096|8192"),
+                "It must be one of the following values: 128, 256, 512, 1024, 2048, 4096, 8192."
         ));
 
         // cotp.handshake-timeout-ms (INT, default 5000)
         SIEMENS_STATIC_PARAMS.put("cotp.handshake-timeout-ms", new DeviceParameterDef(
-            "cotp.handshake-timeout-ms", "5000", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0 &&
-                    Integer.parseInt(val) <= 5000,
-            "Debe ser un entero mayor o igual a 0 y menor o "
-                    + "igual a 5000 (milisegundos)."
+                "cotp.handshake-timeout-ms", "5000", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0
+                && Integer.parseInt(val) <= 5000,
+                "It must be an integer greater than or equal to 0 and less than "
+                + "or equal to 5,000 (milliseconds)."
         ));
 
         // cotp.protocol-class (INT, default 0)
         SIEMENS_STATIC_PARAMS.put("cotp.protocol-class", new DeviceParameterDef(
-            "cotp.protocol-class", "0", false,
-            val -> val.matches("\\d+"),
-            "Debe ser un entero numérico válido."
+                "cotp.protocol-class", "0", false,
+                val -> val.matches("\\d+"),
+                "It must be a valid numeric integer."
         ));
 
         // cotp.connect-timeout-ms (INT, default 5000)
         SIEMENS_STATIC_PARAMS.put("cotp.connect-timeout-ms", new DeviceParameterDef(
-            "cotp.connect-timeout-ms", "5000", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0 &&
-                    Integer.parseInt(val) <= 5000,
-            "Debe ser un entero mayor o igual a 0 y menor o "
-                    + "igual a 5000 (milisegundos)."
+                "cotp.connect-timeout-ms", "5000", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0
+                && Integer.parseInt(val) <= 5000,
+                "It must be an integer greater than or equal to 0 and less than "
+                + "or equal to 5,000 (milliseconds)."
         ));
 
         // cotp.read-timeout-ms (INT, default 0)
         SIEMENS_STATIC_PARAMS.put("cotp.read-timeout-ms", new DeviceParameterDef(
-            "cotp.read-timeout-ms", "0", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
-            "Debe ser un entero mayor o igual a 0 (milisegundos)."
+                "cotp.read-timeout-ms", "0", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
+                "It must be an integer greater than or equal to 0 (milliseconds)."
         ));
 
         // cotp.write-timeout-ms (INT, default 0)
         SIEMENS_STATIC_PARAMS.put("cotp.write-timeout-ms", new DeviceParameterDef(
-            "cotp.write-timeout-ms", "0", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
-            "Debe ser un entero mayor o igual a 0 (milisegundos)."
+                "cotp.write-timeout-ms", "0", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0,
+                "It must be an integer greater than or equal to 0 (milliseconds)."
         ));
 
         // cotp.no-delay (BOOLEAN, default true)
         SIEMENS_STATIC_PARAMS.put("cotp.no-delay", new DeviceParameterDef(
-            "cotp.no-delay", "true", false,
-            val -> val.equalsIgnoreCase("true") || val.equalsIgnoreCase("false"),
-            "Debe ser un valor booleano ('true' o 'false')."
+                "cotp.no-delay", "true", false,
+                val -> val.equalsIgnoreCase("true") || val.equalsIgnoreCase("false"),
+                "It must be a Boolean value (“true” or “false”)."
         ));
 
         // cotp.keep-alive (BOOLEAN, default false)
         SIEMENS_STATIC_PARAMS.put("cotp.keep-alive", new DeviceParameterDef(
-            "cotp.keep-alive", "false", false,
-            val -> val.equalsIgnoreCase("true") || val.equalsIgnoreCase("false"),
-            "Debe ser un valor booleano ('true' o 'false')."
+                "cotp.keep-alive", "false", false,
+                val -> val.equalsIgnoreCase("true") || val.equalsIgnoreCase("false"),
+                "It must be a Boolean value (“true” or “false”)."
         ));
 
         // cotp.send-buffer-size (INT, default 81920)
         SIEMENS_STATIC_PARAMS.put("cotp.send-buffer-size", new DeviceParameterDef(
-            "cotp.send-buffer-size", "81920", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0 &&
-                    Integer.parseInt(val) <= 81920,
-            "Debe ser un entero mayor o igual a 0 y menor o igual a 81920,"
-                    + " 0 utiliza el valor predeterminado del sistema."
+                "cotp.send-buffer-size", "81920", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0
+                && Integer.parseInt(val) <= 81920,
+                "It must be an integer greater than or equal to 0 and less than "
+                + "or equal to 81920. 0 uses the system's default value."
         ));
 
         // cotp.receive-buffer-size (INT, default 81920)
         SIEMENS_STATIC_PARAMS.put("cotp.receive-buffer-size", new DeviceParameterDef(
-            "cotp.receive-buffer-size", "81920", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0 &&
-                    Integer.parseInt(val) <= 81920,
-            "Debe ser un entero mayor o igual a 0 y menor o igual a 81920,"
-                    + " 0 utiliza el valor predeterminado del sistema."
+                "cotp.receive-buffer-size", "81920", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0
+                && Integer.parseInt(val) <= 81920,
+                "It must be an integer greater than or equal to 0 and less than "
+                + "or equal to 81920. 0 uses the system's default value."
         ));
 
         // cotp.local-address (STRING, opcional)
         SIEMENS_STATIC_PARAMS.put("cotp.local-address", new DeviceParameterDef(
-            "cotp.local-address", "", false,
-            val -> true, // No requiere comprobación estricta de formato si es opcional
-            ""
+                "cotp.local-address", "", false,
+                val -> true, // No requiere comprobación estricta de formato si es opcional
+                ""
         ));
 
         // cotp.local-port (INT, default 0)
         SIEMENS_STATIC_PARAMS.put("cotp.local-port", new DeviceParameterDef(
-            "cotp.local-port", "0", false,
-            val -> val.matches("\\d+") && Integer.parseInt(val) >= 0 && Integer.parseInt(val) <= 65535,
-            "Debe ser un número de puerto entero válido (0-65535)."
+                "cotp.local-port", "0", false,
+                val -> val.matches("\\d+") && Integer.parseInt(val) >= 0 && Integer.parseInt(val) <= 65535,
+                "It must be a valid integer port number (0–65535)."
         ));
     }
-
-//    public SiemensPanelBuilder() {
-//    }
 
     @Override
     public void initForModel(DeviceModel model) {
@@ -271,18 +266,18 @@ public class SiemensPanelBuilder implements DeviceDynamicPanelBuilder {
     }
 
     @Override
-    public void setHost(String host) { 
-        this.host = host; 
+    public void setHost(String host) {
+        this.host = host;
     }
 
     @Override
-    public void setPort(String port) { 
-        this.port = port; 
+    public void setPort(String port) {
+        this.port = port;
     }
 
     @Override
-    public void setTransport(String transport) { 
-        this.transport = transport; 
+    public void setTransport(String transport) {
+        this.transport = transport;
     }
 
     @Override

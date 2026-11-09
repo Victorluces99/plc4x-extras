@@ -18,11 +18,14 @@
  */
 package org.apache.plc4x.malbec.projecttype.panelcategory.panel;
 
+import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import javax.swing.DefaultCellEditor;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JTable;
 import javax.swing.RowSorter;
 import javax.swing.SortOrder;
 import javax.swing.SwingUtilities;
@@ -97,6 +100,26 @@ class VariableTablePanelTest {
             panel.table().setRowSelectionInterval(0, 1);
 
             assertEquals(List.of(1, 0), panel.selectedModelRows());
+        });
+    }
+
+    @Test
+    void testTagColumnRendersAButtonAndIsNotEditable() throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            VariableTablePanel panel = new VariableTablePanel();
+            panel.setRows(List.of(row("Var_1", "PLC", "int", "%DB1.DBD0")));
+            JTable table = panel.table();
+
+            assertFalse(table.getModel().isCellEditable(
+                    0, VariableTableModel.COL_TEST_TAG));
+
+            Component rendered = table.getCellRenderer(0, VariableTableModel.COL_TEST_TAG)
+                    .getTableCellRendererComponent(table,
+                            VariableTableModel.TEST_TAG_BUTTON, false, false,
+                            0, VariableTableModel.COL_TEST_TAG);
+            assertTrue(rendered instanceof JButton);
+            assertEquals(VariableTableModel.TEST_TAG_BUTTON,
+                    ((JButton) rendered).getText());
         });
     }
 

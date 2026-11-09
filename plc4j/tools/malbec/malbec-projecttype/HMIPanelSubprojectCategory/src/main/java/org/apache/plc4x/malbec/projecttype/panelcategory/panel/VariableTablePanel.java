@@ -34,6 +34,7 @@ import java.util.function.Supplier;
 import javax.swing.AbstractCellEditor;
 import javax.swing.DefaultCellEditor;
 import javax.swing.DefaultListCellRenderer;
+import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
@@ -187,6 +188,9 @@ final class VariableTablePanel extends JPanel {
         centeredCheckBox.setHorizontalAlignment(SwingConstants.CENTER);
         table.setDefaultEditor(Boolean.class, new DefaultCellEditor(centeredCheckBox));
 
+        table.getColumnModel().getColumn(VariableTableModel.COL_TEST_TAG)
+                .setCellRenderer(new TestTagButtonRenderer());
+
         table.getColumnModel().getColumn(VariableTableModel.COL_NAME)
                 .setCellEditor(new MaxLengthCellEditor(20));
         table.getColumnModel().getColumn(VariableTableModel.COL_TAG)
@@ -295,8 +299,8 @@ final class VariableTablePanel extends JPanel {
 
     private void configureColumnWidths() {
         int[] minimumWidths = {
-            60, 120, 120, 90, 110, 200, 80, 80, 80,
-            100, 110, 200, 90, 100, 100, 110, 100
+            60, 120, 120, 90, 110, 90, 200, 80, 80,
+            80, 100, 110, 200, 90, 100, 100, 110, 100
         };
         for (int column = 0; column < minimumWidths.length; column++) {
             TableColumn tableColumn = table.getColumnModel().getColumn(column);
@@ -575,6 +579,24 @@ final class VariableTablePanel extends JPanel {
                 super.replace(fb, offset, length, replacement, attrs);
             }
         };
+    }
+
+    private static final class TestTagButtonRenderer extends JButton implements TableCellRenderer {
+
+        private TestTagButtonRenderer() {
+            super(VariableTableModel.TEST_TAG_BUTTON);
+            setOpaque(true);
+            setFocusPainted(false);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            setText(VariableTableModel.TEST_TAG_BUTTON);
+            setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
+            setForeground(isSelected ? table.getSelectionForeground() : table.getForeground());
+            return this;
+        }
     }
 
     private static final class CenteredBooleanRenderer extends JCheckBox implements TableCellRenderer {

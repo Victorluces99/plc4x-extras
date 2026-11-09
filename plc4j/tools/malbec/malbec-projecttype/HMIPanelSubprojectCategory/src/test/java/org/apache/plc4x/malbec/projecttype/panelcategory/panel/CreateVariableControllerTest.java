@@ -112,7 +112,7 @@ class CreateVariableControllerTest {
                 List.of(device("PLC-1")),
                 List.of(
                         row(1, "Var_1", "PLC-1", "int", "%DB1.DBD0"),
-                        row(2, "Var_2", "PLC-1", "word", "%DB1.DBW0")));
+                        row(2, "Var_2", "PLC-1", "ushort", "%DB1.DBW0")));
 
         assertFalse(result.success());
         assertEquals(1, result.errors().size());
@@ -176,9 +176,9 @@ class CreateVariableControllerTest {
     }
 
     @Test
-    void validaWordEnOffsetImpar() {
+    void validaUshortEnOffsetImpar() {
         String problem = CreateVariableController.validate(
-                row(1, "Var_1", "PLC-1", "word", "%DB3.DBW515"));
+                row(1, "Var_1", "PLC-1", "ushort", "%DB3.DBW515"));
 
         assertNotNull(problem);
         assertTrue(problem.contains("even byte"));
@@ -191,7 +191,7 @@ class CreateVariableControllerTest {
                 List.of(device("PLC-1")),
                 List.of(
                         row(1, "Var_1", "PLC-1", "float", "%DB3.DBD516"),
-                        row(2, "Var_2", "PLC-1", "word", "%DB3.DBW520"),
+                        row(2, "Var_2", "PLC-1", "ushort", "%DB3.DBW520"),
                         row(3, "Var_3", "PLC-1", "byte", "%DB3.DBB515"),
                         row(4, "Var_4", "PLC-1", "boolean", "%DB4.DBX515.0")));
 

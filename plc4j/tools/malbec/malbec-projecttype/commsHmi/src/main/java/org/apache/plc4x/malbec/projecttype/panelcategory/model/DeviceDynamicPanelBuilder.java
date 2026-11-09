@@ -98,9 +98,6 @@ public interface DeviceDynamicPanelBuilder {
                 if (i++ > 0) {
                     sb.append("&");
                 }
-                // Los valores se codifican para que un '&' o un '=' dentro de ellos no
-                // rompa el formato. Un valor sin caracteres reservados se escribe igual
-                // que antes, asi que las URLs existentes no cambian.
                 sb.append(UrlDisassembler.codificar(e.getKey()))
                         .append("=")
                         .append(UrlDisassembler.codificar(e.getValue() == null ? "" : e.getValue()));
@@ -110,13 +107,13 @@ public interface DeviceDynamicPanelBuilder {
     }
 
     private static String hostInBrackets(String host) {
-        String limpio = host.trim();
-        if (limpio.startsWith("[") && limpio.endsWith("]")) {
-            return limpio;
+        String clean = host.trim();
+        if (clean.startsWith("[") && clean.endsWith("]")) {
+            return clean;
         }
-        if (limpio.contains("/") || !limpio.contains(":")) {
-            return limpio;
+        if (clean.contains("/") || !clean.contains(":")) {
+            return clean;
         }
-        return "[" + limpio + "]";
+        return "[" + clean + "]";
     }
 }

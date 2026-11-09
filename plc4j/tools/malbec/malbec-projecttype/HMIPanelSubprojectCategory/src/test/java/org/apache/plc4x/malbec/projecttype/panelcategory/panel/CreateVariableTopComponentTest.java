@@ -117,7 +117,13 @@ class CreateVariableTopComponentTest {
 
         CreateVariableTopComponent component = componentRef.get();
         var table = component.getTableVariables();
-        int[] spinnerColumns = {9, 10, 14, 15, 16};
+        int[] spinnerColumns = {
+            VariableTableModel.COL_DISPLAY_LIMIT_LOW,
+            VariableTableModel.COL_DISPLAY_LIMIT_HIGH,
+            VariableTableModel.COL_CONTROL_LIMIT_LOW,
+            VariableTableModel.COL_CONTROL_LIMIT_HIGH,
+            VariableTableModel.COL_CONTROL_MIN_STEP
+        };
 
         for (int column : spinnerColumns) {
             TableCellEditor editor = table.getCellEditor(0, column);
@@ -141,8 +147,8 @@ class CreateVariableTopComponentTest {
         assertFalse(table.getTableHeader().getReorderingAllowed());
 
         int[] minimumWidths = {
-            60, 120, 120, 90, 110, 200, 80, 80, 80,
-            100, 110, 200, 90, 100, 100, 110, 100
+            60, 120, 120, 90, 110, 90, 200, 80, 80,
+            80, 100, 110, 200, 90, 100, 100, 110, 100
         };
         for (int column = 0; column < minimumWidths.length; column++) {
             assertTrue(table.getColumnModel().getColumn(column).getMinWidth()
@@ -160,9 +166,9 @@ class CreateVariableTopComponentTest {
         SwingUtilities.invokeAndWait(() -> componentRef.set(new CreateVariableTopComponent()));
 
         JTable table = componentRef.get().getTableVariables();
-        assertMaxLength(table, 1, 20);
-        assertMaxLength(table, 4, 15);
-        assertMaxLength(table, 5, 40);
+        assertMaxLength(table, VariableTableModel.COL_NAME, 20);
+        assertMaxLength(table, VariableTableModel.COL_TAG, 15);
+        assertMaxLength(table, VariableTableModel.COL_DESCRIPTOR, 40);
     }
 
     @Test
@@ -195,7 +201,8 @@ class CreateVariableTopComponentTest {
         assertEquals("PLC-1", table.getValueAt(0, 2));
         assertEquals("real", table.getValueAt(0, 3));
         assertEquals("%DB1.DBD0", table.getValueAt(0, 4));
-        assertEquals("Oven temperature", table.getValueAt(0, 5));
+        assertEquals("Oven temperature",
+                table.getValueAt(0, VariableTableModel.COL_DESCRIPTOR));
     }
 
     @Test
@@ -224,10 +231,12 @@ class CreateVariableTopComponentTest {
         assertFalse(component.hasUnsavedChanges());
 
         JTable table = component.getTableVariables();
-        SwingUtilities.invokeAndWait(() -> table.setValueAt("Oven", 0, 5));
+        SwingUtilities.invokeAndWait(() -> table.setValueAt(
+                "Oven", 0, VariableTableModel.COL_DESCRIPTOR));
         assertTrue(component.hasUnsavedChanges());
 
-        SwingUtilities.invokeAndWait(() -> table.setValueAt("Oven temperature", 0, 5));
+        SwingUtilities.invokeAndWait(() -> table.setValueAt(
+                "Oven temperature", 0, VariableTableModel.COL_DESCRIPTOR));
         assertFalse(component.hasUnsavedChanges());
 
         SwingUtilities.invokeAndWait(component::addVariableRow);
@@ -457,7 +466,7 @@ class CreateVariableTopComponentTest {
             table.setValueAt("int", 0, 3);
             table.setValueAt("Temperature", 0, 1);
             table.setValueAt("%DB1.DBD0", 0, 4);
-            table.setValueAt("Oven", 0, 5);
+            table.setValueAt("Oven", 0, VariableTableModel.COL_DESCRIPTOR);
             component.duplicateRow(0, 3);
         });
 
@@ -468,14 +477,15 @@ class CreateVariableTopComponentTest {
         assertEquals("%DB1.DBD4", table.getValueAt(1, 4));
         assertEquals("%DB1.DBD8", table.getValueAt(2, 4));
         assertEquals("%DB1.DBD12", table.getValueAt(3, 4));
-        assertEquals("Oven", table.getValueAt(1, 5));
-        assertEquals("Oven", table.getValueAt(2, 5));
-        assertEquals("Oven", table.getValueAt(3, 5));
+        assertEquals("Oven", table.getValueAt(1, VariableTableModel.COL_DESCRIPTOR));
+        assertEquals("Oven", table.getValueAt(2, VariableTableModel.COL_DESCRIPTOR));
+        assertEquals("Oven", table.getValueAt(3, VariableTableModel.COL_DESCRIPTOR));
 
-        Object uuid1 = table.getModel().getValueAt(1, 17);
-        Object uuid2 = table.getModel().getValueAt(2, 17);
-        Object uuid3 = table.getModel().getValueAt(3, 17);
-        assertNotEquals(table.getModel().getValueAt(0, 17), uuid1);
+        Object uuid1 = table.getModel().getValueAt(1, VariableTableModel.COL_UUID);
+        Object uuid2 = table.getModel().getValueAt(2, VariableTableModel.COL_UUID);
+        Object uuid3 = table.getModel().getValueAt(3, VariableTableModel.COL_UUID);
+        assertNotEquals(table.getModel().getValueAt(0, VariableTableModel.COL_UUID),
+                uuid1);
         assertNotEquals(uuid1, uuid2);
         assertNotEquals(uuid2, uuid3);
         assertNotEquals(uuid1, uuid3);

@@ -494,7 +494,7 @@ final class ConnectionSection {
         if (activeBuilder == null || url == null || url.isBlank()) {
             return;
         }
-        UrlDisassembler.Partes partes = UrlDisassembler.disassemble(url);
+        UrlDisassembler.Parts partes = UrlDisassembler.disassemble(url);
         if (partes == null) {
             txtUrlPreview.setText(url.trim());
             JOptionPane.showMessageDialog(padre,
@@ -513,7 +513,7 @@ final class ConnectionSection {
         refreshUrlPreview();
     }
 
-    private void loadHosts(UrlDisassembler.Partes partes) {
+    private void loadHosts(UrlDisassembler.Parts partes) {
         String hostGuardado = partes.host();
         if (activeBuilder == null || !activeBuilder.supportsRedundantHost()) {
             txtHost.setText(hostGuardado);

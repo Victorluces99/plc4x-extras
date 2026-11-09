@@ -19,6 +19,8 @@
 package org.apache.plc4x.malbec.hmi.impl;
 
 import java.awt.Image;
+import java.util.ArrayList;
+import java.util.List;
 import javax.swing.Action;
 import org.apache.plc4x.malbec.hmi.action.CreateProjectFolders;
 import org.netbeans.api.annotations.common.StaticResource;
@@ -28,11 +30,14 @@ import org.netbeans.spi.project.ui.support.CommonProjectActions;
 import org.netbeans.spi.project.ui.support.NodeFactorySupport;
 import org.openide.filesystems.FileObject;
 import org.openide.loaders.DataFolder;
+import org.openide.loaders.DataObject;
 import org.openide.loaders.DataObjectNotFoundException;
 import org.openide.nodes.AbstractNode;
 import org.openide.nodes.Children;
 import org.openide.nodes.FilterNode;
 import org.openide.nodes.Node;
+import org.openide.nodes.Node.Property;
+import org.openide.nodes.Node.PropertySet;
 import org.openide.util.Exceptions;
 import org.openide.util.ImageUtilities;
 import org.openide.util.Lookup;
@@ -99,6 +104,40 @@ public class Plc4xHMISubProjectLogicalViewProviderImpl implements  LogicalViewPr
                         CommonProjectActions.deleteProjectAction(),
                         CommonProjectActions.closeProjectAction()
                     };
+        }
+
+        @Override
+        public boolean canRename() {
+            return false;
+        }
+
+        @Override
+        public void setName(String name) {
+            // The HMI node must not be renamed.
+        }
+
+        @Override
+        public PropertySet[] getPropertySets() {
+            PropertySet[] propertySets = super.getPropertySets();
+            List<PropertySet> filteredPropertySets = new ArrayList<>(propertySets.length);
+            for (PropertySet propertySet : propertySets) {
+                filteredPropertySets.add(new PropertySet(
+                        propertySet.getName(),
+                        propertySet.getDisplayName(),
+                        propertySet.getShortDescription()) {
+                    @Override
+                    public Property<?>[] getProperties() {
+                        List<Property<?>> properties = new ArrayList<>();
+                        for (Property<?> property : propertySet.getProperties()) {
+                            if (!DataObject.PROP_NAME.equals(property.getName())) {
+                                properties.add(property);
+                            }
+                        }
+                        return properties.toArray(new Property<?>[0]);
+                    }
+                });
+            }
+            return filteredPropertySets.toArray(new PropertySet[0]);
         }
 
         @Override

@@ -29,7 +29,6 @@ import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectManager;
 import org.netbeans.spi.project.ui.LogicalViewProvider;
 import org.netbeans.spi.project.ui.support.NodeFactory;
-import org.netbeans.spi.project.ui.support.NodeFactorySupport;
 import org.netbeans.spi.project.ui.support.NodeList;
 import org.openide.filesystems.FileAttributeEvent;
 import org.openide.filesystems.FileChangeListener;
@@ -41,8 +40,6 @@ import org.openide.util.Exceptions;
 
 @NodeFactory.Registration(projectType = ProjectIds.PANEL_PROJECT_TYPE, position = 50)
 public class HMIPanelCategorySubprojectNodeFactory implements NodeFactory {
-
-    
 
     @Override
     public NodeList<?> createNodes(Project project) {

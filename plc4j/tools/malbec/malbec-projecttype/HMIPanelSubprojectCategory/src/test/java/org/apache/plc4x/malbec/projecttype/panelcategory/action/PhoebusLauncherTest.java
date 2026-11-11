@@ -51,7 +51,7 @@ class PhoebusLauncherTest {
 
     @Test
     void elMementoDelUsuarioSeGuardaAntesDeTocarlo(@TempDir Path home) throws Exception {
-        Path memento = PhoebusLauncher.rutaMemento(home);
+        Path memento = PhoebusLauncher.mementoPath(home);
         Path respaldo = PhoebusLauncher.backupPath(home);
         Files.createDirectories(memento.getParent());
         Files.writeString(memento, "contenido del usuario");
@@ -65,7 +65,7 @@ class PhoebusLauncherTest {
 
     @Test
     void alTerminarPhoebusSeRestauraElMementoDelUsuario(@TempDir Path home) throws Exception {
-        Path memento = PhoebusLauncher.rutaMemento(home);
+        Path memento = PhoebusLauncher.mementoPath(home);
         Path respaldo = PhoebusLauncher.backupPath(home);
         Files.createDirectories(memento.getParent());
         Files.writeString(memento, "contenido del usuario");
@@ -80,7 +80,7 @@ class PhoebusLauncherTest {
 
     @Test
     void siPhoebusHaCambiadoElMementoNoSeToca(@TempDir Path home) throws Exception {
-        Path memento = PhoebusLauncher.rutaMemento(home);
+        Path memento = PhoebusLauncher.mementoPath(home);
         Path respaldo = PhoebusLauncher.backupPath(home);
         Files.createDirectories(memento.getParent());
         Files.writeString(memento, "contenido del usuario");
@@ -98,7 +98,7 @@ class PhoebusLauncherTest {
 
     @Test
     void sinMementoPrevioNoSeDejaRespaldo(@TempDir Path home) throws Exception {
-        Path memento = PhoebusLauncher.rutaMemento(home);
+        Path memento = PhoebusLauncher.mementoPath(home);
         Path respaldo = PhoebusLauncher.backupPath(home);
         Files.createDirectories(respaldo.getParent());
         Files.writeString(respaldo, "respaldo viejo de una sesion anterior");
@@ -124,7 +124,7 @@ class PhoebusLauncherTest {
 
     @Test
     void elMementoVaUtf8(@TempDir Path home) throws Exception {
-        Path memento = PhoebusLauncher.rutaMemento(home);
+        Path memento = PhoebusLauncher.mementoPath(home);
         Path respaldo = PhoebusLauncher.backupPath(home);
 
         PhoebusLauncher.writeMemento(memento, respaldo, "descripción con ñ");
@@ -151,7 +151,7 @@ class PhoebusLauncherTest {
 
     @Test
     void abrirUnSegundoBobNoDestruyeElMementoOriginal(@TempDir Path home) throws Exception {
-        Path memento = PhoebusLauncher.rutaMemento(home);
+        Path memento = PhoebusLauncher.mementoPath(home);
         Path respaldo = PhoebusLauncher.backupPath(home);
         Files.createDirectories(memento.getParent());
         Files.writeString(memento, "memento original del usuario");
@@ -171,7 +171,7 @@ class PhoebusLauncherTest {
 
     @Test
     void trasRestaurarSePuedeVolverABackupar(@TempDir Path home) throws Exception {
-        Path memento = PhoebusLauncher.rutaMemento(home);
+        Path memento = PhoebusLauncher.mementoPath(home);
         Path respaldo = PhoebusLauncher.backupPath(home);
         Files.createDirectories(memento.getParent());
         Files.writeString(memento, "original");

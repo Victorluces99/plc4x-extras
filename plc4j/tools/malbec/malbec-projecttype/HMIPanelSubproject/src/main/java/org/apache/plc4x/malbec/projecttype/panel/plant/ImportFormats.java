@@ -34,8 +34,8 @@ import org.openide.util.Lookup;
 public final class ImportFormats {
 
     private static final Logger LOGGER = Logger.getLogger(ImportFormats.class.getName());
-    public static final Map<String, String> FORMATOS =
-            Map.of("xml", "Modelo de planta (*.xml)");
+    public static final Map<String, String> FORMATS =
+            Map.of("xml", "Plant Model (*.xml)");
 
     private ImportFormats() {
     }
@@ -47,43 +47,42 @@ public final class ImportFormats {
                 ? "" : name.substring(punto + 1).toLowerCase(Locale.ROOT);
     }
 
-    public static boolean extensionAdmitida(File file) {
-        return FORMATOS.containsKey(extensionOf(file));
+    public static boolean extensionApproved(File file) {
+        return FORMATS.containsKey(extensionOf(file));
     }
 
     public static String allowedFormats() {
-        return String.join(" o ", FORMATOS.values());
+        return String.join(" o ", FORMATS.values());
     }
 
     public static FilenameFilter fileFilter() {
-        return (directorio, name) -> new File(directorio, name).isDirectory()
-                || FORMATOS.containsKey(extensionOf(new File(name)));
+        return (dir, name) -> new File(dir, name).isDirectory()
+                || FORMATS.containsKey(extensionOf(new File(name)));
     }
 
     public static Set<String> formatsWithoutProvider(
-            Collection<? extends S88RepositoryProvider> providers, Collection<String> declarados) {
-        Set<String> sinProvider = new TreeSet<>(declarados);
+            Collection<? extends S88RepositoryProvider> providers, Collection<String> declared) {
+        Set<String> withoutProvider = new TreeSet<>(declared);
         for (S88RepositoryProvider provider : providers) {
-            sinProvider.removeIf(provider::accepts);
+            withoutProvider.removeIf(provider::accepts);
         }
-        return sinProvider;
+        return withoutProvider;
     }
 
-    private static final AtomicBoolean AVISO_DADO = new AtomicBoolean();
+    private static final AtomicBoolean NOTICE_ISSUED = new AtomicBoolean();
 
     public static boolean warnMisalignedFormats() {
-        if (!AVISO_DADO.compareAndSet(false, true)) {
+        if (!NOTICE_ISSUED.compareAndSet(false, true)) {
             return false;
         }
-        Set<String> sinProvider = formatsWithoutProvider(
-                Lookup.getDefault().lookupAll(S88RepositoryProvider.class),
-                FORMATOS.keySet());
-        if (!sinProvider.isEmpty()) {
+        Set<String> withoutProvider = formatsWithoutProvider(Lookup.getDefault().lookupAll(S88RepositoryProvider.class),
+                FORMATS.keySet());
+        if (!withoutProvider.isEmpty()) {
             
 LOGGER.log(Level.WARNING,
-                    "Se declaran formatos de modelo de planta que ningun S88RepositoryProvider"
-                            + " acepta: {0}",
-                    sinProvider);
+                    "Plant model formats are declared that no S88RepositoryProvider"
+                            + " accept: {0}",
+                    withoutProvider);
         }
         return true;
     }

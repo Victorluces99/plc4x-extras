@@ -33,8 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.plc4x.malbec.projecttype.panel.plant.ImportResult.Exito;
-import org.apache.plc4x.malbec.projecttype.panel.plant.ImportResult.Fallo;
+import org.apache.plc4x.malbec.projecttype.panel.plant.ImportResult.Success;
+import org.apache.plc4x.malbec.projecttype.panel.plant.ImportResult.fail;
 import org.apache.plc4x.malbec.projecttype.panel.plant.PlantSnapshot.AreaNode;
 import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 import org.apache.plc4x.malbec.s88.api.S88Element;
@@ -53,30 +53,30 @@ public final class PlantImporter {
     private PlantImporter() {
     }
 
-private static final String INVALIDOS = "/\\:*?\"<>|";
+    private static final String INVALID = "/\\:*?\"<>|";
 
     public static ImportResult importPlant(File file, FileObject panel) {
-        S88Repository repositorio;
+        S88Repository repository;
         try {
-            repositorio = S88ProjectServices.createRepository(
+            repository = S88ProjectServices.createRepository(
                     extensionOf(file), new Storage(file));
         } catch (RuntimeException ex) {
-            LOGGER.log(Level.WARNING, "No hay repositorio para " + file.getName(), ex);
-            return new Fallo(file, "el formato " + extensionOf(file) + " no estÃ¡ soportado.");
+            LOGGER.log(Level.WARNING, "There is no repository for " + file.getName(), ex);
+            return new fail(file, "the format " + extensionOf(file) + " is not supported.");
         }
 
-        S88PlantModel modelo;
+        S88PlantModel model;
         try {
-            modelo = repositorio.loadPlant();
+            model = repository.loadPlant();
         } catch (RuntimeException ex) {
-            LOGGER.log(Level.WARNING, "No se pudo interpretar " + file.getName(), ex);
-            return new Fallo(file, describe(ex));
+            LOGGER.log(Level.WARNING, "It could not be interpreted " + file.getName(), ex);
+            return new fail(file, describes(ex));
         }
 
-        S88Element root = modelo == null ? null : modelo.getRoot();
+        S88Element root = model == null ? null : model.getRoot();
         String areaId = root == null || root.getId() == null ? "" : root.getId().trim();
         if (areaId.isEmpty()) {
-            return new Fallo(file, "el archivo no define un Ã¡rea de planta.");
+            return new fail(file, " The file does not define a plant area.");
         }
 
         File panelFile = FileUtil.toFile(panel);
@@ -85,58 +85,58 @@ private static final String INVALIDOS = "/\\:*?\"<>|";
         }
 
         FileObject imageFo = panel.getFileObject("image");
-        String problema = targetProblem(imageFo);
-        if (problema != null) {
-            LOGGER.log(Level.WARNING, "No se importÃ³ {0}: {1}",
-                    new Object[]{file.getName(), problema});
-            return new Fallo(file, problema);
+        String problem = targetProblem(imageFo);
+        if (problem != null) {
+            LOGGER.log(Level.WARNING, "Failed to import {0}: {1}",
+                    new Object[]{file.getName(), problem});
+            return new fail(file, problem);
         }
 
-        int fallidos = 0;
+        int failed = 0;
 
-        String nombreInvalido = firstInvalidName(root);
-        if (nombreInvalido != null) {
-            LOGGER.log(Level.WARNING, "No se importÃ³ {0}: {1}",
-                    new Object[]{file.getName(), nombreInvalido});
-            return new Fallo(file, nombreInvalido);
+        String invalidName = firstInvalidName(root);
+        if (invalidName != null) {
+            LOGGER.log(Level.WARNING, "Failed to import {0}: {1}",
+                    new Object[]{file.getName(), invalidName});
+            return new fail(file, invalidName);
         }
 
-        List<FileObject> creados = new ArrayList<>();
+        List<FileObject> created = new ArrayList<>();
         if (root.getChildren() != null) {
             for (S88Element child : root.getChildren()) {
-                fallidos += reverseChildStack(child, imageFo, creados);
+                failed += reverseChildStack(child, imageFo, created);
             }
         }
-        if (fallidos > 0) {
-            undo(creados);
-            return new Fallo(file, fallidos + " nodo(s) del modelo no se pudieron crear;"
-                    + " la importaciÃ³n estÃ¡ incompleta.");
+        if (failed > 0) {
+            undo(created);
+            return new fail(file, failed + " Model node(s) could not be created;"
+                    + " The import is incomplete.");
         }
 
         try {
             File dir = FileUtil.toFile(panel);
             if (dir == null) {
-                undo(creados);
-                return new Fallo(file, "no se pudo escribir " + PlantModelXml.FILE_NAME
-                        + " en el proyecto.");
+                undo(created);
+                return new fail(file, "It could not be written " + PlantModelXml.FILE_NAME
+                        + " in the project.");
             }
             AreaNode snapshot = PlantSnapshot.collectElement(root);
             File target = new File(dir, PlantModelXml.FILE_NAME);
             PlantModelXml.export(snapshot, target);
             FileUtil.refreshFor(target);
-            LOGGER.log(Level.INFO, "Snapshot del modelo de planta en: {0}",
+            LOGGER.log(Level.INFO, "Snapshot of the plant model at: {0}",
                     target.getAbsolutePath());
         } catch (IOException ex) {
-            undo(creados);
-            LOGGER.log(Level.WARNING, "No se pudo escribir " + PlantModelXml.FILE_NAME, ex);
-            return new Fallo(file, describe(ex));
+            undo(created);
+            LOGGER.log(Level.WARNING, "It could not be written " + PlantModelXml.FILE_NAME, ex);
+            return new fail(file, describes(ex));
         }
 
         if (panelFile != null) {
             FileUtil.refreshAll();
             ProjectManager.getDefault().clearNonProjectCache();
         }
-        return new Exito(file, areaId);
+        return new Success(file, areaId);
     }
 
     public static int reverseChildStack(S88Element root, FileObject baseDir) {
@@ -144,14 +144,14 @@ private static final String INVALIDOS = "/\\:*?\"<>|";
     }
 
     public static int reverseChildStack(S88Element root, FileObject baseDir,
-            List<FileObject> creados) {
+            List<FileObject> created) {
         if (root == null || baseDir == null) {
             return 0;
         }
 
         Deque<S88Element> stack = new ArrayDeque<>();
         Map<S88Element, FileObject> dirMap = new HashMap<>();
-        int fallidos = 0;
+        int failed = 0;
 
         stack.push(root);
         dirMap.put(root, baseDir);
@@ -166,21 +166,21 @@ private static final String INVALIDOS = "/\\:*?\"<>|";
 
             try {
 
-String name = validFolderName(node.getId());
+                String name = validFolderName(node.getId());
                 if (name == null) {
-                    fallidos++;
-                    LOGGER.log(Level.WARNING, "Nodo rechazado: {0}",
+                    failed++;
+                    LOGGER.log(Level.WARNING, "Node rejected: {0}",
                             nameProblem(node.getId()));
                     continue;
                 }
-                FileObject currentDir = createFolder(name, parentDir, creados);
-                createCfgFile(currentDir, creados);
+                FileObject currentDir = createFolder(name, parentDir, created);
+                createCfgFile(currentDir, created);
 
-                LOGGER.fine(() -> "Propiedades en " + node.getId() + ": " + node.getProperties());
+                LOGGER.fine(() -> "Properties in " + node.getId() + ": " + node.getProperties());
                 LOGGER.fine(() -> "check: " + node.isCheck());
                 if (node.isCheck()) {
-                    LOGGER.fine(() -> "Creando BOB para: " + node.getId());
-                    createBobFile(name, currentDir, creados);
+                    LOGGER.fine(() -> "Creating BOB for: " + node.getId());
+                    createBobFile(name, currentDir, created);
                 }
 
                 List<S88Element> children = node.getChildren();
@@ -192,18 +192,18 @@ String name = validFolderName(node.getId());
                     }
                 }
             } catch (IOException ex) {
-                fallidos++;
-                LOGGER.log(Level.WARNING, "No se pudo crear el nodo '" + node.getId() + "'", ex);
+                failed++;
+                LOGGER.log(Level.WARNING, "The node could not be created '" + node.getId() + "'", ex);
             }
         }
-        return fallidos;
+        return failed;
     }
 
-static String validFolderName(String id) {
+    static String validFolderName(String id) {
         return nameProblem(id) == null ? id.trim() : null;
     }
 
-static String nameProblem(String id) {
+    static String nameProblem(String id) {
         if (id == null || id.isBlank()) {
             return "a model node has no identifier";
         }
@@ -215,8 +215,8 @@ static String nameProblem(String id) {
         if (name.contains("..")) {
             return "identifier '" + name + "' contains '..' and could create folders outside the panel";
         }
-        for (int i = 0; i < INVALIDOS.length(); i++) {
-            char c = INVALIDOS.charAt(i);
+        for (int i = 0; i < INVALID.length(); i++) {
+            char c = INVALID.charAt(i);
             if (name.indexOf(c) >= 0) {
                 return "identifier '" + name + "' contains character '" + c + "' which cannot be used in a folder name";
             }
@@ -229,22 +229,22 @@ static String nameProblem(String id) {
     }
 
     public static String firstInvalidName(S88Element root) {
-        Deque<S88Element> pendientes = new ArrayDeque<>();
+        Deque<S88Element> pending = new ArrayDeque<>();
         if (root != null) {
-            pendientes.push(root);
+            pending.push(root);
         }
-        while (!pendientes.isEmpty()) {
-            S88Element node = pendientes.pop();
-            String problema = nameProblem(node.getId());
-            if (problema != null) {
-                return problema;
+        while (!pending.isEmpty()) {
+            S88Element node = pending.pop();
+            String problem = nameProblem(node.getId());
+            if (problem != null) {
+                return problem;
             }
             List<S88Element> children = node.getChildren();
             if (children != null) {
                 for (int i = children.size() - 1; i >= 0; i--) {
                     S88Element child = children.get(i);
                     if (child != null) {
-                        pendientes.push(child);
+                        pending.push(child);
                     }
                 }
             }
@@ -252,7 +252,7 @@ static String nameProblem(String id) {
         return null;
     }
 
-public static String targetProblem(FileObject imageFo) {
+    public static String targetProblem(FileObject imageFo) {
         if (imageFo == null) {
             return "the panel does not have the 'image' folder where the structure is created; nothing was created.";
         }
@@ -264,52 +264,52 @@ public static String targetProblem(FileObject imageFo) {
 
     static String extensionOf(File file) {
         String name = file.getName();
-        int punto = name.lastIndexOf('.');
-        return punto < 0 || punto == name.length() - 1
-                ? "" : name.substring(punto + 1).toLowerCase(java.util.Locale.ROOT);
+        int point = name.lastIndexOf('.');
+        return point < 0 || point == name.length() - 1
+                ? "" : name.substring(point + 1).toLowerCase(java.util.Locale.ROOT);
     }
 
-    private static String describe(Throwable ex) {
-        String mensaje = ex.getMessage();
-        return mensaje == null || mensaje.isBlank() ? ex.getClass().getSimpleName() : mensaje;
+    private static String describes(Throwable ex) {
+        String message = ex.getMessage();
+        return message == null || message.isBlank() ? ex.getClass().getSimpleName() : message;
     }
 
     private static FileObject createFolder(String name, FileObject parentDir,
-            List<FileObject> creados) throws IOException {
+            List<FileObject> created) throws IOException {
         FileObject folder = parentDir.getFileObject(name);
         if (folder != null) {
             return folder;
         }
-        FileObject nuevo = parentDir.createFolder(name);
-        creados.add(nuevo);
-        return nuevo;
+        FileObject news = parentDir.createFolder(name);
+        created.add(news);
+        return news;
     }
 
-    private static void createCfgFile(FileObject folder, List<FileObject> creados) throws IOException {
+    private static void createCfgFile(FileObject folder, List<FileObject> created) throws IOException {
         if (folder.getFileObject(ProjectIds.CATEGORY_MARKER_FILE) == null) {
-            creados.add(folder.createData(ProjectIds.CATEGORY_MARKER_FILE));
+            created.add(folder.createData(ProjectIds.CATEGORY_MARKER_FILE));
         }
     }
 
     private static void createBobFile(String name, FileObject folder,
-            List<FileObject> creados) throws IOException {
+            List<FileObject> created) throws IOException {
         if (folder.getFileObject(name + ".bob") == null) {
-            creados.add(folder.createData(name, "bob"));
+            created.add(folder.createData(name, "bob"));
         }
     }
 
-    static void undo(List<FileObject> creados) {
-        for (int i = creados.size() - 1; i >= 0; i--) {
-            FileObject fo = creados.get(i);
+    static void undo(List<FileObject> created) {
+        for (int i = created.size() - 1; i >= 0; i--) {
+            FileObject fo = created.get(i);
             try {
                 if (fo.isValid()) {
                     fo.delete();
                 }
             } catch (IOException ex) {
-                LOGGER.log(Level.WARNING, "No se pudo deshacer " + fo.getName(), ex);
+                LOGGER.log(Level.WARNING, "It couldn't be undone " + fo.getName(), ex);
             }
         }
-        creados.clear();
+        created.clear();
     }
 
     private record Storage(File file) implements S88Storage {

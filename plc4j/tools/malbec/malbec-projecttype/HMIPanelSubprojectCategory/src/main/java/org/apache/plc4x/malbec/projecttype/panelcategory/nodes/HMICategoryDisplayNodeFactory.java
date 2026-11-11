@@ -24,6 +24,7 @@ import java.util.List;
 import javax.swing.Action;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import org.apache.plc4x.malbec.projecttype.panelcategory.action.ExportFileAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryDuplicateDisplayAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.action.HMICategoryOpenPhoebusAction;
 import org.apache.plc4x.malbec.projecttype.panelcategory.CategoryIcons;
@@ -36,7 +37,6 @@ import org.openide.filesystems.FileChangeListener;
 import org.openide.filesystems.FileEvent;
 import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileRenameEvent;
-import org.openide.loaders.DataNode;
 import org.openide.loaders.DataObject;
 import org.openide.loaders.DataObjectNotFoundException;
 import org.openide.nodes.Children;
@@ -65,13 +65,11 @@ public class HMICategoryDisplayNodeFactory implements NodeFactory {
             refreshKeys();
         }
 
-        // 1. Devuelve la lista de llaves (archivos .bob) actual
         @Override
         public synchronized List<FileObject> keys() {
             return List.copyOf(keys);
         }
 
-        // 2. Transforma cada llave (FileObject) en su Node correspondiente
         @Override
         public Node node(FileObject key) {
             try {
@@ -86,7 +84,6 @@ public class HMICategoryDisplayNodeFactory implements NodeFactory {
 
         }
 
-        // 3. Registro de Listeners requerido por la interfaz NodeList
         @Override
         public void addChangeListener(ChangeListener cl) {
             listeners.add(cl);
@@ -97,7 +94,6 @@ public class HMICategoryDisplayNodeFactory implements NodeFactory {
             listeners.remove(cl);
         }
 
-        // Notifica a la interfaz de NetBeans que los datos cambiaron
         private void fireChange() {
             ChangeEvent event = new ChangeEvent(this);
             for (ChangeListener listener : new ArrayList<>(listeners)) {
@@ -127,7 +123,6 @@ public class HMICategoryDisplayNodeFactory implements NodeFactory {
 
                 }
             }
-            // Disparar evento para re-renderizar el árbol
             fireChange();
         }
 
@@ -167,18 +162,14 @@ public class HMICategoryDisplayNodeFactory implements NodeFactory {
 
     }
 
-    private static class HMIBobNode extends DataNode {
+    private static class HMIBobNode extends AbstractFileNode {
 
         private final FileObject fileObject;
 
         public HMIBobNode(DataObject dataObject, FileObject fileObject) {
-            super(dataObject, Children.LEAF);
+            super(dataObject, fileObject, Children.LEAF);
             this.fileObject = fileObject;
-
-            String iconBase = CategoryIcons.DEFAULT;
-            if (iconBase != null && !iconBase.isEmpty()) {
-                setIconBaseWithExtension(iconBase);
-            }
+            setOwnIconBase(CategoryIcons.DEFAULT);
         }
 
         @Override
@@ -189,6 +180,8 @@ public class HMICategoryDisplayNodeFactory implements NodeFactory {
             allActions.add(new HMICategoryOpenPhoebusAction(fileObject));
             allActions.add(null);
             allActions.add(new HMICategoryDuplicateDisplayAction(fileObject));
+            allActions.add(null);
+            allActions.add(new ExportFileAction(fileObject));
             allActions.add(null);
             for (Action action : defaultActions) {
                 allActions.add(action);

@@ -33,18 +33,18 @@ final class ZipUtils {
     private ZipUtils() {
     }
 
-    static void zipFolder(Path origen, Path destino) throws IOException {
-        Path destinoReal = destino.toAbsolutePath().normalize();
-        try (OutputStream salida = Files.newOutputStream(destino);
-                ZipOutputStream zos = new ZipOutputStream(salida)) {
+    static void zipFolder(Path source, Path target) throws IOException {
+        Path realTarget = target.toAbsolutePath().normalize();
+        try (OutputStream output = Files.newOutputStream(target);
+                ZipOutputStream zos = new ZipOutputStream(output)) {
 
-            Files.walkFileTree(origen, new SimpleFileVisitor<>() {
+            Files.walkFileTree(source, new SimpleFileVisitor<>() {
 
                 @Override
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
                         throws IOException {
-                    if (!dir.equals(origen)) {
-                        String relativa = relativa(origen, dir) + "/";
+                    if (!dir.equals(source)) {
+                        String relativa = relativa(source, dir) + "/";
                         zos.putNextEntry(new ZipEntry(relativa));
                         zos.closeEntry();
                     }
@@ -54,10 +54,10 @@ final class ZipUtils {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
                         throws IOException {
-                    if (file.toAbsolutePath().normalize().equals(destinoReal)) {
+                    if (file.toAbsolutePath().normalize().equals(realTarget)) {
                         return FileVisitResult.CONTINUE;
                     }
-                    zos.putNextEntry(new ZipEntry(relativa(origen, file)));
+                    zos.putNextEntry(new ZipEntry(relativa(source, file)));
                     Files.copy(file, zos);
                     zos.closeEntry();
                     return FileVisitResult.CONTINUE;
@@ -66,7 +66,7 @@ final class ZipUtils {
         }
     }
 
-    private static String relativa(Path origen, Path hijo) {
-        return origen.relativize(hijo).toString().replace('\\', '/');
+    private static String relativa(Path source, Path child) {
+        return source.relativize(child).toString().replace('\\', '/');
     }
 }

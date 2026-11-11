@@ -132,19 +132,19 @@ class DeviceNode extends AbstractNode {
     }
 
     private void openEditForm() {
-        Frame ventana = DeleteDeviceDialog.mainWindow();
+        Frame frame = DeleteDeviceDialog.mainWindow();
         try {
-            DeviceConfigData actual = device();
-            if (actual == null) {
-                JOptionPane.showMessageDialog(ventana,
+            DeviceConfigData current = device();
+            if (current == null) {
+                JOptionPane.showMessageDialog(frame,
                         DeviceNodeLabels.unknownDeviceMessage(currentName()),
                         "It cannot be modified", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            CreateDeviceDialog.forEdit(ventana, project, actual).setVisible(true);
+            CreateDeviceDialog.forEdit(frame, project, current).setVisible(true);
         } catch (RuntimeException ex) {
             Exceptions.printStackTrace(ex);
-            JOptionPane.showMessageDialog(ventana,
+            JOptionPane.showMessageDialog(frame,
                     "Could not open the device modification:\n\n" + ex.getMessage(),
                     "Error while modifying", JOptionPane.ERROR_MESSAGE);
         }

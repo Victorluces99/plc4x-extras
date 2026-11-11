@@ -66,13 +66,11 @@ class CommunicationNodeList implements NodeList<String>, ChangeListener {
         nodesUuid.put(uuid, creado);
         return creado;
     }
-
-    /** Dispositivo vigente con ese UUID, o null si no hay modelo o no existe. */
+   
     DeviceConfigData device(String uuid) {
         return model == null || uuid == null ? null : model.findByUuid(uuid);
     }
-
-    /** Variables leidas del XML para el dispositivo, o lista vacia. */
+    
     List<PvConfigData> variables(String uuid) {
         return model == null || uuid == null ? List.of() : model.getVariables(uuid);
     }

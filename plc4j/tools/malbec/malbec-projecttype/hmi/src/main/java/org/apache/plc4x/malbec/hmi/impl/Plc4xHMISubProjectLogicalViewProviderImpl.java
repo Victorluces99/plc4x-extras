@@ -23,6 +23,8 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.Action;
 import org.apache.plc4x.malbec.hmi.action.CreateProjectFolders;
+import org.apache.plc4x.malbec.hmi.action.ImportPanel;
+import org.apache.plc4x.malbec.projecttype.panelcategory.NoDragNode;
 import org.netbeans.api.annotations.common.StaticResource;
 import org.netbeans.api.project.Project;
 import org.netbeans.spi.project.ui.LogicalViewProvider;
@@ -90,6 +92,7 @@ public class Plc4xHMISubProjectLogicalViewProviderImpl implements  LogicalViewPr
                     new ProxyLookup(
                     new Lookup[]{
                         Lookups.singleton(project),
+                        Lookups.singleton(NoDragNode.INSTANCE),
                         node.getLookup()
                     }));
             this.project = project;
@@ -99,6 +102,7 @@ public class Plc4xHMISubProjectLogicalViewProviderImpl implements  LogicalViewPr
         public Action[] getActions(boolean arg0) {
             return new Action[]{
                         new CreateProjectFolders(project.getProjectDirectory()),
+                        new ImportPanel(project.getProjectDirectory()),
                         CommonProjectActions.newFileAction(),
                         CommonProjectActions.copyProjectAction(),
                         CommonProjectActions.deleteProjectAction(),

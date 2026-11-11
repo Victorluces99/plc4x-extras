@@ -166,9 +166,9 @@ class CreateVariableTopComponentTest {
         SwingUtilities.invokeAndWait(() -> componentRef.set(new CreateVariableTopComponent()));
 
         JTable table = componentRef.get().getTableVariables();
-        assertMaxLength(table, VariableTableModel.COL_NAME, 20);
+        assertMaxLength(table, VariableTableModel.COL_NAME, 30);
         assertMaxLength(table, VariableTableModel.COL_TAG, 15);
-        assertMaxLength(table, VariableTableModel.COL_DESCRIPTOR, 40);
+        assertMaxLength(table, VariableTableModel.COL_DESCRIPTOR, 80);
     }
 
     @Test

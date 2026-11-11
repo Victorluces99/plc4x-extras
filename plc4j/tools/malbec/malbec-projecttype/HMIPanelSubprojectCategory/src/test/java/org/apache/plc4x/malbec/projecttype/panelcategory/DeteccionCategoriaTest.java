@@ -33,7 +33,7 @@ class DeteccionCategoriaTest {
                 file("README.txt"),
                 folder("documentacion", file("notas.md")));
 
-        Optional<String> detectado = DeteccionCategoria.detect(raiz);
+        Optional<String> detectado = DeteccionCategory.detect(raiz);
 
         assertTrue(detectado.isEmpty(),
                 "H-05: un proyecto sin marcador no debe devolver nada; antes devolvia null"
@@ -42,14 +42,14 @@ class DeteccionCategoriaTest {
 
     @Test
     void emptyProjectNeitherThrowsNorDetects() {
-        Optional<String> detectado = DeteccionCategoria.detect(folder("vacio"));
+        Optional<String> detectado = DeteccionCategory.detect(folder("vacio"));
 
         assertTrue(detectado.isEmpty());
     }
 
     @Test
     void nullRootDoesNotThrow() {
-        assertTrue(DeteccionCategoria.detect(null).isEmpty(),
+        assertTrue(DeteccionCategory.detect(null).isEmpty(),
                 "una raiz nula se resuelve como ausencia de categoria, no como excepcion");
     }
 
@@ -57,7 +57,7 @@ class DeteccionCategoriaTest {
     void detectaElMarcadorEnLaRaiz() {
         ProjectTree raiz = folder("llenadora", file("communication.xml"));
 
-        assertEquals(Optional.of("communication.xml"), DeteccionCategoria.detect(raiz));
+        assertEquals(Optional.of("communication.xml"), DeteccionCategory.detect(raiz));
     }
 
     @Test
@@ -65,7 +65,7 @@ class DeteccionCategoriaTest {
         ProjectTree raiz = folder("llenadora",
                 folder("config", folder("anidado", file("communication.xml"))));
 
-        assertEquals(Optional.of("communication.xml"), DeteccionCategoria.detect(raiz),
+        assertEquals(Optional.of("communication.xml"), DeteccionCategory.detect(raiz),
                 "el marcador puede estar anidado, como permitia el codigo anterior");
     }
 
@@ -76,7 +76,7 @@ class DeteccionCategoriaTest {
                 file("template.bob"),
                 file("communication.xml"));
 
-        assertEquals(Optional.of("template.bob"), DeteccionCategoria.detect(raiz),
+        assertEquals(Optional.of("template.bob"), DeteccionCategory.detect(raiz),
                 "template.bob va primero en la lista y debe ganar");
     }
 
@@ -84,7 +84,7 @@ class DeteccionCategoriaTest {
     void lookupIsCaseInsensitive() {
         ProjectTree raiz = folder("llenadora", file("communication.xml"));
 
-        assertEquals(Optional.of("communication.xml"), DeteccionCategoria.detect(raiz),
+        assertEquals(Optional.of("communication.xml"), DeteccionCategory.detect(raiz),
                 "el codigo anterior comparaba con equalsIgnoreCase");
     }
 
@@ -92,7 +92,7 @@ class DeteccionCategoriaTest {
     void folderDoesNotCountAsMarker() {
         ProjectTree raiz = folder("llenadora", folder("communication.xml"));
 
-        assertTrue(DeteccionCategoria.detect(raiz).isEmpty(),
+        assertTrue(DeteccionCategory.detect(raiz).isEmpty(),
                 "una carpeta con el nombre del marcador no es el fichero marcador");
     }
 
@@ -104,7 +104,7 @@ class DeteccionCategoriaTest {
             actual = new node("nivel-" + i, true, List.of(actual));
         }
 
-        assertTrue(DeteccionCategoria.detect(actual).isEmpty(),
+        assertTrue(DeteccionCategory.detect(actual).isEmpty(),
                 "un arbol muy profundo se recorre sin desbordar la pila");
     }
 
@@ -114,7 +114,7 @@ class DeteccionCategoriaTest {
                 new CountingTree("config", List.of(new CountingTree("communication.xml", List.of()))),
                 new CountingTree("datos", List.of(new CountingTree("datos.bin", List.of())))));
 
-        DeteccionCategoria.detect(raiz);
+        DeteccionCategory.detect(raiz);
 
         assertEquals(1, raiz.visitas,
                 "H-05: antes se recorria el arbol entero una vez por cada fichero marcador");
@@ -122,11 +122,11 @@ class DeteccionCategoriaTest {
 
     @Test
     void allTenMarkersAreStillCovered() {
-        for (String marcador : DeteccionCategoria.FICHEROS_MARCADOR) {
+        for (String marcador : DeteccionCategory.BOOKMARK_FILES) {
             ProjectTree raiz = folder("llenadora",
                     folder("sub", file(marcador)));
 
-            assertEquals(Optional.of(marcador), DeteccionCategoria.detect(raiz),
+            assertEquals(Optional.of(marcador), DeteccionCategory.detect(raiz),
                     "el marcador " + marcador + " debe seguir detectandose");
         }
     }
@@ -189,7 +189,7 @@ class DeteccionCategoriaTest {
     void categoryIsRecognisedByNameEvenWithoutMarker() {
         ProjectTree raiz = folder("Communication", file("README.txt"));
 
-        assertEquals(Optional.of("communication.xml"), DeteccionCategoria.detect(raiz),
+        assertEquals(Optional.of("communication.xml"), DeteccionCategory.detect(raiz),
                 "borrar communication.xml no puede dejar la categoria sin acciones");
     }
 
@@ -197,7 +197,7 @@ class DeteccionCategoriaTest {
     void withoutNameNorMarkerThereIsNoCategory() {
         ProjectTree raiz = folder("llenadora", file("README.txt"));
 
-        assertEquals(Optional.empty(), DeteccionCategoria.detect(raiz),
+        assertEquals(Optional.empty(), DeteccionCategory.detect(raiz),
                 "una carpeta cualquiera no es una categoria");
     }
 
@@ -205,6 +205,6 @@ class DeteccionCategoriaTest {
     void markerStillWinsOverTheName() {
         ProjectTree raiz = folder("Warning Management", file("communication.xml"));
 
-        assertEquals(Optional.of("communication.xml"), DeteccionCategoria.detect(raiz));
+        assertEquals(Optional.of("communication.xml"), DeteccionCategory.detect(raiz));
     }
 }

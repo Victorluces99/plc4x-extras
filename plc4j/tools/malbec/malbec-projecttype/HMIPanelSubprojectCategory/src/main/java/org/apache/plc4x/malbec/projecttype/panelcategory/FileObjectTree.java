@@ -50,9 +50,9 @@ final class FileObjectTree implements ProjectTree {
             return List.of();
         }
         List<ProjectTree> children = new ArrayList<>();
-        for (FileObject hijo : file.getChildren()) {
-            if (hijo != null) {
-                children.add(new FileObjectTree(hijo));
+        for (FileObject child : file.getChildren()) {
+            if (child != null) {
+                children.add(new FileObjectTree(child));
             }
         }
         return children;

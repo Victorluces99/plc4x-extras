@@ -83,6 +83,7 @@ final class VariableTablePanel extends JPanel {
 
     static final Color ERROR_BACKGROUND = new Color(245, 220, 130);
     static final Color ERROR_FOREGROUND = new Color(35, 35, 35);
+    static final Color HEADER_BACKGROUND = new Color(0xD3D3D3);
 
     private final Map<CellKey, String> issues = new HashMap<>();
     private final Map<String, String> deviceProtocols = new HashMap<>();
@@ -90,7 +91,7 @@ final class VariableTablePanel extends JPanel {
     private final VariableTableModel tableModel;
     private final JTable table;
     private final TableRowSorter<TableModel> sorter;
-    private final JComboBox<String> cbConexion;
+    private final JComboBox<String> cbConnection;
     private final JComboBox<String> cbSearch;
     private final JTextField txtSearch;
 
@@ -153,9 +154,9 @@ final class VariableTablePanel extends JPanel {
             }
         };
         sorter = new TableRowSorter<TableModel>(tableModel);
-        cbConexion = new JComboBox<>();
+        cbConnection = new JComboBox<>();
         cbSearch = new JComboBox<>(new String[]{
-            "All", "Name", "Conexión", "Data type", "Tag"
+            "All", "Name", "Connection", "Data type", "Tag"
         });
         txtSearch = new JTextField();
 
@@ -192,17 +193,17 @@ final class VariableTablePanel extends JPanel {
                 .setCellRenderer(new TestTagButtonRenderer());
 
         table.getColumnModel().getColumn(VariableTableModel.COL_NAME)
-                .setCellEditor(new MaxLengthCellEditor(20));
+                .setCellEditor(new MaxLengthCellEditor(30));
         table.getColumnModel().getColumn(VariableTableModel.COL_TAG)
                 .setCellEditor(new MaxLengthCellEditor(15));
         table.getColumnModel().getColumn(VariableTableModel.COL_DESCRIPTOR)
-                .setCellEditor(new MaxLengthCellEditor(40));
+                .setCellEditor(new MaxLengthCellEditor(80));
 
-        cbConexion.setToolTipText("Connection/device assigned to the selected variable.");
-        centerComboBox(cbConexion);
+        cbConnection.setToolTipText("Connection/device assigned to the selected variable.");
+        centerComboBox(cbConnection);
         TableColumn colConexion = table.getColumnModel()
                 .getColumn(VariableTableModel.COL_DEVICE);
-        colConexion.setCellEditor(new DefaultCellEditor(cbConexion));
+        colConexion.setCellEditor(new DefaultCellEditor(cbConnection));
 
         JComboBox<String> cbScanTime = new JComboBox<>(new String[]{
             "100ms", "200ms", "300ms", "400ms", "500ms",
@@ -249,6 +250,8 @@ final class VariableTablePanel extends JPanel {
             }
         };
         header.setReorderingAllowed(false);
+        header.setBackground(HEADER_BACKGROUND);
+        header.setDefaultRenderer(new HeaderRenderer());
         table.setTableHeader(header);
     }
 
@@ -484,9 +487,9 @@ final class VariableTablePanel extends JPanel {
             deviceProtocols.putIfAbsent(name.trim(), device.getProtocol());
         }
 
-        cbConexion.removeAllItems();
+        cbConnection.removeAllItems();
         for (String name : names) {
-            cbConexion.addItem(name);
+            cbConnection.addItem(name);
         }
 
         String fallback = names.isEmpty() ? "" : names.get(0);
@@ -539,7 +542,7 @@ final class VariableTablePanel extends JPanel {
     }
 
     private String defaultDeviceName() {
-        return cbConexion.getItemCount() > 0 ? cbConexion.getItemAt(0) : "";
+        return cbConnection.getItemCount() > 0 ? cbConnection.getItemAt(0) : "";
     }
 
     private record CellKey(int row, int column) {
@@ -596,6 +599,23 @@ final class VariableTablePanel extends JPanel {
             setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
             setForeground(isSelected ? table.getSelectionForeground() : table.getForeground());
             return this;
+        }
+    }
+
+    private static final class HeaderRenderer extends DefaultTableCellRenderer {
+
+        private HeaderRenderer() {
+            setHorizontalAlignment(SwingConstants.CENTER);
+            setOpaque(true);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            Component component = super.getTableCellRendererComponent(
+                    table, value, isSelected, hasFocus, row, column);
+            component.setBackground(HEADER_BACKGROUND);
+            return component;
         }
     }
 

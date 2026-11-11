@@ -31,7 +31,6 @@ import org.apache.plc4x.malbec.projecttype.configphoebus.PhoebusOptionsPanelCont
 
 public class HMICategoryOpenPhoebusAction extends AbstractAction {
 
-
     private final FileObject bobFile;
 
     public HMICategoryOpenPhoebusAction(FileObject bobFile) {
@@ -43,16 +42,16 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
         RequestProcessor.getDefault().post(() -> openNativeBob(this.bobFile));
     }
 
-    private void openNativeBob(FileObject nuevoArchivoBob) {
-        File file = FileUtil.toFile(nuevoArchivoBob);
+    private void openNativeBob(FileObject newBobFile) {
+        File file = FileUtil.toFile(newBobFile);
         if (file == null) {
             return;
         }
 
         java.util.prefs.Preferences prefs = org.openide.util.NbPreferences.forModule(PhoebusOptionsPanelController.class);
-        String rutaPhoebus = prefs.get("phoebus.path", "").trim();
+        String phoebusPath = prefs.get("phoebus.path", "").trim();
 
-        if (rutaPhoebus.isEmpty()) {
+        if (phoebusPath.isEmpty()) {
             org.openide.DialogDisplayer.getDefault().notify(
                     new org.openide.NotifyDescriptor.Message("Please configure the Phoebus path in Tools -> Options.",
                             org.openide.NotifyDescriptor.INFORMATION_MESSAGE)
@@ -60,11 +59,11 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
             return;
         }
 
-        boolean esWindows = System.getProperty("os.name").toLowerCase().contains("win");
-        File ejecutablePhoebus = new File(rutaPhoebus);
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+        File executablePhoebus = new File(phoebusPath);
 
-        if (esWindows) {
-            if (!rutaPhoebus.toLowerCase().endsWith(".bat")) {
+        if (isWindows) {
+            if (!phoebusPath.toLowerCase().endsWith(".bat")) {
                 org.openide.DialogDisplayer.getDefault().notify(
                         new org.openide.NotifyDescriptor.Message(
                                 "Configuration error: In Windows, the Phoebus external "
@@ -75,7 +74,7 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
                 return;
             }
         } else {
-            if (!rutaPhoebus.toLowerCase().endsWith(".sh")) {
+            if (!phoebusPath.toLowerCase().endsWith(".sh")) {
                 org.openide.DialogDisplayer.getDefault().notify(
                         new org.openide.NotifyDescriptor.Message(
                                 "Configuration error: On Unix/Linux systems, the "
@@ -88,26 +87,25 @@ public class HMICategoryOpenPhoebusAction extends AbstractAction {
             }
         }
 
-        if (!ejecutablePhoebus.exists()) {
-            org.openide.DialogDisplayer.getDefault().notify(
-                    new org.openide.NotifyDescriptor.Message(
-                            "The file configured for Phoebus does not exist in the specified path:\n" + rutaPhoebus,
+        if (!executablePhoebus.exists()) {
+            org.openide.DialogDisplayer.getDefault().notify(new org.openide.NotifyDescriptor.Message(
+                            "The file configured for Phoebus does not exist in the specified path:\n" + phoebusPath,
                             org.openide.NotifyDescriptor.ERROR_MESSAGE)
             );
             return;
         }
 
         try {
-            Path memento = PhoebusLauncher.rutaMemento();
-            Path respaldo = PhoebusLauncher.backupPath(
+            Path memento = PhoebusLauncher.mementoPath();
+            Path backup = PhoebusLauncher.backupPath(
                     Paths.get(System.getProperty("user.home", ".")));
             String content = PhoebusLauncher.contentFor(file.toPath(),
                     System.getProperty("user.name", "user"));
-            PhoebusLauncher.writeMemento(memento, respaldo, content);
+            PhoebusLauncher.writeMemento(memento, backup, content);
 
-            ProcessBuilder pb = PhoebusLauncher.command(rutaPhoebus);
-            Process proceso = pb.start();
-            PhoebusLauncher.waitAndRestore(proceso, memento, respaldo, content);
+            ProcessBuilder pb = PhoebusLauncher.command(phoebusPath);
+            Process process = pb.start();
+            PhoebusLauncher.waitAndRestore(process, memento, backup, content);
 
         } catch (Exception ex) {
             org.openide.DialogDisplayer.getDefault().notify(

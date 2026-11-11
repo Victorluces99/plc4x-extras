@@ -114,12 +114,10 @@ public class HMIPanelCategorySubprojectImpl implements Project {
 
         @Override
         public void addPropertyChangeListener(PropertyChangeListener pl) {
-//            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
         }
 
         @Override
         public void removePropertyChangeListener(PropertyChangeListener pl) {
-//            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
         }
     }
 
@@ -136,7 +134,6 @@ public class HMIPanelCategorySubprojectImpl implements Project {
 
         public Node createLogicalView() {
             try {
-                //Obtain the project directory's node:
                 FileObject projectDirectory = project.getProjectDirectory();
                 DataFolder projectFolder = DataFolder.findFolder(projectDirectory);
                 Node nodeOfProjectFolder = projectFolder.getNodeDelegate();
@@ -165,6 +162,7 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                         new ProxyLookup(
                                 new Lookup[]{
                                     Lookups.singleton(project),
+                                    Lookups.singleton(NoDragNode.INSTANCE),
                                     node.getLookup()
                                 }));
                 this.project = project;
@@ -176,13 +174,12 @@ public class HMIPanelCategorySubprojectImpl implements Project {
             }
 
             public Action[] getActions(boolean context) {
-                Optional<String> detected = DeteccionCategoria.detect(
+                Optional<String> detected = DeteccionCategory.detect(
                         FileObjectTree.fromFileObject(this.project.getProjectDirectory()));
                 if (detected.isEmpty()) {
                     return getActionForName(new Action[0]);
                 }
 
-                // Identificar la acción específica asociada al archivo
                 Action[] customAction = switch (detected.get()) {
                     case "template.bob" ->
                         new Action[]{
@@ -198,18 +195,6 @@ public class HMIPanelCategorySubprojectImpl implements Project {
                         new Action[]{
                             new ImportIcon(this.project),
                         };
-//                    case "template.oppc" ->
-//                        new HMICategoryCreateOperatorPanelConfigAction(this.project);
-//                    case "template.record" ->
-//                        new HMICategoryCreateRecordAction(this.project);
-//                    case "template.rcp" ->
-//                        new HMICategoryCreateRecipeAction(this.project);
-//                    case "template.rpt" ->
-//                        new HMICategoryCreateReportAction(this.project);
-//                    case "template.scp" ->
-//                        new HMICategoryCreateScriptsAction(this.project);
-//                    case "template.wmg" ->
-//                        new HMICategoryCreateWarningManagementAction(this.project);
                     default ->
                         new Action[0];
                 };
@@ -218,8 +203,7 @@ public class HMIPanelCategorySubprojectImpl implements Project {
 
             public Action[] getActionForName(Action[] customAction) {
                 List<Action> actionList = new ArrayList<>();
-
-                // 2. Si existen acciones personalizadas, agregamos separador y el listado
+        
                 if (customAction.length > 0) {
                     actionList.addAll(Arrays.asList(customAction));
                 }

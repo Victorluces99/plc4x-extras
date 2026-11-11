@@ -20,15 +20,12 @@ package org.apache.plc4x.malbec.projecttype.panelcategory;
 
 public final class CategoryIcons {
 
-    /** Icono de las categorias que no tienen uno propio. */
     public static final String DEFAULT =
             "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/icon2.png";
 
-    /** Icono de la categoria de Comunicacion. */
     public static final String COMMUNICATION =
             "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/comm.png";
 
-    /** Icono del nodo de variables de un dispositivo. */
     public static final String VARIABLES =
             "org/apache/plc4x/malbec/projecttype/hmipanelsubprojectcategory/variables.png";
 

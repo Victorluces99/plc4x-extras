@@ -59,7 +59,7 @@ public final class CreateDeviceDialog extends JDialog {
     private final boolean editing;
     private final JButton btnOk = new JButton("Save");
     private final JButton btnCancel = new JButton("Cancel");
-    private final JButton btntestConexion = new JButton("Test Conexion");
+    private final JButton btntestConnection = new JButton("Test Connection");
 
     public static CreateDeviceDialog forCreate(Window owner, Project project) {
         return new CreateDeviceDialog(owner, project, null);
@@ -87,7 +87,7 @@ public final class CreateDeviceDialog extends JDialog {
         this.editing = device != null;
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
-        buttons.add(btntestConexion);
+        buttons.add(btntestConnection);
         buttons.add(btnCancel);
         buttons.add(btnOk);
 
@@ -103,7 +103,7 @@ public final class CreateDeviceDialog extends JDialog {
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
-        btntestConexion.addActionListener(e -> test());
+        btntestConnection.addActionListener(e -> test());
         btnOk.addActionListener(e -> save());
         btnCancel.addActionListener(e -> dispose());
 
@@ -167,12 +167,12 @@ public final class CreateDeviceDialog extends JDialog {
     }
 
     private static Set<String> hostsOf(DeviceConfigData device) {
-        UrlDisassembler.Parts partes =
+        UrlDisassembler.Parts parts =
                 UrlDisassembler.disassemble(device.getSpecificParameters());
-        if (partes == null || partes.host() == null || partes.host().isBlank()) {
+        if (parts == null || parts.host() == null || parts.host().isBlank()) {
             return Set.of();
         }
-        String rawHost = partes.host().trim();
+        String rawHost = parts.host().trim();
         if (rawHost.startsWith("/")) {
             Set<String> hosts = new LinkedHashSet<>();
             addHost(hosts, rawHost);
@@ -180,7 +180,7 @@ public final class CreateDeviceDialog extends JDialog {
         }
         Set<String> hosts = new LinkedHashSet<>();
         for (String host : rawHost.split("/")) {
-            addHost(hosts, stripPort(host.trim(), partes.port()));
+            addHost(hosts, stripPort(host.trim(), parts.port()));
         }
         return hosts;
     }
@@ -250,7 +250,7 @@ public final class CreateDeviceDialog extends JDialog {
     }
 
     private void test() {
-        String url = panel.urlActual();
+        String url = panel.currentUrl();
         if (url == null || url.isBlank()) {
             JOptionPane.showMessageDialog(this,
                     "Enter a connection URL before testing.",
@@ -263,7 +263,7 @@ public final class CreateDeviceDialog extends JDialog {
 
         btnOk.setEnabled(false);
         btnCancel.setEnabled(false);
-        btntestConexion.setEnabled(false);
+        btntestConnection.setEnabled(false);
         setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
         RequestProcessor.getDefault().post(() -> {
@@ -282,7 +282,7 @@ public final class CreateDeviceDialog extends JDialog {
         setCursor(Cursor.getDefaultCursor());
         btnOk.setEnabled(true);
         btnCancel.setEnabled(true);
-        btntestConexion.setEnabled(true);
+        btntestConnection.setEnabled(true);
 
         Throwable error = failure.get();
         if (error == null) {

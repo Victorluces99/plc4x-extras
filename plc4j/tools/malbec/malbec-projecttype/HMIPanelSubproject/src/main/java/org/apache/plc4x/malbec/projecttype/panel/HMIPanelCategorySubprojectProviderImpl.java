@@ -72,8 +72,8 @@ private static final Logger LOGGER =
                 }
             } catch (Exception e) {
                 LOGGER.log(Level.WARNING,
-                        "No se pudo cargar el subproyecto de categoría '" + child.getName()
-                                + "'; no aparecerá en el árbol de proyectos.", e);
+                        "The category subproject could not be loaded '" + child.getName()
+                                + "'; it will not appear in the project tree.", e);
             }
         }
         return subProjects;

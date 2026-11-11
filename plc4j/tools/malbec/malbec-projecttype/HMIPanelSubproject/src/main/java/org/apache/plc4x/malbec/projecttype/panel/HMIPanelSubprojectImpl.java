@@ -26,6 +26,7 @@ import javax.swing.Action;
 import javax.swing.Icon;
 import org.apache.plc4x.malbec.projecttype.panel.action.HMIPanelCompileAction;
 import org.apache.plc4x.malbec.projecttype.panel.action.ImportPlant;
+import org.apache.plc4x.malbec.projecttype.panelcategory.NoDragNode;
 import org.netbeans.api.annotations.common.StaticResource;
 import org.netbeans.api.project.Project;
 import org.netbeans.api.project.ProjectInformation;
@@ -159,6 +160,7 @@ public class HMIPanelSubprojectImpl implements Project {
                         new ProxyLookup(
                                 new Lookup[]{
                                     Lookups.singleton(project),
+                                    Lookups.singleton(NoDragNode.INSTANCE),
                                     node.getLookup()
                                 }));
                 this.project = project;
@@ -177,6 +179,7 @@ public class HMIPanelSubprojectImpl implements Project {
                 allActions.add(new HMIPanelCompileAction(projectDir));
                 allActions.add(new ImportPlant(projectDir));
                 allActions.add(null);
+                allActions.add(SystemAction.get(RenameAction.class));
 
                 for (Action action : getOriginal().getActions(context)) {
                     if (isFileAction(action)) {
@@ -191,7 +194,6 @@ public class HMIPanelSubprojectImpl implements Project {
                 return isAction(action, CopyAction.class)
                         || isAction(action, CutAction.class)
                         || isAction(action, PasteAction.class)
-                        || isAction(action, RenameAction.class)
                         || isAction(action, DeleteAction.class);
             }
 

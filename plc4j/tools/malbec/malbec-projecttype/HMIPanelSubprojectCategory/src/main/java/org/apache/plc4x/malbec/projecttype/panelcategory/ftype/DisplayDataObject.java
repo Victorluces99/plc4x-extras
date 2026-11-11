@@ -70,6 +70,11 @@ import org.openide.windows.TopComponent;
     ),
     @ActionReference(
             path = "Loaders/text/bob+xml/Actions",
+            id = @ActionID(category = "Edit", id = "org.openide.actions.PasteAction"),
+            position = 450
+    ),
+    @ActionReference(
+            path = "Loaders/text/bob+xml/Actions",
             id = @ActionID(category = "Edit", id = "org.openide.actions.DeleteAction"),
             position = 600
     ),

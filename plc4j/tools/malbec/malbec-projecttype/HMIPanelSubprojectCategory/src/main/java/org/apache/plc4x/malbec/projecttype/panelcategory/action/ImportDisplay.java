@@ -22,15 +22,14 @@ import java.awt.event.ActionEvent;
 import java.io.File;
 import java.io.IOException;
 import javax.swing.AbstractAction;
-import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.netbeans.api.project.Project;
 import org.openide.DialogDisplayer;
 import org.openide.NotifyDescriptor;
+import org.openide.filesystems.FileChooserBuilder;
 import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileUtil;
 import org.openide.util.Exceptions;
-import org.openide.windows.WindowManager;
 
 public class ImportDisplay extends AbstractAction {
 
@@ -49,21 +48,20 @@ public class ImportDisplay extends AbstractAction {
     }
 
     private void importBob() {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Select Display");
-        chooser.setCurrentDirectory(new File(System.getProperty("user.home", ".")));
-        chooser.setFileFilter(new FileNameExtensionFilter(
-                "Phoebus displays (*.bob)", BOB_EXTENSION));
-        chooser.setAcceptAllFileFilterUsed(false);
+        File selectedFile = new FileChooserBuilder("ImportDisplayKey")
+                .setTitle("Select Display")
+                .setApproveText("Import")
+                .setFileFilter(new FileNameExtensionFilter(
+                        "Phoebus displays (*.bob)", BOB_EXTENSION))
+                .setAcceptAllFileFilterUsed(false)
+                .setFilesOnly(true)
+                .setDefaultWorkingDirectory(new File(System.getProperty("user.home", ".")))
+                .showOpenDialog();
 
-        if (chooser.showOpenDialog(WindowManager.getDefault().getMainWindow())
-                != JFileChooser.APPROVE_OPTION) {
+        if (selectedFile == null) {
             return;
         }
-
-        File selectedFile = chooser.getSelectedFile();
-        if (selectedFile == null
-                || !BOB_EXTENSION.equalsIgnoreCase(FileUtil.getExtension(selectedFile.getName()))) {
+        if (!BOB_EXTENSION.equalsIgnoreCase(FileUtil.getExtension(selectedFile.getName()))) {
             showError("Please select a .bob file.");
             return;
         }

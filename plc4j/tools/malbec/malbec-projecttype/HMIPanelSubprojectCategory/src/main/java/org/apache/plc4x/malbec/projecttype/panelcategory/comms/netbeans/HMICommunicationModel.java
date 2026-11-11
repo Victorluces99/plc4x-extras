@@ -95,8 +95,8 @@ public final class HMICommunicationModel implements CommunicationStore {
             }
         }
         if (configStorage == null) {
-            loadError = new IOException("no se pudo crear " + CONFIG_FILE
-                    + " en el proyecto " + storage.directoryName());
+            loadError = new IOException("could not be created " + CONFIG_FILE
+                    + " in the project " + storage.directoryName());
             config = new CommunicationsConfig();
             LOGGER.log(Level.SEVERE, loadError.getMessage());
             notifyChange();
@@ -105,23 +105,23 @@ public final class HMICommunicationModel implements CommunicationStore {
 
         storage.watchForChanges();
         repository = CommConfigRepositoryLookup.createRepository(configStorage);
-        CommConfigLoader.Result carga;
+        CommConfigLoader.Result load;
         try {
-            carga = new CommConfigLoader(repository).load();
+            load = new CommConfigLoader(repository).load();
         } catch (Exception ex) {
 
             loadError = ex;
             if (config == null) {
                 config = new CommunicationsConfig();
             }
-            LOGGER.log(Level.SEVERE, "No se pudo cargar " + CONFIG_FILE
-                    + "; se conserva la configuración anterior.", ex);
+            LOGGER.log(Level.SEVERE, "Could not load " + CONFIG_FILE
+                    + "; the previous settings are retained.", ex);
             notifyChange();
             return;
         }
         loadError = null;
-        config = carga.config();
-        if (created || carga.uuidReparados()) {
+        config = load.config();
+        if (created || load.uuidReparados()) {
             write(repository, created);
         }
         notifyChange();
@@ -129,8 +129,7 @@ public final class HMICommunicationModel implements CommunicationStore {
 
     private boolean isCommunicationProject() {
         return HMICategoryDefinition.COMUNICATION.matchesFolder(storage.directoryName())
-                || storage.has(CONFIG_FILE)
-                || storage.has("comm.merlot");
+                || storage.has(CONFIG_FILE);
     }
 
 
@@ -150,38 +149,38 @@ public final class HMICommunicationModel implements CommunicationStore {
         if (!isCommunicationProject()) {
             return;
         }
-        CommConfigStorage destino = null;
+        CommConfigStorage target = null;
         try {
-            destino = storage.config();
-            if (destino == null) {
-                destino = storage.createConfig();
+            target = storage.config();
+            if (target == null) {
+                target = storage.createConfig();
             }
         } catch (IOException ex) {
-            LOGGER.log(Level.WARNING, "No se pudo recrear " + CONFIG_FILE, ex);
+            LOGGER.log(Level.WARNING, "It could not be recreated " + CONFIG_FILE, ex);
             return;
         }
         lock.writeLock().lock();
         try {
-            CommConfigRepository repo = CommConfigRepositoryLookup.createRepository(destino);
+            CommConfigRepository repo = CommConfigRepositoryLookup.createRepository(target);
             write(repo, true);
             storage.watchForChanges();
         } catch (Exception ex) {
-            LOGGER.log(Level.WARNING, "No se pudo escribir " + CONFIG_FILE + " recien creado", ex);
+            LOGGER.log(Level.WARNING, "It could not be written " + CONFIG_FILE + " newly created", ex);
         } finally {
             lock.writeLock().unlock();
         }
     }
 
-    private void write(CommConfigRepository destino, boolean archivoNuevo) {
+    private void write(CommConfigRepository target, boolean newfile) {
         storage.pauseNotifications();
         try {
-            destino.save(config);
+            target.save(config);
         } catch (Exception ex) {
-            if (archivoNuevo) {
-                LOGGER.log(Level.FINE, "Se dejara para el primer guardado: " + ex.getMessage());
+            if (newfile) {
+                LOGGER.log(Level.FINE, "To be saved for the first save: " + ex.getMessage());
             } else {
                 LOGGER.log(Level.WARNING,
-                        "No se pudo guardar el UUID reparado de " + CONFIG_FILE, ex);
+                        "The repaired UUID could not be saved from " + CONFIG_FILE, ex);
             }
         } finally {
             storage.resumeNotifications();
@@ -189,16 +188,16 @@ public final class HMICommunicationModel implements CommunicationStore {
     }
 
     static boolean repararUuidsAusentes(CommunicationsConfig config) {
-        boolean reparado = false;
+        boolean repaired = false;
         for (int i = 0; i < config.getDevices().size(); i++) {
             DeviceConfigData device = config.getDevices().get(i);
             if (device.getUuid() != null && !device.getUuid().isBlank()) {
                 continue;
             }
-            reparado = true;
+            repaired = true;
             String uuid = UUID.randomUUID().toString();
-            LOGGER.log(Level.WARNING, CONFIG_FILE + ": el dispositivo '{0}' no tenía UUID "
-                    + "y recibió {1} al cargar.",
+            LOGGER.log(Level.WARNING, CONFIG_FILE + ": the device '{0}' it didn't have a UUID "
+                    + "and received {1} it upon loading.",
                     new Object[]{device.getDeviceName(), uuid});
             Properties p = new Properties();
             p.put("brand", device.getBrand());
@@ -216,7 +215,7 @@ public final class HMICommunicationModel implements CommunicationStore {
             p.put("md5", device.getMd5() == null ? "" : device.getMd5());
             config.replaceDevice(i, new DeviceConfigData(p));
         }
-        return reparado;
+        return repaired;
     }
 
     public Optional<Exception> getLoadError() {
@@ -284,9 +283,9 @@ public final class HMICommunicationModel implements CommunicationStore {
 
     private SaveResult saveInternal() {
         if (loadError != null) {
-            String reason = "la carga de " + CONFIG_FILE + " fallo, asi que el modelo en "
-                    + "memoria no es de fiar";
-            LOGGER.log(Level.SEVERE, "No se guarda nada: " + reason, loadError);
+            String reason = "the load of " + CONFIG_FILE + " failure, so the model in "
+                    + "memory can't be trusted";
+            LOGGER.log(Level.SEVERE, "Nothing is saved: " + reason, loadError);
             return SaveResult.notSaved(reason);
         }
         CommConfigStorage configStorage = storage.config();
@@ -294,9 +293,9 @@ public final class HMICommunicationModel implements CommunicationStore {
             try {
                 configStorage = storage.createConfig();
             } catch (IOException ex) {
-                LOGGER.log(Level.SEVERE, "No se pudo crear el almacen de la configuracion", ex);
+                LOGGER.log(Level.SEVERE, "The configuration store could not be created.", ex);
                 return SaveResult.notSaved(
-                        "no se pudo preparar el fichero de configuracion: " + ex.getMessage());
+                        "The configuration file could not be created: " + ex.getMessage());
             }
         }
         final CommConfigRepository repo = CommConfigRepositoryLookup.createRepository(configStorage);
@@ -308,9 +307,9 @@ public final class HMICommunicationModel implements CommunicationStore {
                 storage.resumeNotifications();
             }
         } catch (Exception ex) {
-            LOGGER.log(Level.SEVERE, "No se pudo escribir " + CONFIG_FILE, ex);
+            LOGGER.log(Level.SEVERE, "It could not be written " + CONFIG_FILE, ex);
             return SaveResult.notSaved(
-                    "no se pudo escribir " + CONFIG_FILE + ": " + ex.getMessage());
+                    "It could not be written " + CONFIG_FILE + ": " + ex.getMessage());
         }
         repository = repo;
         boolean databaseUpdated;
@@ -318,12 +317,12 @@ public final class HMICommunicationModel implements CommunicationStore {
         try {
             DynamicVariableXmlMapper.Content content
                     = DynamicVariableXmlMapper.read(configStorage.open());
-            RebuildResults resultado = BootDbTagDynamicRepository.rebuildWithReason(
+            RebuildResults result = BootDbTagDynamicRepository.rebuildWithReason(
                     storage.bootDbFolder(), content.devices(), content.pvs());
-            databaseUpdated = resultado.success();
-            rebuildReason = resultado.reason();
+            databaseUpdated = result.success();
+            rebuildReason = result.reason();
         } catch (Exception ex) {
-            LOGGER.log(Level.WARNING, "Error volcando la configuracion a boot.db", ex);
+            LOGGER.log(Level.WARNING, "Error saving the configuration to boot.db", ex);
             databaseUpdated = false;
             rebuildReason = ex.getMessage();
         }
@@ -331,9 +330,9 @@ public final class HMICommunicationModel implements CommunicationStore {
         if (databaseUpdated) {
             return SaveResult.success();
         }
-        LOGGER.warning("boot.db no pudo actualizarse; revise el registro de la aplicacion.");
+        LOGGER.warning("boot.db could not be updated; check the application log.");
         String reason = rebuildReason;
-        return SaveResult.partial("se escribio " + CONFIG_FILE + " pero no se pudo actualizar boot.db"
+        return SaveResult.partial("it was written " + CONFIG_FILE + " but boot.db could not be updated"
                 + (reason == null || reason.isBlank() ? "" : ": " + reason));
     }
 

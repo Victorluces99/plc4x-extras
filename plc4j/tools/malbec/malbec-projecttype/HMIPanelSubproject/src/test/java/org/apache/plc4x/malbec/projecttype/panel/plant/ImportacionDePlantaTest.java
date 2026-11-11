@@ -44,32 +44,32 @@ class ImportacionDePlantaTest {
 
     @Test
     void extensionValida() {
-        assertTrue(ImportFormats.extensionAdmitida(new File("planta.xml")));
-        assertTrue(ImportFormats.extensionAdmitida(new File("PLANTA.XML")),
+        assertTrue(ImportFormats.extensionApproved(new File("planta.xml")));
+        assertTrue(ImportFormats.extensionApproved(new File("PLANTA.XML")),
                 "la extension no deberia distinguir mayusculas");
     }
 
     @Test
     void extensionInvalida() {
-        assertFalse(ImportFormats.extensionAdmitida(new File("planta.txt")));
-        assertFalse(ImportFormats.extensionAdmitida(new File("planta.csv")));
-        assertFalse(ImportFormats.extensionAdmitida(new File("planta")),
+        assertFalse(ImportFormats.extensionApproved(new File("planta.txt")));
+        assertFalse(ImportFormats.extensionApproved(new File("planta.csv")));
+        assertFalse(ImportFormats.extensionApproved(new File("planta")),
                 "un archivo sin extension no es una planta");
-        assertFalse(ImportFormats.extensionAdmitida(new File("planta.")),
+        assertFalse(ImportFormats.extensionApproved(new File("planta.")),
                 "un punto final no cuenta como extension");
     }
 
     @Test
     void onlyXmlIsDeclared() {
-        assertEquals(List.of("xml"), List.copyOf(ImportFormats.FORMATOS.keySet()));
-        assertEquals("Modelo de planta (*.xml)", ImportFormats.FORMATOS.get("xml"));
+        assertEquals(List.of("xml"), List.copyOf(ImportFormats.FORMATS.keySet()));
+        assertEquals("Plant Model (*.xml)", ImportFormats.FORMATS.get("xml"));
     }
 
     @Test
     void filterAndValidationMatch() {
-        for (String extension : ImportFormats.FORMATOS.keySet()) {
+        for (String extension : ImportFormats.FORMATS.keySet()) {
             File archivo = new File("planta." + extension);
-            assertTrue(ImportFormats.extensionAdmitida(archivo),
+            assertTrue(ImportFormats.extensionApproved(archivo),
                     "el filtro deja ver ." + extension + " pero la validacion lo rechaza");
         }
     }
@@ -102,7 +102,7 @@ class ImportacionDePlantaTest {
     void everyDeclaredFormatIsAcceptedBySomeProvider() {
         assertTrue(ImportFormats.formatsWithoutProvider(
                         List.of(new ProviderQueSoloAcepta("xml")),
-                        ImportFormats.FORMATOS.keySet()).isEmpty(),
+                        ImportFormats.FORMATS.keySet()).isEmpty(),
                 "xml esta declarado y hay un provider que lo acepta");
     }
 
@@ -110,7 +110,7 @@ class ImportacionDePlantaTest {
     void formatWithoutProviderIsDetected() {
         assertEquals(Set.of("xml"), ImportFormats.formatsWithoutProvider(
                 List.of(new ProviderQueSoloAcepta("otro")),
-                ImportFormats.FORMATOS.keySet()),
+                ImportFormats.FORMATS.keySet()),
                 "debe avisar si el provider no acepta el formato declarado");
     }
 
@@ -124,7 +124,7 @@ class ImportacionDePlantaTest {
     @Test
     void withoutProvidersEverythingDeclaredHasNoProvider() {
         assertEquals(Set.of("xml"), ImportFormats.formatsWithoutProvider(
-                List.of(), ImportFormats.FORMATOS.keySet()));
+                List.of(), ImportFormats.FORMATS.keySet()));
     }
 
     @Test
@@ -140,7 +140,7 @@ class ImportacionDePlantaTest {
 
     private static void resetTheWarning() throws Exception {
         java.lang.reflect.Field field =
-                ImportFormats.class.getDeclaredField("AVISO_DADO");
+                ImportFormats.class.getDeclaredField("NOTICE_ISSUED");
         field.setAccessible(true);
         ((java.util.concurrent.atomic.AtomicBoolean) field.get(null)).set(false);
     }
@@ -357,11 +357,11 @@ class ImportacionDePlantaTest {
         String codigo = Files.readString(Path.of("src", "main", "java", "org", "apache",
                 "plc4x", "malbec", "projecttype", "panel", "plant", "PlantImporter.java"));
 
-        assertTrue(codigo.contains("reverseChildStack(child, imageFo, creados)"),
+        assertTrue(codigo.contains("reverseChildStack(child, imageFo, created)"),
                 "lo que se crea tiene que quedar registrado para poder deshacerlo");
-        assertTrue(codigo.contains("List<FileObject> creados"),
+        assertTrue(codigo.contains("List<FileObject> created"),
                 "hace falta la lista de lo creado");
-        assertEquals(3, countOf(codigo, "undo(creados)"),
+        assertEquals(3, countOf(codigo, "undo(created)"),
                 "los tres fallos posteriores tienen que deshacer: nodos a medias,"
                         + " carpeta del panel irresoluble y plant-model.xml no escrito");
     }
@@ -374,7 +374,7 @@ class ImportacionDePlantaTest {
 
         assertTrue(desde > 0, "tiene que existir deshacer()");
         String cuerpo = codigo.substring(desde, codigo.indexOf('}', desde));
-        assertTrue(cuerpo.contains("creados.size() - 1"),
+        assertTrue(cuerpo.contains("created.size() - 1"),
                 "borrar al reves: si se borra la carpeta padre primero, los hijos ya no"
                         + " estan y su borrado falla");
         assertTrue(cuerpo.contains("isValid()"),

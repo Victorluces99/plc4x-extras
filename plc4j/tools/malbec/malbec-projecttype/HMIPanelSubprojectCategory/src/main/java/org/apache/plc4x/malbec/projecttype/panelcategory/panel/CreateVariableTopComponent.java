@@ -166,14 +166,14 @@ public final class CreateVariableTopComponent extends TopComponent {
         JButton btnAddRow = new JButton("Add Row");
         JButton btnDeleteRow = new JButton("Delete Row");
         JButton btnDuplicate = new JButton("Duplicate");
-        JButton btnGuardar = new JButton("Save");
-        JButton btnCancelar = new JButton("Cancel");
+        JButton btnSave = new JButton("Save");
+        JButton btnCancel = new JButton("Cancel");
 
         btnAddRow.setToolTipText("Add a new variable row.");
         btnDeleteRow.setToolTipText("Delete the selected variable row.");
         btnDuplicate.setToolTipText("Duplicate the selected row the indicated number of times.");
-        btnGuardar.setToolTipText("Validate and save variables to communication.xml and boot.db.");
-        btnCancelar.setToolTipText("Close this editor. If there are unsaved changes, you will be asked to save them.");
+        btnSave.setToolTipText("Validate and save variables to communication.xml and boot.db.");
+        btnCancel.setToolTipText("Close this editor. If there are unsaved changes, you will be asked to save them.");
 
         spnDuplicateCount = new JSpinner(new SpinnerNumberModel(1, 1, 100, 1));
         spnDuplicateCount.setPreferredSize(new Dimension(60, 24));
@@ -185,16 +185,16 @@ public final class CreateVariableTopComponent extends TopComponent {
         btnAddRow.addActionListener(e -> addVariableRow());
         btnDeleteRow.addActionListener(e -> deleteSelectedRow());
         btnDuplicate.addActionListener(e -> duplicateSelectedRow());
-        btnGuardar.addActionListener(e -> saveVariables());
-        btnCancelar.addActionListener(e -> cancelEditing());
+        btnSave.addActionListener(e -> saveVariables());
+        btnCancel.addActionListener(e -> cancelEditing());
 
         panelButtons.add(btnAddRow);
         panelButtons.add(btnDeleteRow);
         panelButtons.add(new JLabel("Copies:"));
         panelButtons.add(spnDuplicateCount);
         panelButtons.add(btnDuplicate);
-        panelButtons.add(btnGuardar);
-        panelButtons.add(btnCancelar);
+        panelButtons.add(btnSave);
+        panelButtons.add(btnCancel);
         variablesPanel.add(panelButtons, BorderLayout.SOUTH);
 
         tabs = new JTabbedPane();
@@ -629,8 +629,8 @@ public final class CreateVariableTopComponent extends TopComponent {
             return false;
         }
 
-        File carpeta = documentService.folder();
-        if (carpeta == null) {
+        File folder = documentService.folder();
+        if (folder == null) {
             JOptionPane.showMessageDialog(this,
                     "The project folder could not be retrieved.",
                     "Save variables",
@@ -642,8 +642,7 @@ public final class CreateVariableTopComponent extends TopComponent {
                 .filter(row -> !(isBlank(row.name()) && isBlank(row.tag())))
                 .toList();
 
-        VariableDocumentService.SaveOutcome outcome = documentService.save(
-                carpeta, model.getDevices(), rowsToSave, deletedPvUuids);
+        VariableDocumentService.SaveOutcome outcome = documentService.save(folder, model.getDevices(), rowsToSave, deletedPvUuids);
         CreateVariableController.Result result = outcome.result();
 
         if (result.success() || outcome.xmlChanged()) {

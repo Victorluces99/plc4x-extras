@@ -45,7 +45,6 @@ public class HMIPanelCategorySubprojectFactory implements ProjectFactory {
 
     @Override
     public void saveProject(Project prjct) throws IOException, ClassCastException {
-//        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
 
 }

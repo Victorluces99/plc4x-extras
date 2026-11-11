@@ -25,8 +25,8 @@ import javax.swing.AbstractAction;
 import javax.swing.JOptionPane;
 import org.apache.plc4x.malbec.projecttype.panel.plant.ImportFormats;
 import org.apache.plc4x.malbec.projecttype.panel.plant.ImportResult;
-import org.apache.plc4x.malbec.projecttype.panel.plant.ImportResult.Exito;
-import org.apache.plc4x.malbec.projecttype.panel.plant.ImportResult.Fallo;
+import org.apache.plc4x.malbec.projecttype.panel.plant.ImportResult.Success;
+import org.apache.plc4x.malbec.projecttype.panel.plant.ImportResult.fail;
 import org.apache.plc4x.malbec.projecttype.panel.plant.PlantImporter;
 import org.netbeans.api.progress.ProgressUtils;
 import org.openide.filesystems.FileObject;
@@ -57,18 +57,18 @@ public class ImportPlant extends AbstractAction {
         chooser.setFilenameFilter(ImportFormats.fileFilter());
         chooser.setVisible(true);
 
-        File[] seleccion = chooser.getFiles();
-        if (seleccion == null || seleccion.length == 0) {
+        File[] selected = chooser.getFiles();
+        if (selected == null || selected.length == 0) {
             return;
         }
-        File file = seleccion[0];
-        if (!ImportFormats.extensionAdmitida(file)) {
+        File file = selected[0];
+        if (!ImportFormats.extensionApproved(file)) {
             reportFailure(file, "Only files are allowed "
                     + ImportFormats.allowedFormats() + ".");
             return;
         }
 
-        ImportResult resultado = ProgressUtils.showProgressDialogAndRun(
+        ImportResult result = ProgressUtils.showProgressDialogAndRun(
                 handle -> {
                     handle.setDisplayName(title);
                     handle.start(400);
@@ -80,14 +80,14 @@ public class ImportPlant extends AbstractAction {
                 },
                 title,
                 false);
-        show(resultado);
+        show(result);
     }
 
-    private void show(ImportResult resultado) {
-        if (resultado instanceof Exito exito) {
-            reportSuccess(exito.file(), exito.areaId());
-        } else if (resultado instanceof Fallo fallo) {
-            reportFailure(fallo.file(), fallo.reason());
+    private void show(ImportResult result) {
+        if (result instanceof Success success) {
+            reportSuccess(success.file(), success.areaId());
+        } else if (result instanceof fail fail) {
+            reportFailure(fail.file(), fail.reason());
         }
     }
 

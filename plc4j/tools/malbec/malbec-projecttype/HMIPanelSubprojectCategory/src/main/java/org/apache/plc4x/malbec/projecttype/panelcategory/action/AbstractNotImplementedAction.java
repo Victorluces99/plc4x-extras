@@ -51,12 +51,11 @@ public abstract class AbstractNotImplementedAction extends AbstractAction {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        String mensaje = notImplementedMessage();
+        String message = notImplementedMessage();
         LOGGER.log(Level.FINE, "{0} about {1}",
-                new Object[]{mensaje, fileObject == null ? null : fileObject.getNameExt()});
+                new Object[]{message, fileObject == null ? null : fileObject.getNameExt()});
         try {
-            DialogDisplayer.getDefault().notify(
-                    new NotifyDescriptor.Message(mensaje, NotifyDescriptor.WARNING_MESSAGE));
+            DialogDisplayer.getDefault().notify(new NotifyDescriptor.Message(message, NotifyDescriptor.WARNING_MESSAGE));
         } catch (RuntimeException ex) {
             LOGGER.log(Level.FINE, "The “Action Not Implemented” message could not be displayed", ex);
         }

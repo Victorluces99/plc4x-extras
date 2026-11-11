@@ -40,7 +40,7 @@ final class ConnectionSection {
     private final JLabel lblPort = new JLabel("Port:");
     private final JLabel lblHostSeparator = new JLabel("/");
     private final JTextField txtHost = new JTextField();
-    private final JTextField txtHostSecundario = new JTextField();
+    private final JTextField txtHostRedundant = new JTextField();
     private final JPanel hostPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
     private final JComboBox<String> cbTransport = new JComboBox<>();
     private final JTextField txtPort = new JTextField();
@@ -58,22 +58,22 @@ final class ConnectionSection {
         limitField(txtPort, 5);
         limitField(txtParamValue, 8);
         limitField(txtHost, 15);
-        limitField(txtHostSecundario, 15);
+        limitField(txtHostRedundant, 15);
         applyIpDocumentFilter(txtHost);
-        applyIpDocumentFilter(txtHostSecundario);
+        applyIpDocumentFilter(txtHostRedundant);
         applyIpRangeVerifier(txtHost);
-        applyIpRangeVerifier(txtHostSecundario);
+        applyIpRangeVerifier(txtHostRedundant);
         hostPanel.setOpaque(false);
         hostPanel.add(txtHost);
         hostPanel.add(lblHostSeparator);
-        hostPanel.add(txtHostSecundario);
+        hostPanel.add(txtHostRedundant);
         updateHostLayout();
     }
 
     void reset() {
         setBuilder(null);
         txtHost.setText("");
-        txtHostSecundario.setText("");
+        txtHostRedundant.setText("");
         lblHost.setText("Host/IP:");
         cbTransport.removeAllItems();
         txtPort.setText("");
@@ -90,13 +90,13 @@ final class ConnectionSection {
     }
 
     String host() {
-        String principal = txtHost.getText().trim();
-        String secundario = txtHostSecundario.getText().trim();
+        String primary = txtHost.getText().trim();
+        String secondary = txtHostRedundant.getText().trim();
         if (activeBuilder != null && activeBuilder.supportsRedundantHost()
-                && !principal.isEmpty() && !secundario.isEmpty()) {
-            return principal + "/" + secundario;
+                && !primary.isEmpty() && !secondary.isEmpty()) {
+            return primary + "/" + secondary;
         }
-        return principal;
+        return primary;
     }
 
     String port() {
@@ -118,7 +118,7 @@ final class ConnectionSection {
 
         txtHost.getDocument().addDocumentListener(
                 new SimpleDocumentListener(this::refreshUrlPreview));
-        txtHostSecundario.getDocument().addDocumentListener(
+        txtHostRedundant.getDocument().addDocumentListener(
                 new SimpleDocumentListener(this::refreshUrlPreview));
 
         cbTransport.addActionListener(e -> onTransportChanged());
@@ -169,30 +169,24 @@ final class ConnectionSection {
                 if (text == null) {
                     return;
                 }
-
-                // 1. Reconstruir el texto resultante de la inserción
                 String currentText = fb.getDocument().getText(0, fb.getDocument().getLength());
                 String cleanText = text.replaceAll("[^0-9.]", "");
                 String futureText = new StringBuilder(currentText)
                         .replace(offset, offset + length, cleanText)
                         .toString();
 
-                // 2. Control general: longitud máx 15 y máximo 3 puntos
                 if (futureText.length() > 15 || futureText.chars().filter(ch -> ch == '.').count() > 3) {
                     return;
                 }
 
-                // 3. Validar que CADA bloque numérico esté entre 0 y 255
                 String[] segments = futureText.split("\\.", -1);
                 for (String segment : segments) {
                     if (!segment.isEmpty()) {
-                        // Impedir bloques de más de 3 dígitos (ej: "1920")
                         if (segment.length() > 3) {
                             return;
                         }
                         try {
-                            int val = Integer.parseInt(segment);
-                            // BLOQUEO INMEDIATO: si el bloque supera 255, cancela la tecla/pegado
+                            int val = Integer.parseInt(segment);                           
                             if (val > 255) {
                                 return;
                             }
@@ -222,8 +216,8 @@ final class ConnectionSection {
                 if (!text.matches(ipRegex)) {
                     JOptionPane.showMessageDialog(
                             field,
-                            "La dirección IP ingresada no es válida.\nDebe tener el formato 0.0.0.0 a 255.255.255.255 (ej. 192.168.1.10).",
-                            "Formato de IP Inválido",
+                            "The IP address you entered is invalid.\\nIt must be in the format 0.0.0.0 to 255.255.255.255 (example: 192.168.1.10).",
+                            "Invalid IP Format",
                             JOptionPane.WARNING_MESSAGE
                     );
                     return false;
@@ -270,8 +264,8 @@ final class ConnectionSection {
         return txtHost;
     }
 
-    JTextField txtHostSecundario() {
-        return txtHostSecundario;
+    JTextField txtHostSecundary() {
+        return txtHostRedundant;
     }
 
     JPanel hostPanel() {
@@ -318,22 +312,20 @@ final class ConnectionSection {
             }
             String value = txtParamValue.getText().trim();
 
-            // 1. Ejecutar la validación con la regla definida en el Builder (SiemensPanelBuilder, etc.)
             org.apache.plc4x.malbec.projecttype.panelcategory.model.ValidationResult result
                     = activeBuilder.validateParameter(key, value);
 
-            // 2. Si es inválido, mostrar mensaje explicativo y CANCELAR la adición
             if (!result.isValid()) {
                 JOptionPane.showMessageDialog(
                         buttons,
                         result.getMessage(),
-                        "Parámetro Inválido",
+                        "Invalid Parameter",
                         JOptionPane.ERROR_MESSAGE
                 );
-                return; // No se añade al builder ni modifica la URL Preview
+                return;
             }
 
-            // 3. Si es válido, se añade al builder y se refresca la vista de la URL
+            
             activeBuilder.addParameter(key, value);
             refreshUrlPreview();
         });
@@ -352,7 +344,7 @@ final class ConnectionSection {
         return buttons;
     }
 
-    void loadBuilderParams(DeviceModel modelo) {
+    void loadBuilderParams(DeviceModel model) {
         cbParameter.removeAllItems();
         txtParamValue.setEnabled(false);
         txtParamValue.setText("");
@@ -360,7 +352,7 @@ final class ConnectionSection {
             refreshUrlPreview();
             return;
         }
-        activeBuilder.initForModel(modelo);
+        activeBuilder.initForModel(model);
 
         cbTransport.removeAllItems();
         cbTransport.setEditable(false);
@@ -374,18 +366,18 @@ final class ConnectionSection {
         onTransportChanged();
     }
 
-    private void selectTransport(String transporte) {
-        if (transporte == null || transporte.isBlank()) {
+    private void selectTransport(String transport) {
+        if (transport == null || transport.isBlank()) {
             return;
         }
         for (int i = 0; i < cbTransport.getItemCount(); i++) {
-            if (transporte.equals(cbTransport.getItemAt(i))) {
+            if (transport.equals(cbTransport.getItemAt(i))) {
                 cbTransport.setSelectedIndex(i);
                 return;
             }
         }
-        cbTransport.addItem(transporte);
-        cbTransport.setSelectedItem(transporte);
+        cbTransport.addItem(transport);
+        cbTransport.setSelectedItem(transport);
     }
 
     void setBuilder(DeviceDynamicPanelBuilder activeBuilder) {
@@ -394,16 +386,16 @@ final class ConnectionSection {
     }
 
     private void updateHostLayout() {
-        boolean redundante = activeBuilder != null && activeBuilder.supportsRedundantHost();
-        lblHostSeparator.setVisible(redundante);
-        txtHostSecundario.setVisible(redundante);
-        if (!redundante && !txtHostSecundario.getText().isEmpty()) {
-            txtHostSecundario.setText("");
+        boolean redundant = activeBuilder != null && activeBuilder.supportsRedundantHost();
+        lblHostSeparator.setVisible(redundant);
+        txtHostRedundant.setVisible(redundant);
+        if (!redundant && !txtHostRedundant.getText().isEmpty()) {
+            txtHostRedundant.setText("");
         }
-        int alto = txtHost.getPreferredSize().height;
-        int ancho = redundante ? 100 : 220;
-        txtHost.setPreferredSize(new Dimension(ancho, alto));
-        txtHostSecundario.setPreferredSize(new Dimension(ancho, alto));
+        int height = txtHost.getPreferredSize().height;
+        int width = redundant ? 100 : 220;
+        txtHost.setPreferredSize(new Dimension(width, height));
+        txtHostRedundant.setPreferredSize(new Dimension(width, height));
         hostPanel.revalidate();
         hostPanel.repaint();
     }
@@ -419,10 +411,10 @@ final class ConnectionSection {
     String transporteActual() {
         if (cbTransport.isEditable()) {
             Component editor = cbTransport.getEditor().getEditorComponent();
-            if (editor instanceof JTextField campo) {
-                String tipeado = campo.getText().trim();
-                if (!tipeado.isEmpty()) {
-                    return tipeado;
+            if (editor instanceof JTextField field) {
+                String typed = field.getText().trim();
+                if (!typed.isEmpty()) {
+                    return typed;
                 }
             }
         }
@@ -490,62 +482,62 @@ final class ConnectionSection {
         txtUrlPreview.setText(activeBuilder.getSpecificParametersAsString());
     }
 
-    void loadConnection(String url, java.awt.Component padre) {
+    void loadConnection(String url, java.awt.Component parent) {
         if (activeBuilder == null || url == null || url.isBlank()) {
             return;
         }
-        UrlDisassembler.Parts partes = UrlDisassembler.disassemble(url);
-        if (partes == null) {
+        UrlDisassembler.Parts parts = UrlDisassembler.disassemble(url);
+        if (parts == null) {
             txtUrlPreview.setText(url.trim());
-            JOptionPane.showMessageDialog(padre,
-                    "No se pudo interpretar la URL de conexión guardada:\n\n" + url.trim()
-                    + "\n\nRevisá host, puerto y parámetros antes de guardar.",
-                    "Conexión a revisar", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(parent,
+                    "The saved connection URL could not be parsed:\n\n" + url.trim()
+                    + "\n\nCheck the host, port, and settings before saving.",
+                    "Connection to be checked", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        selectTransport(partes.transport());
+        selectTransport(parts.transport());
         onTransportChanged();
-        txtPort.setText(partes.port());
-        loadHosts(partes);
+        txtPort.setText(parts.port());
+        loadHosts(parts);
         activeBuilder.clearParameters();
-        partes.params().forEach(activeBuilder::addParameter);
+        parts.params().forEach(activeBuilder::addParameter);
         refreshUrlPreview();
     }
 
-    private void loadHosts(UrlDisassembler.Parts partes) {
-        String hostGuardado = partes.host();
+    private void loadHosts(UrlDisassembler.Parts parts) {
+        String savedHost = parts.host();
         if (activeBuilder == null || !activeBuilder.supportsRedundantHost()) {
-            txtHost.setText(hostGuardado);
-            txtHostSecundario.setText("");
+            txtHost.setText(savedHost);
+            txtHostRedundant.setText("");
             return;
         }
-        int separador = hostGuardado.indexOf('/');
-        if (separador < 0) {
-            txtHost.setText(hostGuardado);
-            txtHostSecundario.setText("");
+        int separator = savedHost.indexOf('/');
+        if (separator < 0) {
+            txtHost.setText(savedHost);
+            txtHostRedundant.setText("");
             return;
         }
-        String principal = hostGuardado.substring(0, separador).trim();
-        String secundario = hostGuardado.substring(separador + 1).trim();
-        if (!partes.port().isBlank()) {
-            principal = quitarPuerto(principal, partes.port());
-            secundario = quitarPuerto(secundario, partes.port());
+        String primary = savedHost.substring(0, separator).trim();
+        String secondary = savedHost.substring(separator + 1).trim();
+        if (!parts.port().isBlank()) {
+            primary = portRemove(primary, parts.port());
+            secondary = portRemove(secondary, parts.port());
         }
-        txtHost.setText(principal);
-        txtHostSecundario.setText(secundario);
+        txtHost.setText(primary);
+        txtHostRedundant.setText(secondary);
     }
 
-    private static String quitarPuerto(String host, String puerto) {
-        String sufijo = ":" + puerto;
-        return host.endsWith(sufijo)
-                ? host.substring(0, host.length() - sufijo.length())
+    private static String portRemove(String host, String port) {
+        String suffix = ":" + port;
+        return host.endsWith(suffix)
+                ? host.substring(0, host.length() - suffix.length())
                 : host;
     }
 
     void clearConnection() {
         txtHost.setText("");
-        txtHostSecundario.setText("");
+        txtHostRedundant.setText("");
         txtPort.setText("");
         if (activeBuilder != null) {
             activeBuilder.clearParameters();
@@ -557,7 +549,7 @@ final class ConnectionSection {
         txtUrlPreview.setText("");
     }
 
-    String urlActual() {
+    String currentUrl() {
         refreshUrlPreview();
         return txtUrlPreview.getText();
     }

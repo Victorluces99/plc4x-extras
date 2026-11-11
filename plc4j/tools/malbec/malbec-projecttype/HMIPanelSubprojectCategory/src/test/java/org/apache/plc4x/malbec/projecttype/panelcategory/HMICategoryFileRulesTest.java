@@ -77,8 +77,8 @@ class HMICategoryFileRulesTest {
 
     @Test
     void categoryWithoutExtensionAcceptsNoFile() {
-        assertFalse(HMICategoryDefinition.IMAGE.acepta("captura.bob", "bob", false));
-        assertFalse(HMICategoryDefinition.COMUNICATION.acepta("communication.xml", "xml", false));
+        assertFalse(HMICategoryDefinition.IMAGE.accept("captura.bob", "bob", false));
+        assertFalse(HMICategoryDefinition.COMUNICATION.accept("communication.xml", "xml", false));
     }
 
     @Test
@@ -87,7 +87,7 @@ class HMICategoryFileRulesTest {
             HMICategoryDefinition definition = entrada.getKey();
             String[] esperado = entrada.getValue();
             String name = "mi-recurso." + esperado[1];
-            assertTrue(definition.acepta(name, esperado[1], false),
+            assertTrue(definition.accept(name, esperado[1], false),
                     definition.name() + " deberia aceptar " + name);
         }
     }
@@ -97,7 +97,7 @@ class HMICategoryFileRulesTest {
         for (Map.Entry<HMICategoryDefinition, String[]> entrada : AT_THE_FACTORY.entrySet()) {
             HMICategoryDefinition definition = entrada.getKey();
             String[] esperado = entrada.getValue();
-            assertFalse(definition.acepta(esperado[2], esperado[1], false),
+            assertFalse(definition.accept(esperado[2], esperado[1], false),
                     definition.name() + " no debe mostrar su fichero base: " + esperado[2]);
         }
     }
@@ -106,7 +106,7 @@ class HMICategoryFileRulesTest {
     void folderIsNeverListedAsFile() {
         for (HMICategoryDefinition definition : AT_THE_FACTORY.keySet()) {
             String extension = definition.getFileExtension();
-            assertFalse(definition.acepta("subcarpeta." + extension, extension, true),
+            assertFalse(definition.accept("subcarpeta." + extension, extension, true),
                     definition.name() + " no debe intentar mostrar un directorio");
         }
     }
@@ -114,7 +114,7 @@ class HMICategoryFileRulesTest {
     @Test
     void otraExtensionNoSeMuestra() {
         for (HMICategoryDefinition definition : AT_THE_FACTORY.keySet()) {
-            assertFalse(definition.acepta("documento.pdf", "pdf", false),
+            assertFalse(definition.accept("documento.pdf", "pdf", false),
                     definition.name() + " solo muestra " + definition.getFileExtension());
         }
     }
@@ -134,14 +134,14 @@ class HMICategoryFileRulesTest {
     void extensionAndHiddenAreComparedIgnoringCase() {
         HMICategoryDefinition receta = HMICategoryDefinition.RECIPE;
 
-        assertTrue(receta.acepta("Receta.RCP", "RCP", false));
-        assertFalse(receta.acepta("TEMPLATE.RCP", "rcp", false),
+        assertTrue(receta.accept("Receta.RCP", "RCP", false));
+        assertFalse(receta.accept("TEMPLATE.RCP", "rcp", false),
                 "el fichero oculto tambien se compara sin distinguir mayusculas");
     }
 
     @Test
     void nullExtensionIsNotAccepted() {
-        assertFalse(HMICategoryDefinition.RECIPE.acepta("recurso.rcp", null, false));
+        assertFalse(HMICategoryDefinition.RECIPE.accept("recurso.rcp", null, false));
     }
 
     @Test

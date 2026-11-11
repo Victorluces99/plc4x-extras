@@ -28,6 +28,7 @@ public final class CategoryNodePositions {
     public static final int TEXTOS_Y_GRAFICOS = 130;
     public static final int USUARIOS_RUNTIME = 140;
     public static final int CONFIGURACION_PANEL = 150;
+    public static final int ICON = 160;
 
     private CategoryNodePositions() {
     }

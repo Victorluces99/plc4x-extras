@@ -48,45 +48,45 @@ public class HMIPanelCompileAction extends AbstractAction {
     }
 
     private void compilePanel(FileObject panel) {
-        File folderOrigen = FileUtil.toFile(panel);
-        if (folderOrigen == null || !folderOrigen.isDirectory()) {
-            StatusDisplayer.getDefault().setStatusText("No se pudo obtener la carpeta del panel.");
+        File folderSource = FileUtil.toFile(panel);
+        if (folderSource == null || !folderSource.isDirectory()) {
+            StatusDisplayer.getDefault().setStatusText("The panel folder could not be obtained.");
             return;
         }
-        File zipDestino = new FileChooserBuilder("ZipOutputKey")
-                .setTitle("Guardar ZIP del panel como...")
-                .setApproveText("Guardar")
-                .setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Archivo ZIP (*.zip)", "zip"))
+        File ziptarget = new FileChooserBuilder("ZipOutputKey")
+                .setTitle("Save ZIP of the panel as...")
+                .setApproveText("Save")
+                .setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("ZIP File (*.zip)", "zip"))
                 .showSaveDialog();
-        if (zipDestino == null) {
+        if (ziptarget == null) {
             return;
         }
-        if (!zipDestino.getName().toLowerCase().endsWith(".zip")) {
-            zipDestino = new File(zipDestino.getAbsolutePath() + ".zip");
+        if (!ziptarget.getName().toLowerCase().endsWith(".zip")) {
+            ziptarget = new File(ziptarget.getAbsolutePath() + ".zip");
         }
-        File destino = zipDestino;
+        File source = ziptarget;
         try {
-            AtomicReference<Exception> fallo = new AtomicReference<>();
-            ProgressRunnable<Void> operacion = handle -> {
+            AtomicReference<Exception> fail = new AtomicReference<>();
+            ProgressRunnable<Void> operation = handle -> {
                 try {
-                    ZipUtils.zipFolder(folderOrigen.toPath(), destino.toPath());
+                    ZipUtils.zipFolder(folderSource.toPath(), source.toPath());
                 } catch (Exception ex) {
-                    fallo.set(ex);
+                    fail.set(ex);
                 }
                 return null;
             };
-            ProgressUtils.showProgressDialogAndRun(operacion, "Comprimiendo el panel...", false);
-            if (fallo.get() != null) {
-                throw fallo.get();
+            ProgressUtils.showProgressDialogAndRun(operation, "Compress the panel...", false);
+            if (fail.get() != null) {
+                throw fail.get();
             }
-            StatusDisplayer.getDefault().setStatusText("Panel comprimido: " + destino.getName());
+            StatusDisplayer.getDefault().setStatusText("Compressed panel: " + source.getName());
             JOptionPane.showMessageDialog(null,
-                    "The panel was exported successfully:\n" + destino.getAbsolutePath(),
+                    "The panel was exported successfully:\n" + source.getAbsolutePath(),
                     "Export panel (ZIP)", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
             Exceptions.printStackTrace(ex);
             DialogDisplayer.getDefault().notify(new NotifyDescriptor.Message(
-                    "No se pudo comprimir el panel: " + ex.getMessage(),
+                    "The panel could not be compressed: " + ex.getMessage(),
                     NotifyDescriptor.ERROR_MESSAGE));
         }
     }

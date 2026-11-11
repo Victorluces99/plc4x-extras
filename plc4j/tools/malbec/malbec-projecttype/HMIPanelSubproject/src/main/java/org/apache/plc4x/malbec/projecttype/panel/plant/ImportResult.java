@@ -24,9 +24,9 @@ public sealed interface ImportResult {
 
     File file();
 
-    record Exito(File file, String areaId) implements ImportResult {
+    record Success(File file, String areaId) implements ImportResult {
     }
 
-    record Fallo(File file, String reason) implements ImportResult {
+    record fail(File file, String reason) implements ImportResult {
     }
 }

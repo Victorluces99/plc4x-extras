@@ -27,51 +27,51 @@ import java.util.Optional;
 import java.util.Set;
 import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
 
-final class DeteccionCategoria {
+final class DeteccionCategory {
 
-    static final List<String> FICHEROS_MARCADOR = List.of(
+    static final List<String> BOOKMARK_FILES = List.of(
             "template.bob", ProjectIds.COMMUNICATION_CONFIG_FILE, "template.oppc",
             "template.record", "template.rcp", "template.rpt", "template.scp",
             "template.wmg", "template.tlc", "template.rtum", "template.icon");
 
-    private DeteccionCategoria() {
+    private DeteccionCategory() {
     }
 
-    static Optional<String> detect(ProjectTree raiz) {
-        if (raiz == null) {
+    static Optional<String> detect(ProjectTree root) {
+        if (root == null) {
             return Optional.empty();
         }
         Set<String> names = new HashSet<>();
-        recorrer(raiz, names);
-        Optional<String> porMarcador = FICHEROS_MARCADOR.stream()
-                .filter(marcador -> names.contains(normalizar(marcador)))
+        iterate(root, names);
+        Optional<String> bymarker = BOOKMARK_FILES.stream()
+                .filter(marker -> names.contains(normalize(marker)))
                 .findFirst();
-        if (porMarcador.isPresent()) {
-            return porMarcador;
+        if (bymarker.isPresent()) {
+            return bymarker;
         }
-        return HMICategoryDefinition.byFolderName(raiz.name())
+        return HMICategoryDefinition.byFolderName(root.name())
                 .map(HMICategoryDefinition::detectionKey)
-                .filter(clave -> clave != null);
+                .filter(key -> key != null);
     }
 
-    private static void recorrer(ProjectTree raiz, Set<String> names) {
-        Deque<ProjectTree> pendientes = new ArrayDeque<>();
-        pendientes.push(raiz);
-        while (!pendientes.isEmpty()) {
-            ProjectTree actual = pendientes.pop();
-            if (actual.isFolder()) {
-                for (ProjectTree hijo : actual.children()) {
-                    if (hijo != null) {
-                        pendientes.push(hijo);
+    private static void iterate(ProjectTree root, Set<String> names) {
+        Deque<ProjectTree> pendings = new ArrayDeque<>();
+        pendings.push(root);
+        while (!pendings.isEmpty()) {
+            ProjectTree current = pendings.pop();
+            if (current.isFolder()) {
+                for (ProjectTree child : current.children()) {
+                    if (child != null) {
+                        pendings.push(child);
                     }
                 }
             } else {
-                names.add(normalizar(actual.name()));
+                names.add(normalize(current.name()));
             }
         }
     }
 
-    private static String normalizar(String name) {
+    private static String normalize(String name) {
         return name == null ? "" : name.toLowerCase(Locale.ROOT);
     }
 }

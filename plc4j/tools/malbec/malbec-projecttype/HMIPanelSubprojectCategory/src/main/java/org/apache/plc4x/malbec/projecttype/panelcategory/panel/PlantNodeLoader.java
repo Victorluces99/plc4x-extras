@@ -63,7 +63,7 @@ final class PlantNodeLoader {
                 areas.put(id, element.getAttribute("uuid"));
             }
         } catch (Exception ex) {
-            LOGGER.log(Level.WARNING, "No se pudo leer " + plantModel, ex);
+            LOGGER.log(Level.WARNING, "It was unreadable " + plantModel, ex);
             return null;
         }
         return areas;

@@ -131,14 +131,14 @@ class CreateDevicePanelTest {
         panel.getCbModel().setSelectedIndex(0);
         panel.getTxtHost().setText("192.168.0.10");
         panel.getTxtPort().setText("102");
-        String urlSiemens = panel.urlActual();
+        String urlSiemens = panel.currentUrl();
         assertTrue(urlSiemens.startsWith("s7:"), "Siemens compone s7, no: " + urlSiemens);
 
         panel.getCbMarca().setSelectedIndex(2);          // Allen Bradley
         panel.getCbModel().setSelectedIndex(0);
         panel.getTxtHost().setText("192.168.0.20");
         panel.getTxtPort().setText("44818");
-        String urlAb = panel.urlActual();
+        String urlAb = panel.currentUrl();
         assertTrue(urlAb.startsWith("eip:"), "Allen Bradley compone eip, no: " + urlAb);
         assertNotEquals(urlSiemens, urlAb,
                 "T3.4: cambiar de marca tiene que cambiar el builder y la URL");
@@ -147,8 +147,8 @@ class CreateDevicePanelTest {
         panel.getCbModel().setSelectedIndex(0);
         panel.getTxtHost().setText("192.168.0.30");
         panel.getTxtPort().setText("502");
-        assertTrue(panel.urlActual().startsWith("modbus-tcp:"),
-                "Modbus compone segun su variante, no: " + panel.urlActual());
+        assertTrue(panel.currentUrl().startsWith("modbus-tcp:"),
+                "Modbus compone segun su variante, no: " + panel.currentUrl());
     }
 
     @Test
@@ -159,16 +159,16 @@ class CreateDevicePanelTest {
         panel.getCbModel().setSelectedIndex(0);
         panel.getTxtHost().setText("192.168.0.10");
         panel.getTxtPort().setText("102");
-        assertTrue(panel.urlActual().contains("192.168.0.10"), "precondición");
+        assertTrue(panel.currentUrl().contains("192.168.0.10"), "precondición");
 
         panel.getCbMarca().setSelectedIndex(3);          // Modbus
         panel.getCbModel().setSelectedIndex(0);
 
-        assertFalse(panel.urlActual().contains("192.168.0.10"),
+        assertFalse(panel.currentUrl().contains("192.168.0.10"),
                 "la dirección del modelo anterior no puede sobrevivir al cambio: "
-                        + panel.urlActual());
-        assertTrue(panel.urlActual().startsWith("modbus-tcp:"),
-                "y el protocolo nuevo sí debe estar: " + panel.urlActual());
+                        + panel.currentUrl());
+        assertTrue(panel.currentUrl().startsWith("modbus-tcp:"),
+                "y el protocolo nuevo sí debe estar: " + panel.currentUrl());
     }
 
     private static void assertNotEquals(String a, String b, String mensaje) {
@@ -225,7 +225,7 @@ class CreateDevicePanelTest {
                 "s7-1500", "s7:cotp://192.168.0.10:102?cotp.remote-slot=3&pdu-size=512"));
         assertEquals("192.168.0.10", panel.getTxtHost().getText());
         assertEquals("102", panel.getTxtPort().getText());
-        String url = panel.urlActual();
+        String url = panel.currentUrl();
         assertTrue(url.contains("cotp.remote-slot=3"),
                 "los parámetros guardados no llegaron al builder: " + url);
         assertTrue(url.contains("pdu-size=512"),
@@ -239,9 +239,9 @@ class CreateDevicePanelTest {
                 deviceToEdit("uuid-1", "s7-400", url));
 
         assertEquals("10.10.1.80", panel.getTxtHost().getText());
-        assertEquals("10.10.1.81", panel.getTxtHostSecundario().getText());
+        assertEquals("10.10.1.81", panel.getTxtHostSecundary().getText());
         assertEquals("102", panel.getTxtPort().getText());
-        assertEquals(url, panel.urlActual());
+        assertEquals(url, panel.currentUrl());
     }
 
     @Test
@@ -250,12 +250,12 @@ class CreateDevicePanelTest {
         panel.registrarNodoS88("MD70", "uuid-md70");
         panel.getCbS88Node().setSelectedItem("MD70");
 
-        assertEquals("s7:cotp://192.168.0.10:102", panel.urlActual());
+        assertEquals("s7:cotp://192.168.0.10:102", panel.currentUrl());
 
-        panel.getTxtHostSecundario().setText("192.168.0.11");
+        panel.getTxtHostSecundary().setText("192.168.0.11");
 
         assertEquals("s7:cotp://192.168.0.10:102/192.168.0.11:102",
-                panel.urlActual());
+                panel.currentUrl());
     }
 
     @Test
@@ -353,8 +353,8 @@ class CreateDevicePanelTest {
         String url = "s7:cotp://192.168.0.10:102?cotp.remote-slot=3";
         CreateDevicePanel panel = new CreateDevicePanel(null,
                 deviceToEdit("uuid-1", "s7-1500", url));
-        assertTrue(panel.urlActual().startsWith("s7:cotp://"),
-                "el transporte guardado no se restauró: " + panel.urlActual());
+        assertTrue(panel.currentUrl().startsWith("s7:cotp://"),
+                "el transporte guardado no se restauró: " + panel.currentUrl());
     }
 
     @Test
@@ -372,9 +372,9 @@ class CreateDevicePanelTest {
         CreateDevicePanel panel = new CreateDevicePanel(null,
                 deviceToEdit("uuid-1", "s7-1500", "s7:iso-on-tcp://10.0.0.1:102"));
 
-        assertTrue(panel.urlActual().contains("iso-on-tcp"),
+        assertTrue(panel.currentUrl().contains("iso-on-tcp"),
                 "si el transporte no estaba en la lista hay que conservarlo igualmente: "
-                        + panel.urlActual());
+                        + panel.currentUrl());
     }
 
     @Test
@@ -386,7 +386,7 @@ class CreateDevicePanelTest {
 
         assertTrue(panel.getTxtHost().getText().isEmpty(),
                 "cambiar de modelo no debe arrastrar el host anterior");
-        String url = panel.urlActual();
+        String url = panel.currentUrl();
         assertFalse(url.contains("cotp.remote-slot=3"),
                 "los parámetros de otro modelo no aplican: " + url);
     }

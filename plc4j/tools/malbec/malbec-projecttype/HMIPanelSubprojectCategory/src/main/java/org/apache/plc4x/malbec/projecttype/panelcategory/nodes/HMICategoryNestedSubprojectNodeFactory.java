@@ -37,16 +37,13 @@ import org.openide.filesystems.FileChangeListener;
 import org.openide.filesystems.FileEvent;
 import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileRenameEvent;
-import org.openide.loaders.DataNode;
 import org.openide.loaders.DataObject;
 import org.openide.nodes.Children;
 import org.openide.nodes.Node;
 import org.openide.util.Exceptions;
 
 @NodeFactory.Registration(projectType = ProjectIds.CATEGORY_PROJECT_TYPE, position = 200)
-public class HMICategoryNestedSubprojectNodeFactory implements NodeFactory {
-
-    
+public class HMICategoryNestedSubprojectNodeFactory implements NodeFactory { 
 
     @Override
     public NodeList<?> createNodes(Project project) {
@@ -159,18 +156,14 @@ public class HMICategoryNestedSubprojectNodeFactory implements NodeFactory {
             //TODO
         }
 
-        private static class HMINestedNode extends DataNode {
+        private static class HMINestedNode extends AbstractFileNode {
 
             private final FileObject fileObject;
 
             public HMINestedNode(DataObject dataObject, FileObject fileObject) {
-                super(dataObject, Children.LEAF);
+                super(dataObject, fileObject, Children.LEAF);
                 this.fileObject = fileObject;
-
-                String iconBase = CategoryIcons.DEFAULT;
-                if (iconBase != null && !iconBase.isEmpty()) {
-                    setIconBaseWithExtension(iconBase);
-                }
+                setOwnIconBase(CategoryIcons.DEFAULT);
             }
 
             @Override

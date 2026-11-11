@@ -34,7 +34,6 @@ import org.openide.filesystems.FileChangeListener;
 import org.openide.filesystems.FileEvent;
 import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileRenameEvent;
-import org.openide.loaders.DataNode;
 import org.openide.loaders.DataObject;
 import org.openide.loaders.DataObjectNotFoundException;
 import org.openide.nodes.Children;
@@ -124,16 +123,16 @@ public abstract class CategoryFilesNodeFactory implements NodeFactory {
         private synchronized void refreshKeys() {
             keys.clear();
             for (FileObject child : folder.getChildren()) {
-                if (definition.acepta(child.getNameExt(), child.getExt(), child.isFolder())) {
+                if (definition.accept(child.getNameExt(), child.getExt(), child.isFolder())) {
                     keys.add(child);
                 }
             }
             fireChange();
         }
 
-        private boolean isOfThisCategory(FileEvent evento) {
-            String extension = definition.getFileExtension();
-            return extension != null && extension.equalsIgnoreCase(evento.getFile().getExt());
+        private boolean isOfThisCategory(FileEvent event) {
+            String ext = definition.getFileExtension();
+            return ext != null && ext.equalsIgnoreCase(event.getFile().getExt());
         }
 
         @Override
@@ -171,21 +170,17 @@ public abstract class CategoryFilesNodeFactory implements NodeFactory {
         }
     }
 
-    private static final class CategoryFileNode extends DataNode {
+    private static final class CategoryFileNode extends AbstractFileNode {
 
         private final FileObject fileObject;
         private final Function<FileObject, Action[]> ownActions;
 
         CategoryFileNode(DataObject dataObject, FileObject fileObject,
                 HMICategoryDefinition definition, Function<FileObject, Action[]> ownActions) {
-            super(dataObject, Children.LEAF);
+            super(dataObject, fileObject, Children.LEAF);
             this.fileObject = fileObject;
             this.ownActions = ownActions;
-
-            String iconBase = definition.getIconPath();
-            if (iconBase != null && !iconBase.isEmpty()) {
-                setIconBaseWithExtension(iconBase);
-            }
+            setOwnIconBase(definition.getIconPath());
         }
 
         @Override

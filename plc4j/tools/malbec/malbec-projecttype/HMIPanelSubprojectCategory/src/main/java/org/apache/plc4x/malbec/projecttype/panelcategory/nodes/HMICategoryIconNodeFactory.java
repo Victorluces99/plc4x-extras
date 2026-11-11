@@ -1,0 +1,277 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.plc4x.malbec.projecttype.panelcategory.nodes;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import javax.swing.Action;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import org.apache.plc4x.malbec.projecttype.panelcategory.HMICategoryDefinition;
+import org.apache.plc4x.malbec.projecttype.panelcategory.ProjectIds;
+import org.apache.plc4x.malbec.projecttype.panelcategory.action.ExportFileAction;
+import org.netbeans.api.project.Project;
+import org.netbeans.spi.project.ui.support.NodeFactory;
+import org.netbeans.spi.project.ui.support.NodeFactorySupport;
+import org.netbeans.spi.project.ui.support.NodeList;
+import org.openide.filesystems.FileAttributeEvent;
+import org.openide.filesystems.FileChangeListener;
+import org.openide.filesystems.FileEvent;
+import org.openide.filesystems.FileObject;
+import org.openide.filesystems.FileRenameEvent;
+import org.openide.loaders.DataObject;
+import org.openide.loaders.DataObjectNotFoundException;
+import org.openide.nodes.Children;
+import org.openide.nodes.Node;
+import org.openide.util.Exceptions;
+
+@NodeFactory.Registration(projectType = ProjectIds.CATEGORY_PROJECT_TYPE,
+        position = CategoryNodePositions.ICON)
+public class HMICategoryIconNodeFactory implements NodeFactory {
+
+    private static final String ICON_MARKER = HMICategoryDefinition.ICON.getHiddenFile();
+
+    @Override
+    public NodeList<?> createNodes(Project project) {
+        FileObject projectDir = project.getProjectDirectory();
+        if (!HMICategoryDefinition.ICON.matchesFolder(projectDir.getName())) {
+            return NodeFactorySupport.fixedNodeList();
+        }
+        return new IconContentsNodeList(projectDir);
+    }
+
+    private static final class IconContentsNodeList
+            implements NodeList<FileObject>, FileChangeListener {
+
+        private final FileObject folder;
+        private final List<ChangeListener> listeners = new ArrayList<>();
+        private final List<FileObject> keys = new ArrayList<>();
+
+        IconContentsNodeList(FileObject folder) {
+            this.folder = folder;
+            refreshKeys();
+        }
+
+        @Override
+        public synchronized List<FileObject> keys() {
+            return List.copyOf(keys);
+        }
+
+        @Override
+        public Node node(FileObject key) {
+            try {
+                if (key.isFolder()) {
+                    return new IconFolderNode(key);
+                }
+                return new IconFileNode(DataObject.find(key), key);
+            } catch (DataObjectNotFoundException ex) {
+                Exceptions.printStackTrace(ex);
+                return null;
+            }
+        }
+
+        @Override
+        public void addChangeListener(ChangeListener cl) {
+            listeners.add(cl);
+        }
+
+        @Override
+        public void removeChangeListener(ChangeListener cl) {
+            listeners.remove(cl);
+        }
+
+        private void fireChange() {
+            ChangeEvent event = new ChangeEvent(this);
+            for (ChangeListener listener : new ArrayList<>(listeners)) {
+                listener.stateChanged(event);
+            }
+        }
+
+        @Override
+        public void addNotify() {
+            folder.addRecursiveListener(this);
+            refreshKeys();
+        }
+
+        @Override
+        public void removeNotify() {
+            folder.removeRecursiveListener(this);
+        }
+
+        private synchronized void refreshKeys() {
+            FileObject[] children = folder.getChildren();
+            Arrays.sort(children, Comparator.comparing(FileObject::getName));
+
+            keys.clear();
+            for (FileObject child : children) {
+                if (isInternal(child) || isBobFile(child) || isNestedCategory(child)) {
+                    continue;
+                }
+                keys.add(child);
+            }
+            fireChange();
+        }
+
+        private static boolean isInternal(FileObject child) {
+            String name = child.getNameExt();
+            return ProjectIds.CATEGORY_MARKER_FILE.equalsIgnoreCase(name)
+                    || ICON_MARKER.equalsIgnoreCase(name);
+        }
+
+        private static boolean isBobFile(FileObject child) {
+            return !child.isFolder() && "bob".equalsIgnoreCase(child.getExt());
+        }
+
+        private static boolean isNestedCategory(FileObject child) {
+            return child.isFolder()
+                    && child.getFileObject(ProjectIds.CATEGORY_MARKER_FILE) != null;
+        }
+
+        @Override
+        public void fileFolderCreated(FileEvent fe) {
+            refreshKeys();
+        }
+
+        @Override
+        public void fileDataCreated(FileEvent fe) {
+            refreshKeys();
+        }
+
+        @Override
+        public void fileDeleted(FileEvent fe) {
+            refreshKeys();
+        }
+
+        @Override
+        public void fileRenamed(FileRenameEvent fre) {
+            refreshKeys();
+        }
+
+        @Override
+        public void fileChanged(FileEvent fe) {
+        }
+
+        @Override
+        public void fileAttributeChanged(FileAttributeEvent fae) {
+        }
+    }
+
+    private static final class IconFileNode extends AbstractFileNode {
+
+        private final FileObject fileObject;
+
+        IconFileNode(DataObject dataObject, FileObject fileObject) {
+            super(dataObject, fileObject, Children.LEAF);
+            this.fileObject = fileObject;
+        }
+
+        @Override
+        public Action[] getActions(boolean context) {
+            Action[] defaultActions = super.getActions(context);
+
+            List<Action> allActions = new ArrayList<>();
+
+            for (Action action : defaultActions) {
+                allActions.add(action);
+            }
+            allActions.add(null);
+            allActions.add(new ExportFileAction(fileObject));
+
+            return allActions.toArray(new Action[0]);
+        }
+    }
+
+    private static final class IconFolderNode extends AbstractFileNode {
+
+        IconFolderNode(FileObject folder) throws DataObjectNotFoundException {
+            super(DataObject.find(folder), folder, new IconFolderChildren(folder));
+        }
+    }
+
+    private static final class IconFolderChildren extends Children.Keys<FileObject>
+            implements FileChangeListener {
+
+        private final FileObject folder;
+
+        IconFolderChildren(FileObject folder) {
+            this.folder = folder;
+        }
+
+        @Override
+        protected void addNotify() {
+            folder.addFileChangeListener(this);
+            refreshKeys();
+        }
+
+        @Override
+        protected void removeNotify() {
+            folder.removeFileChangeListener(this);
+            setKeys(List.of());
+        }
+
+        private void refreshKeys() {
+            FileObject[] children = folder.getChildren();
+            Arrays.sort(children, Comparator.comparing(FileObject::getName));
+            setKeys(Arrays.asList(children));
+        }
+
+        @Override
+        protected Node[] createNodes(FileObject key) {
+            try {
+                if (key.isFolder()) {
+                    return new Node[]{new IconFolderNode(key)};
+                }
+                return new Node[]{new IconFileNode(DataObject.find(key), key)};
+            } catch (DataObjectNotFoundException ex) {
+                Exceptions.printStackTrace(ex);
+                return new Node[0];
+            }
+        }
+
+        @Override
+        public void fileFolderCreated(FileEvent fe) {
+            refreshKeys();
+        }
+
+        @Override
+        public void fileDataCreated(FileEvent fe) {
+            refreshKeys();
+        }
+
+        @Override
+        public void fileDeleted(FileEvent fe) {
+            refreshKeys();
+        }
+
+        @Override
+        public void fileRenamed(FileRenameEvent fre) {
+            refreshKeys();
+        }
+
+        @Override
+        public void fileChanged(FileEvent fe) {
+        }
+
+        @Override
+        public void fileAttributeChanged(FileAttributeEvent fae) {
+        }
+    }
+}

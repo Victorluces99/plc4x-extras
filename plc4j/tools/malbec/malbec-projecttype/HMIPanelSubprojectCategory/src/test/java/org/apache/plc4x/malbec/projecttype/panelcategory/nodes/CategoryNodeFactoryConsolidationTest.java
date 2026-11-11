@@ -216,6 +216,7 @@ class CategoryNodeFactoryConsolidationTest {
     void factoriesReturnACopyNotTheLiveList() {
         for (Class<?> factory : List.of(CategoryFilesNodeFactory.class,
                 HMICategoryDisplayNodeFactory.class,
+                HMICategoryIconNodeFactory.class,
                 HMICategoryNestedSubprojectNodeFactory.class,
                 HMIPanelCategorySubprojectNodeFactory.class)) {
 

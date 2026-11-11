@@ -25,15 +25,14 @@ import java.io.IOException;
 import java.util.Locale;
 import java.util.Set;
 import javax.swing.AbstractAction;
-import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.netbeans.api.project.Project;
 import org.openide.DialogDisplayer;
 import org.openide.NotifyDescriptor;
+import org.openide.filesystems.FileChooserBuilder;
 import org.openide.filesystems.FileObject;
 import org.openide.filesystems.FileUtil;
 import org.openide.util.Exceptions;
-import org.openide.windows.WindowManager;
 
 
 public class ImportIcon extends AbstractAction{
@@ -54,20 +53,17 @@ public class ImportIcon extends AbstractAction{
     }
     
     private void importIcon(){
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Select Icon");
-        chooser.setCurrentDirectory(new File(System.getProperty("user.home", ".")));
-        chooser.setFileFilter(new FileNameExtensionFilter(
-                "Icon image files (PNG, JPG, SVG, BMP, ICO)", ICON_EXTENSIONS));
-        chooser.setAcceptAllFileFilterUsed(false);
-        if (chooser.showOpenDialog(WindowManager.getDefault().getMainWindow())
-                != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
+        File selectedFile = new FileChooserBuilder("ImportIconKey")
+                .setTitle("Select Icon")
+                .setApproveText("Import")
+                .setFileFilter(new FileNameExtensionFilter(
+                        "Icon image files (PNG, JPG, SVG, BMP, ICO)", ICON_EXTENSIONS))
+                .setAcceptAllFileFilterUsed(false)
+                .setFilesOnly(true)
+                .setDefaultWorkingDirectory(new File(System.getProperty("user.home", ".")))
+                .showOpenDialog();
 
-        File selectedFile = chooser.getSelectedFile();
         if (selectedFile == null) {
-            showError("Please select a file in one of the following formats: png, jpg, svg, BMP, ICO");
             return;
         }
         String extension = FileUtil.getExtension(selectedFile.getName()).toLowerCase(Locale.ROOT);

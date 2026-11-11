@@ -33,9 +33,9 @@ final class PhoebusLauncher {
     private static final Logger LOGGER = Logger.getLogger(PhoebusLauncher.class.getName());
 
     static final String MEMENTO = "memento";
-    static final String RESPALDO = "memento.malbec.bak";
+    static final String BACKUP = "memento.malbec.bak";
 
-    private static final String PLANTILLA =
+    private static final String TEMPLATE =
             "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
             + "<memento default_application=\"Display Editor\" last_opened_file=\"\""
             + " show_menu=\"false\" show_statusbar=\"false\" show_tabs=\"false\""
@@ -52,76 +52,76 @@ final class PhoebusLauncher {
     private PhoebusLauncher() {
     }
 
-    static Path rutaMemento() {
-        return rutaMemento(Paths.get(System.getProperty("user.home", ".")));
+    static Path mementoPath() {
+        return mementoPath(Paths.get(System.getProperty("user.home", ".")));
     }
 
-    static Path rutaMemento(Path home) {
+    static Path mementoPath(Path home) {
         return home.resolve(".phoebus").resolve(MEMENTO);
     }
 
     static Path backupPath(Path home) {
-        return home.resolve(".phoebus").resolve(RESPALDO);
+        return home.resolve(".phoebus").resolve(BACKUP);
     }
 
-    static ProcessBuilder command(String rutaPhoebus) {
-        ProcessBuilder pb = new ProcessBuilder(rutaPhoebus, "-nosplash", "-edit", "");
+    static ProcessBuilder command(String phoebusPath) {
+        ProcessBuilder pb = new ProcessBuilder(phoebusPath, "-nosplash", "-edit", "");
         pb.redirectErrorStream(true);
         pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
         return pb;
     }
 
-    static String contentFor(Path bob, String usuario) {
-        return PLANTILLA
+    static String contentFor(Path bob, String user) {
+        return TEMPLATE
                 .replace("%ID%", "DockItem_"
                         + UUID.randomUUID().toString().replace("-", "_"))
-                .replace("%USER%", escapar(usuario))
-                .replace("%URI%", escapar(bob.toUri().toString()));
+                .replace("%USER%", escape(user))
+                .replace("%URI%", escape(bob.toUri().toString()));
     }
 
-    static void writeMemento(Path memento, Path respaldo, String content) throws IOException {
+    static void writeMemento(Path memento, Path backup, String content) throws IOException {
         Files.createDirectories(memento.getParent());
         if (Files.exists(memento)) {
-            if (!Files.exists(respaldo)) {
-                Files.copy(memento, respaldo);
+            if (!Files.exists(backup)) {
+                Files.copy(memento, backup);
             }
         } else {
-            Files.deleteIfExists(respaldo);
+            Files.deleteIfExists(backup);
         }
         Files.write(memento, content.getBytes(StandardCharsets.UTF_8));
     }
 
-    static void restoreIfStillOurs(Path memento, Path respaldo, String escrito) {
+    static void restoreIfStillOurs(Path memento, Path backup, String write) {
         try {
-            if (!Files.exists(respaldo)) {
+            if (!Files.exists(backup)) {
                 return;
             }
-            String actual = Files.readString(memento, StandardCharsets.UTF_8);
-            if (!actual.equals(escrito)) {
+            String current = Files.readString(memento, StandardCharsets.UTF_8);
+            if (!current.equals(write)) {
                 return;
             }
-            Files.copy(respaldo, memento, StandardCopyOption.REPLACE_EXISTING);
-            Files.deleteIfExists(respaldo);
+            Files.copy(backup, memento, StandardCopyOption.REPLACE_EXISTING);
+            Files.deleteIfExists(backup);
         } catch (IOException ex) {
-            LOGGER.log(Level.WARNING, "No se pudo restaurar el memento de Phoebus", ex);
+            LOGGER.log(Level.WARNING, "The Phoebus memento could not be restored", ex);
         }
     }
 
-    static void waitAndRestore(Process proceso, Path memento, Path respaldo, String escrito) {
-        Thread hilo = new Thread(() -> {
+    static void waitAndRestore(Process process, Path memento, Path backup, String write) {
+        Thread thread = new Thread(() -> {
             try {
-                proceso.waitFor();
+                process.waitFor();
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
                 return;
             }
-            restoreIfStillOurs(memento, respaldo, escrito);
-        }, "malbec-restaura-memento");
-        hilo.setDaemon(true);
-        hilo.start();
+            restoreIfStillOurs(memento, backup, write);
+        }, "malbec-restore-memento");
+        thread.setDaemon(true);
+        thread.start();
     }
 
-    private static String escapar(String s) {
+    private static String escape(String s) {
         if (s == null) {
             return "";
         }

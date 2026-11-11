@@ -22,6 +22,8 @@ public enum HMICategoryDefinition {
 
     IMAGE("image", "Image", null, null,
             CategoryIcons.DEFAULT),
+    ICON("icon", "Icon", null, "template.icon",
+            CategoryIcons.DEFAULT),
     COMUNICATION("communication", "Communication", null, null,
             CategoryIcons.COMMUNICATION),
     NOTICE_MANAGEMENT("warning-management", "Warning Management", "wmg", "template.wmg",
@@ -76,8 +78,8 @@ public enum HMICategoryDefinition {
         return iconPath;
     }
 
-    public boolean matchesFolder(String nombreCarpeta) {
-        return nombreCarpeta != null && displayName.equalsIgnoreCase(nombreCarpeta.trim());
+    public boolean matchesFolder(String folderName) {
+        return folderName != null && displayName.equalsIgnoreCase(folderName.trim());
     }
 
     public String detectionKey() {
@@ -85,22 +87,22 @@ public enum HMICategoryDefinition {
     }
 
     public static java.util.Optional<HMICategoryDefinition> byFolderName(
-            String nombreCarpeta) {
+            String folderName) {
         for (HMICategoryDefinition category : values()) {
-            if (category.matchesFolder(nombreCarpeta)) {
+            if (category.matchesFolder(folderName)) {
                 return java.util.Optional.of(category);
             }
         }
         return java.util.Optional.empty();
     }
 
-    public boolean acepta(String nombreExt, String extension, boolean esCarpeta) {
-        if (esCarpeta || fileExtension == null || extension == null) {
+    public boolean accept(String extName, String extension, boolean isfolder) {
+        if (isfolder || fileExtension == null || extension == null) {
             return false;
         }
         if (!fileExtension.equalsIgnoreCase(extension)) {
             return false;
         }
-        return hiddenFile == null || !hiddenFile.equalsIgnoreCase(nombreExt);
+        return hiddenFile == null || !hiddenFile.equalsIgnoreCase(extName);
     }
 }

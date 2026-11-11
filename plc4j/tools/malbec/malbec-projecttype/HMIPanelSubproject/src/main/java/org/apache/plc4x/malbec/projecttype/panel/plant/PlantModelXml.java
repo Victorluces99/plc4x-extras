@@ -85,13 +85,11 @@ public final class PlantModelXml {
     private static Document loadOrCreateDocument(File target) throws IOException {
         if (target.exists()) {
             try {
-                // SinXmlSafe, una DOCTYPE con entidades externas permitiria leer ficheros
-                // locales o hacer peticiones salientes desde un plant-model.xml manipulado.
                 return builder().parse(target);
             } catch (SAXException | ParserConfigurationException ex) {
-                throw new IOException(FILE_NAME + " ya existe pero no se puede leer, "
-                        + "por lo que la importación se canceló para no perder su contenido. "
-                        + "Revisá el archivo y, si ya no sirve, borralo a mano.", ex);
+                throw new IOException(FILE_NAME + " It already exists, but it can't be read, "
+                        + "so the import was canceled to prevent the loss of its content. "
+                        + "Check the file, and if it's no longer needed, delete it manually.", ex);
             }
         }
         try {
@@ -103,7 +101,6 @@ public final class PlantModelXml {
         }
     }
 
-    /** Quita el area con ese id, para que la reimportacion la sustituya en vez de duplicarla. */
     private static void removePlant(Document doc, String id) {
         Element root = doc.getDocumentElement();
         if (root == null) {
@@ -151,29 +148,29 @@ public final class PlantModelXml {
     }
 
     private static void writeSnapshotDocument(File target, Document doc) throws IOException {
-        Path temporal = Files.createTempFile(target.toPath().getParent(), FILE_NAME, ".tmp");
+        Path temp = Files.createTempFile(target.toPath().getParent(), FILE_NAME, ".tmp");
         try {
             TransformerFactory factory = TransformerFactory.newInstance();
             Transformer transformer = factory.newTransformer();
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
             transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
             transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
-            transformer.transform(new DOMSource(doc), new StreamResult(temporal.toFile()));
-            verificarLegible(temporal.toFile());
-            Files.move(temporal, target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            transformer.transform(new DOMSource(doc), new StreamResult(temp.toFile()));
+            checkLegible(temp.toFile());
+            Files.move(temp, target.toPath(), StandardCopyOption.REPLACE_EXISTING);
         } catch (TransformerException ex) {
             throw new IOException(ex);
         } finally {
-            Files.deleteIfExists(temporal);
+            Files.deleteIfExists(temp);
         }
     }
 
-    private static void verificarLegible(File file) throws IOException {
+    private static void checkLegible(File file) throws IOException {
         try {
             builder().parse(file);
         } catch (SAXException | ParserConfigurationException ex) {
-            throw new IOException("El " + FILE_NAME + " generado no se pudo leer, "
-                    + "por lo que no se reemplazó el archivo existente.", ex);
+            throw new IOException("The " + FILE_NAME + " generated data could not be read,"
+                    + " so the existing file was not replaced.", ex);
         }
     }
 
